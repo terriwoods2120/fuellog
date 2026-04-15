@@ -2355,68 +2355,58 @@ function renderUserList(){
       <div class="li-main">
         <div class="li-name">${u.name}</div>
         <div class="li-det" style="color:${rCol(u.role)}">${rLbl(u.role)}</div>
-        <div class="li-by">PIN: ${'●'.repeat(u.pin.length)}</div>
+        <div class="li-by">PIN: ${'●'.repeat(u.pin?.length||4)}</div>
       </div>
-      ${isOwner()&&u.id!==sess?.userId?`<button class="li-btn del" onclick="delUser('${u.id}')">🗑</button>`:''}
+      <div class="li-actions">
+        ${isOwner()?`<button class="li-btn" onclick="editUser('${u.id}')">✏️</button>`:''}
+        ${isOwner()&&u.id!==sess?.userId?`<button class="li-btn del" onclick="delUser('${u.id}')">🗑</button>`:''}
+      </div>
     </div>`).join('');
 }
 
-// ════════════════════════════════════
-// EDIT MODAL
-// ════════════════════════════════════
-
-
-// ════════════════════════════════════
-// USERS
-// ════════════════════════════════════
-function selUR(r){
-  umR=r;
-  ['owner','admin','sup','sitesup','driver'].forEach(x=>{
-    const el=document.getElementById('umr-'+x);
-    if(el)el.classList.remove('on');
-  });
-  const map={owner:'owner',admin:'admin',supervisor:'sup',sitesup:'sitesup',driver:'driver'};
-  const el=document.getElementById('umr-'+(map[r]||'sup'));
-  if(el)el.classList.add('on');
+function editUser(id){
+  if(!isOwner()){alert('Only Owner can edit users');return;}
+  const u=gU(id);if(!u)return;
+  const body=document.getElementById('edit-modal-body');
+  document.getElementById('edit-modal-title').textContent='EDIT USER — '+u.name;
+  body.innerHTML=`
+    <div class="f-field"><label class="f-lbl">Full Name</label>
+      <input class="f-inp" id="eu-name" value="${u.name}" type="text"></div>
+    <div class="f-field"><label class="f-lbl">Role</label>
+      <select class="f-sel" id="eu-role">
+        <option value="owner" ${u.role==='owner'?'selected':''}>👑 Owner</option>
+        <option value="supervisor" ${u.role==='supervisor'?'selected':''}>🔧 Manager</option>
+        <option value="sitesup" ${u.role==='sitesup'?'selected':''}>👷 Site Supervisor</option>
+        <option value="admin" ${u.role==='admin'?'selected':''}>🛡 Admin</option>
+      </select></div>
+    <div class="f-field"><label class="f-lbl">New PIN (leave blank to keep current)</label>
+      <input class="f-inp" id="eu-pin" placeholder="New 4-digit PIN or leave blank"
+        type="password" inputmode="numeric" maxlength="4"></div>
+    <div style="background:rgba(255,179,0,.07);border:1px solid var(--amber);border-radius:8px;
+      padding:10px 12px;font-size:11px;color:var(--muted);font-weight:600;margin-top:4px">
+      Leave PIN blank to keep existing PIN unchanged.
+    </div>`;
+  document.getElementById('edit-modal').dataset.editType='user';
+  document.getElementById('edit-modal').dataset.userId=id;
+  document.getElementById('edit-modal').classList.add('show');
 }
-function saveUser(){
-  if(!isOwner()){alert('Only Owner can add users');return;}
-  const name=document.getElementById('um-name').value.trim();
-  const pin=document.getElementById('um-pin').value.trim();
+
+function saveUserEdit(){
+  const modal=document.getElementById('edit-modal');
+  const id=modal.dataset.userId;
+  const idx=users.findIndex(u=>u.id===id);if(idx===-1)return;
+  const name=document.getElementById('eu-name').value.trim();
   if(!name){alert('Enter name');return;}
-  if(pin.length!==4||isNaN(Number(pin))){alert('PIN must be 4 digits');return;}
-  if(users.find(u=>u.name.toLowerCase()===name.toLowerCase())){alert('Name already exists');return;}
-  if(umR==='owner'&&!isOwner()){alert('Only Owner can create another Owner');return;}
-  users.push({id:uid(),name,role:umR,pin,addedBy:sess.userId,addedByName:sess.name});
+  const pin=document.getElementById('eu-pin').value.trim();
+  if(pin&&(pin.length!==4||isNaN(Number(pin)))){alert('PIN must be 4 digits or leave blank');return;}
+  const role=document.getElementById('eu-role').value;
+  users[idx]={...users[idx],name,role,
+    pin:pin||users[idx].pin,
+    editedBy:sess.userId,editedByName:sess.name,editedAt:Date.now()};
   sv('users',users);
-  document.getElementById('um-name').value='';document.getElementById('um-pin').value='';
-  renderUserList();flash('USER ADDED!',name+' ('+rLbl(umR)+')');
-}
-function delUser(id){
-  if(!isOwner())return;
-  const u=gU(id);
-  if(u?.role==='owner'&&u.id!==sess?.userId){alert('Cannot delete another Owner account');return;}
-  if(u?.id===sess?.userId){alert('Cannot delete your own account');return;}
-  showConfirm('Remove user "'+u?.name+'"?',()=>{
-    users=users.filter(u=>u.id!==id);sv('users',users);renderUserList();
-    flash('REMOVED!',u?.name+' removed');
-  });
-}
-function renderUserList(){
-  const el=document.getElementById('um-list');
-  if(!users.length){el.innerHTML='<div class="muted-txt">No users</div>';return;}
-  el.innerHTML=users.map(u=>`
-    <div class="log-item">
-      <div class="li-ico" style="width:40px;height:40px;border-radius:50%;background:${rCol(u.role)}22;
-        color:${rCol(u.role)};display:flex;align-items:center;justify-content:center;
-        font-family:var(--fh);font-size:16px;flex-shrink:0">${u.name[0].toUpperCase()}</div>
-      <div class="li-main">
-        <div class="li-name">${u.name}</div>
-        <div class="li-det" style="color:${rCol(u.role)}">${rLbl(u.role)}</div>
-        <div class="li-by">PIN: ${'●'.repeat(u.pin.length)}</div>
-      </div>
-      ${isOwner()&&u.id!==sess?.userId?`<button class="li-btn del" onclick="delUser('${u.id}')">🗑</button>`:''}
-    </div>`).join('');
+  renderUserList();
+  flash('USER UPDATED!',name);
+  closeEditModal();
 }
 
 // ════════════════════════════════════
@@ -4508,6 +4498,72 @@ setInterval(async()=>{
   }
 }, 30000);
 
+// ── Secret URL Owner PIN Reset ──
+// Usage: https://yourapp.url/?reset=SECRETKEY
+// Secret key is: chiddarwar2024reset
+(function checkSecretReset(){
+  const params = new URLSearchParams(window.location.search);
+  const key = params.get('reset');
+  if(!key) return;
+  if(key !== 'chiddarwar2024reset'){
+    alert('Invalid reset key.');
+    window.history.replaceState({}, '', window.location.pathname);
+    return;
+  }
+  // Valid key — show PIN reset screen
+  window.history.replaceState({}, '', window.location.pathname);
+  document.addEventListener('DOMContentLoaded', ()=>{}, false);
+  const resetUI = ()=>{
+    const scr = document.getElementById('scr-login');
+    if(!scr) return;
+    scr.innerHTML = `
+      <div class="login-hdr">
+        <div class="login-logo">⛽ FUELLOG</div>
+        <div class="login-co">Owner PIN Reset</div>
+      </div>
+      <div style="padding:20px 16px">
+        <div style="background:rgba(255,61,61,.08);border:1.5px solid var(--red);border-radius:12px;
+          padding:16px;margin-bottom:16px;font-size:12px;color:var(--muted);font-weight:600">
+          ⚠️ This will reset the Owner PIN. Only use if locked out.
+        </div>
+        <div class="f-field"><label class="f-lbl">Owner Name (must match exactly)</label>
+          <input class="f-inp" id="rst-name" placeholder="Your owner name" type="text"></div>
+        <div class="f-field"><label class="f-lbl">New PIN</label>
+          <input class="f-inp" id="rst-pin1" placeholder="New 4-digit PIN" type="password"
+            inputmode="numeric" maxlength="4"></div>
+        <div class="f-field"><label class="f-lbl">Confirm New PIN</label>
+          <input class="f-inp" id="rst-pin2" placeholder="Repeat PIN" type="password"
+            inputmode="numeric" maxlength="4"></div>
+        <button class="big-btn bb-amber bb-full" style="margin-top:8px;height:54px"
+          onclick="doOwnerReset()">🔑 RESET OWNER PIN</button>
+      </div>`;
+  };
+  // Run after DOM ready
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', resetUI);
+  else setTimeout(resetUI, 100);
+})();
+
+function doOwnerReset(){
+  const name = document.getElementById('rst-name')?.value.trim();
+  const pin1 = document.getElementById('rst-pin1')?.value.trim();
+  const pin2 = document.getElementById('rst-pin2')?.value.trim();
+  if(!name){alert('Enter owner name');return;}
+  if(pin1.length!==4||isNaN(Number(pin1))){alert('PIN must be 4 digits');return;}
+  if(pin1!==pin2){alert('PINs do not match');return;}
+  const owner = users.find(u=>u.role==='owner'&&u.name.toLowerCase()===name.toLowerCase());
+  if(!owner){alert('No owner found with that name. Check spelling.');return;}
+  const idx = users.findIndex(u=>u.id===owner.id);
+  users[idx]={...users[idx],pin:pin1};
+  sv('users',users);
+  fbPushAll().then(()=>{
+    alert('✅ PIN reset successful! You can now log in with your new PIN.');
+    location.reload();
+  }).catch(()=>{
+    alert('✅ PIN reset saved locally. Sync when online.');
+    location.reload();
+  });
+}
+
 // ── Start app ──
 fbInit();
 
@@ -4650,6 +4706,7 @@ function saveFleetChecklistEdit(){
 function saveEdit(){
   const modal=document.getElementById('edit-modal');
   const editType=modal?.dataset?.editType;
+  if(editType==='user'){saveUserEdit();return;}
   if(editType==='driver'){saveDriverEdit();return;}
   if(editType==='fleetChecklist'){saveFleetChecklistEdit();return;}
   // All other cases handled in main script saveEdit
