@@ -136,6 +136,32 @@ body{font-family:var(--fb);color:var(--white);touch-action:manipulation}
 .act-desc{font-size:11px;color:var(--muted);margin-top:3px;font-weight:600}
 .act-arr{font-size:20px;color:var(--border2);flex-shrink:0}
 .act-lock{font-size:15px;flex-shrink:0;color:var(--muted2)}
+/* BOTTOM NAV */
+.bnav{position:fixed;bottom:0;left:0;right:0;background:var(--bg2);
+  border-top:1px solid var(--border);display:flex;z-index:100;
+  padding-bottom:env(safe-area-inset-bottom,0px);flex-shrink:0}
+.bnav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:8px 4px 10px;cursor:pointer;gap:3px;border:none;background:transparent;
+  color:var(--muted);font-family:var(--fb);-webkit-tap-highlight-color:transparent;min-height:56px}
+.bnav-btn.active{color:var(--amber)}
+.bnav-btn .bnav-ico{font-size:22px;line-height:1}
+.bnav-btn .bnav-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+.bnav-badge{position:absolute;top:6px;right:calc(50% - 18px);background:var(--red);
+  color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;min-width:14px;text-align:center}
+/* DASHBOARD */
+.dash-gauge-wrap{margin:12px 14px 0;background:var(--bg2);border:1px solid var(--border);
+  border-radius:14px;overflow:hidden}
+.dash-gauge-bar{height:10px;background:var(--border);border-radius:0}
+.dash-gauge-fill{height:100%;border-radius:0;transition:width .6s ease}
+.dash-kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border)}
+.dash-kpi{background:var(--bg2);padding:12px 14px}
+.dash-kpi-val{font-family:var(--fh);font-size:24px;color:var(--amber);line-height:1}
+.dash-kpi-lbl{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-top:3px}
+.dash-alert{margin:8px 14px 0;border-radius:12px;overflow:hidden}
+.dash-alert-row{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer}
+.dash-progress-wrap{margin:12px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px}
+.dash-prog-bar{height:8px;background:var(--border);border-radius:4px;margin:8px 0 4px;overflow:hidden}
+.dash-prog-fill{height:100%;background:var(--amber);border-radius:4px;transition:width .6s ease}
 
 /* NUMPAD */
 .np-wrap{background:var(--bg2);margin:12px 14px 6px;border-radius:12px;
@@ -482,25 +508,62 @@ input[type=file]{display:none}
 </div>
 
 <!-- ═══ HOME ═══ -->
-<div class="screen" id="scr-home">
-  <div class="home-hdr">
-    <div class="home-logo">⛽ FUELLOG</div>
-    <div class="home-tag" id="home-tag"></div>
-    <div id="home-stock-banner"></div>
-  </div>
-  <div id="refuel-alert"></div>
-  <div class="sess-bar">
-    <div><span class="sess-who" id="sess-who"></span><span id="sess-bdg" style="margin-left:8px"></span></div>
+<div class="screen" id="scr-home" style="padding-bottom:56px">
+  <!-- TOP BAR -->
+  <div style="background:var(--bg2);border-bottom:1px solid var(--border);padding:10px 14px;
+    padding-top:calc(10px + var(--sit));display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+    <div>
+      <div style="font-family:var(--fh);font-size:22px;color:var(--amber);line-height:1">⛽ FUELLOG</div>
+      <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px" id="home-tag"></div>
+    </div>
     <div style="display:flex;align-items:center;gap:8px">
       <span id="fb-status" style="font-size:11px;font-weight:700;color:var(--muted)">⟳</span>
-      <button onclick="fbManualSync()" style="background:transparent;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0" title="Sync to cloud">☁</button>
-      <button class="sess-out" onclick="logout()">↩ LOGOUT</button>
+      <button onclick="fbManualSync()" style="background:var(--bg3);border:1px solid var(--border);color:var(--muted);font-size:16px;cursor:pointer;padding:6px 10px;border-radius:8px" title="Sync">☁</button>
+      <button onclick="logout()" style="background:var(--bg3);border:1px solid var(--border);color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;padding:7px 12px;border-radius:8px">↩ OUT</button>
     </div>
   </div>
-  <div id="efficiency-alerts"></div>
-  <div id="muster-reminder"></div>
-  <div id="pend-banner"></div>
-  <div class="home-actions" id="home-actions"></div>
+  <!-- SESSION BADGE -->
+  <div style="padding:6px 14px;background:var(--bg2);border-bottom:1px solid var(--border);
+    display:flex;align-items:center;gap:8px;flex-shrink:0">
+    <span class="sess-who" id="sess-who" style="font-size:13px;font-weight:700"></span>
+    <span id="sess-bdg"></span>
+  </div>
+  <!-- SCROLLABLE CONTENT -->
+  <div id="home-content" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch">
+    <div id="home-dashboard"></div>
+    <div id="home-alerts"></div>
+    <div id="home-actions" class="home-actions"></div>
+  </div>
+  <!-- BOTTOM NAV -->
+  <div class="bnav" id="main-bnav">
+    <button class="bnav-btn active" id="bnav-home" onclick="bnavTab('home')" style="position:relative">
+      <div class="bnav-ico">🏠</div>
+      <div class="bnav-lbl">Home</div>
+    </button>
+    <button class="bnav-btn" id="bnav-ops" onclick="bnavTab('ops')" style="position:relative">
+      <div class="bnav-ico">⛽</div>
+      <div class="bnav-lbl">Operations</div>
+      <div class="bnav-badge" id="bnav-ops-badge" style="display:none">0</div>
+    </button>
+    <button class="bnav-btn" id="bnav-reports" onclick="bnavTab('reports')">
+      <div class="bnav-ico">📊</div>
+      <div class="bnav-lbl">Reports</div>
+    </button>
+    <button class="bnav-btn" id="bnav-fleet" onclick="bnavTab('fleet')">
+      <div class="bnav-ico">🚜</div>
+      <div class="bnav-lbl">Fleet</div>
+    </button>
+    <button class="bnav-btn" id="bnav-more" onclick="bnavTab('more')" style="position:relative">
+      <div class="bnav-ico">☰</div>
+      <div class="bnav-lbl">More</div>
+    </button>
+  </div>
+  <!-- Legacy hidden divs for compat -->
+  <div id="home-stock-banner" style="display:none"></div>
+  <div id="refuel-alert" style="display:none"></div>
+  <div id="efficiency-alerts" style="display:none"></div>
+  <div id="muster-reminder" style="display:none"></div>
+  <div id="pend-banner" style="display:none"></div>
 </div>
 
 <!-- ═══ GIVE FUEL: BOWSER BEFORE ═══ -->
@@ -553,7 +616,19 @@ input[type=file]{display:none}
     <button class="tb-back" onclick="show('scr-dest')">‹</button>
     <div><div class="tb-title" id="pv-title">SELECT VEHICLE</div><div class="tb-sub" id="pv-sub"></div></div>
   </div>
-  <div class="veh-grid" id="veh-grid"></div>
+  <!-- Search bar -->
+  <div style="padding:10px 12px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0">
+    <div style="position:relative">
+      <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none">🔍</span>
+      <input id="veh-search" type="text" placeholder="Search vehicle number..."
+        autocomplete="off" autocorrect="off" spellcheck="false"
+        oninput="filterVehGrid(this.value)"
+        style="width:100%;background:var(--bg3);border:2px solid var(--border);color:var(--white);
+               padding:11px 12px 11px 38px;border-radius:10px;font-size:15px;font-family:var(--fb);
+               outline:none;-webkit-appearance:none">
+    </div>
+  </div>
+  <div class="veh-grid" id="veh-grid" style="padding-top:4px"></div>
   <div class="pad-bot"></div>
 </div>
 
@@ -869,8 +944,18 @@ input[type=file]{display:none}
     <button class="tb-back" onclick="show('scr-home')">‹</button>
     <div><div class="tb-title">VEHICLE READINGS</div><div class="tb-sub">KM · Hours · Tank levels</div></div>
   </div>
-  <div class="info-box info-blue" style="margin:10px 14px">Select a vehicle to log readings. Can be entered later — data used for efficiency calculation.</div>
-  <div class="veh-grid" id="readings-veh-grid"></div>
+  <div style="padding:10px 12px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0">
+    <div style="position:relative">
+      <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none">🔍</span>
+      <input id="readings-veh-search" type="text" placeholder="Search vehicle number..."
+        autocomplete="off" autocorrect="off" spellcheck="false"
+        oninput="filterReadingsVehGrid(this.value)"
+        style="width:100%;background:var(--bg3);border:2px solid var(--border);color:var(--white);
+               padding:11px 12px 11px 38px;border-radius:10px;font-size:15px;font-family:var(--fb);
+               outline:none;-webkit-appearance:none">
+    </div>
+  </div>
+  <div class="veh-grid" id="readings-veh-grid" style="padding-top:4px"></div>
   <div class="pad-bot"></div>
 </div>
 
@@ -1098,7 +1183,7 @@ function onEnter(id){
   if(id==='scr-sites')     renderSitesLog();
   if(id==='scr-drivers')   renderDriverList();
   if(id==='scr-muster'){const el=document.getElementById('muster-date');if(el)el.textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'});renderMuster();}
-  if(id==='scr-readings')  renderReadingsVehGrid();
+  if(id==='scr-readings')  {const s=document.getElementById('readings-veh-search');if(s)s.value='';renderReadingsVehGrid();}
   if(id==='scr-purchases') {renderPurchases();document.getElementById('pur-by').value=sess?.name||'';}
   if(id==='scr-reports'){renderReports();renderAuditTrail();}
   if(id==='scr-pending')   renderPendingList();
@@ -1393,61 +1478,200 @@ function logout(){
 // ════════════════════════════════════
 function renderHome(){
   if(!sess)return;
-
-  // Route to correct home based on role
-  if(isDriver())   { renderHomeDriver(); return; }
-  if(isSiteSup())  { renderHomeSiteSup(); return; }
-  if(isOwner()||isAdmin()) { renderHomeOwner(); return; }
-  renderHomeManager(); // supervisor/manager
-}
-
-// ════════════════════════════════════
-// OWNER HOME — full dashboard
-// ════════════════════════════════════
-function renderHomeOwner(){
-  const td=today();
-  const todayL=disbs.filter(x=>x.date===td).reduce((a,x)=>a+x.litres,0)
-             +(pumpFills||[]).filter(x=>x.date===td).reduce((a,x)=>a+x.litres,0);
-  const pending=disbs.filter(d=>(d.source==='can'||d.destType==='can')&&d.dipStatus==='pending').length;
-  const stock=getBowserStock();
-  const bal=purchases.reduce((a,p)=>a+(p.amount-p.paid),0);
-
+  // Update top bar
   document.getElementById('home-tag').textContent=
     new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})+' · Chiddarwar Construction';
   document.getElementById('sess-who').textContent=sess.name;
   document.getElementById('sess-bdg').innerHTML=`<span class="bdg ${rBdg(sess.role)}">${rLbl(sess.role)}</span>`;
+  // Show/hide bottom nav tabs based on role
+  const fleetBtn=document.getElementById('bnav-fleet');
+  const moreBtn=document.getElementById('bnav-more');
+  const reportsBtn=document.getElementById('bnav-reports');
+  if(fleetBtn)fleetBtn.style.display=isDriver()?'none':'';
+  if(moreBtn)moreBtn.style.display=isDriver()?'none':'';
+  if(reportsBtn)reportsBtn.style.display=isDriver()?'none':'';
+  // Render active tab
+  const tab=window._bnavTab||'home';
+  bnavRender(tab);
+}
 
-  document.getElementById('home-stock-banner').innerHTML=`
-    <div class="stock-banner">
-      <div class="stock-cell">
-        <div class="stock-val" style="color:${stock<500?'var(--red)':'var(--amber)'}">${fmt(stock,0)}<span style="font-size:10px;color:var(--muted)"> L</span></div>
-        <div class="stock-lbl">Bowser Stock</div>
+let _bnavTab='home';
+function bnavTab(tab){
+  _bnavTab=tab;
+  // Update active state
+  ['home','ops','reports','fleet','more'].forEach(t=>{
+    const b=document.getElementById('bnav-'+t);
+    if(b)b.classList.toggle('active',t===tab);
+  });
+  bnavRender(tab);
+  // Scroll to top
+  const hc=document.getElementById('home-content');
+  if(hc)hc.scrollTop=0;
+}
+
+function bnavRender(tab){
+  const dash=document.getElementById('home-dashboard');
+  const alerts=document.getElementById('home-alerts');
+  const actions=document.getElementById('home-actions');
+  if(!dash||!alerts||!actions)return;
+
+  if(tab==='home'){
+    renderDashboard(dash,alerts);
+    actions.innerHTML='';
+    actions.style.display='none';
+  } else if(tab==='ops'){
+    dash.innerHTML='';alerts.innerHTML='';
+    actions.style.display='';
+    renderOpsTab(actions);
+  } else if(tab==='reports'){
+    dash.innerHTML='';alerts.innerHTML='';
+    actions.style.display='';
+    renderReportsTab(actions);
+  } else if(tab==='fleet'){
+    dash.innerHTML='';alerts.innerHTML='';
+    actions.style.display='';
+    renderFleetTab(actions);
+  } else if(tab==='more'){
+    dash.innerHTML='';alerts.innerHTML='';
+    actions.style.display='';
+    renderMoreTab(actions);
+  }
+}
+
+// ── DASHBOARD TAB ──
+function renderDashboard(dash,alerts){
+  const td=today();
+  const stock=getBowserStock();
+  const maxStock=purchases.reduce((a,p)=>a+p.litres,0)||2000;
+  const stockPct=Math.min(100,Math.round(stock/Math.max(maxStock,1)*100));
+  const stockCol=stock<300?'var(--red)':stock<800?'#ffb300':'var(--green)';
+  const todayDisbs=disbs.filter(x=>x.date===td);
+  const todayPF=(pumpFills||[]).filter(x=>x.date===td);
+  const todayL=todayDisbs.reduce((a,x)=>a+x.litres,0)+todayPF.reduce((a,x)=>a+x.litres,0);
+  const fuelRate=getFuelRate();
+  const todayCost=todayL*fuelRate;
+  const fmtINR=n=>'₹'+Number(Math.round(n)).toLocaleString('en-IN');
+  const fuelled=new Set([...todayDisbs,...todayPF].map(x=>x.vehicleId)).size;
+  const totalVeh=fleet.length;
+  const fuelledPct=totalVeh>0?Math.round(fuelled/totalVeh*100):0;
+  const pending=disbs.filter(d=>(d.source==='can'||d.destType==='can')&&d.dipStatus==='pending').length;
+  const mismatch=disbs.filter(d=>d.dipMatch===false||d.meterMismatch).length;
+  const bal=isOwner()?purchases.reduce((a,p)=>a+(p.amount-p.paid),0):0;
+
+  // Update ops badge
+  const badge=document.getElementById('bnav-ops-badge');
+  if(badge){badge.textContent=pending;badge.style.display=pending>0?'block':'none';}
+
+  dash.innerHTML=`
+    <!-- Bowser Stock Gauge -->
+    <div class="dash-gauge-wrap">
+      <div style="padding:12px 14px 8px;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px">🛢 Bowser Stock</div>
+          <div style="font-family:var(--fh);font-size:28px;color:${stockCol};margin-top:2px;line-height:1">${fmt(stock,0)} <span style="font-size:14px;color:var(--muted)">L</span></div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-family:var(--fh);font-size:22px;color:var(--muted)">${stockPct}%</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:600">${stock<300?'🔴 CRITICAL':stock<800?'🟡 LOW':'🟢 OK'}</div>
+        </div>
       </div>
-      <div class="stock-cell">
-        <div class="stock-val">${fmt(todayL,0)}<span style="font-size:10px;color:var(--muted)"> L</span></div>
-        <div class="stock-lbl">Today Out</div>
+      <div class="dash-gauge-bar">
+        <div class="dash-gauge-fill" style="width:${stockPct}%;background:${stockCol}"></div>
       </div>
-      <div class="stock-cell">
-        <div class="stock-val" style="${pending>0?'color:var(--red)':''}">${pending}</div>
-        <div class="stock-lbl">Dip Pending</div>
+    </div>
+
+    <!-- Today Coverage -->
+    <div class="dash-progress-wrap">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px">🚚 Today's Coverage</div>
+        <div style="font-family:var(--fh);font-size:13px;color:var(--amber)">${fuelled} / ${totalVeh} vehicles</div>
       </div>
-      <div class="stock-cell" style="border-left:2px solid ${bal>0?'var(--red)':'var(--green)'}">
-        <div class="stock-val" style="color:${bal>0?'var(--red)':'var(--green)'};font-size:17px">₹${fmt(bal/1000,1)}K</div>
-        <div class="stock-lbl">Bal Due</div>
+      <div class="dash-prog-bar"><div class="dash-prog-fill" style="width:${fuelledPct}%"></div></div>
+      <div style="font-size:10px;color:var(--muted);font-weight:600">${fuelledPct}% of fleet fuelled today</div>
+    </div>
+
+    <!-- KPI Grid -->
+    <div style="margin:8px 14px 0;border-radius:14px;overflow:hidden;border:1px solid var(--border)">
+      <div class="dash-kpi-grid">
+        <div class="dash-kpi">
+          <div class="dash-kpi-val">${fmt(todayL,0)} L</div>
+          <div class="dash-kpi-lbl">Today Dispensed</div>
+        </div>
+        <div class="dash-kpi">
+          <div class="dash-kpi-val" style="font-size:18px">${fmtINR(todayCost)}</div>
+          <div class="dash-kpi-lbl">Today Cost</div>
+        </div>
+        <div class="dash-kpi">
+          <div class="dash-kpi-val" style="color:${pending>0?'var(--red)':'var(--green)'}">${pending}</div>
+          <div class="dash-kpi-lbl">Dip Pending</div>
+        </div>
+        ${isOwner()?`<div class="dash-kpi">
+          <div class="dash-kpi-val" style="color:${bal>0?'var(--red)':'var(--green)'};font-size:18px">${fmtINR(bal)}</div>
+          <div class="dash-kpi-lbl">Balance Due</div>
+        </div>`:`<div class="dash-kpi">
+          <div class="dash-kpi-val">${todayDisbs.length+todayPF.length}</div>
+          <div class="dash-kpi-lbl">Today Entries</div>
+        </div>`}
+      </div>
+    </div>
+
+    <!-- Quick action -->
+    <div style="margin:10px 14px 0">
+      <div class="act prim" onclick="bnavTab('ops');setTimeout(()=>show('scr-source'),50)" style="margin:0">
+        <div class="act-ico">⛽</div>
+        <div class="act-txt"><div class="act-title">GIVE FUEL</div><div class="act-desc">Tap to log fuel disbursement</div></div>
+        <div class="act-arr">›</div>
+      </div>
+    </div>
+    <div style="height:8px"></div>`;
+
+  // Alerts
+  let alertHtml='';
+  if(stock<300){
+    alertHtml+=`<div class="dash-alert" style="background:rgba(255,61,61,.08);border:2px solid var(--red)">
+      <div class="dash-alert-row">
+        <div style="font-size:24px">🚨</div>
+        <div style="flex:1"><div style="font-family:var(--fh);font-size:14px;color:var(--red)">BOWSER CRITICAL — ${fmt(stock,0)} L</div>
+        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">Order diesel immediately</div></div>
       </div>
     </div>`;
+  } else if(stock<800){
+    alertHtml+=`<div class="dash-alert" style="background:rgba(255,179,0,.07);border:2px solid var(--amber)">
+      <div class="dash-alert-row">
+        <div style="font-size:24px">⚠️</div>
+        <div style="flex:1"><div style="font-family:var(--fh);font-size:14px;color:var(--amber)">BOWSER LOW — ${fmt(stock,0)} L</div>
+        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">Plan refill soon</div></div>
+      </div>
+    </div>`;
+  }
+  if(pending>0){
+    alertHtml+=`<div class="dash-alert" style="background:rgba(255,61,61,.06);border:2px solid var(--red);cursor:pointer" onclick="show('scr-pending')">
+      <div class="dash-alert-row">
+        <div style="font-size:24px">⏳</div>
+        <div style="flex:1"><div style="font-family:var(--fh);font-size:14px;color:var(--red)">${pending} DIP GAUGE${pending>1?'S':''} PENDING</div>
+        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">Tap to verify can fills</div></div>
+        <div style="color:var(--red);font-size:18px">›</div>
+      </div>
+    </div>`;
+  }
+  if(mismatch>0){
+    alertHtml+=`<div class="dash-alert" style="background:rgba(255,61,61,.06);border:2px solid var(--red);cursor:pointer" onclick="bnavTab('reports')">
+      <div class="dash-alert-row">
+        <div style="font-size:24px">⚠️</div>
+        <div style="flex:1"><div style="font-family:var(--fh);font-size:14px;color:var(--red)">${mismatch} METER MISMATCH${mismatch>1?'ES':''}</div>
+        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">Tap to review in Reports</div></div>
+        <div style="color:var(--red);font-size:18px">›</div>
+      </div>
+    </div>`;
+  }
+  alerts.innerHTML=alertHtml ? `<div style="padding:0 14px;display:flex;flex-direction:column;gap:6px;margin-top:6px">${alertHtml}</div>` : '';
+}
 
-  const ralert=document.getElementById('refuel-alert');
-  if(stock<500){
-    ralert.innerHTML=`<div class="refuel-alert"><div style="font-size:22px">⚠️</div><div><div class="refuel-txt">REFUEL BOWSER — ${fmt(stock,0)} L remaining</div><div class="refuel-sub">Stock below 500 L. Order diesel now.</div></div></div>`;
-  } else { ralert.innerHTML=''; }
-
-  renderEfficiencyAlerts();
-  renderMusterReminder();
-  renderPendBanner();
-
-  document.getElementById('home-actions').innerHTML=`
-    <div class="sec-lbl">Operations</div>
+// ── OPERATIONS TAB ──
+function renderOpsTab(el){
+  const pending=disbs.filter(d=>(d.source==='can'||d.destType==='can')&&d.dipStatus==='pending').length;
+  el.innerHTML=`
+    <div class="sec-lbl">Fuel Operations</div>
     <div class="act prim" onclick="show('scr-source')">
       <div class="act-ico">⛽</div><div class="act-txt"><div class="act-title">GIVE FUEL</div><div class="act-desc">Bowser · Direct pump · Can</div></div><div class="act-arr">›</div>
     </div>
@@ -1457,233 +1681,74 @@ function renderHomeOwner(){
     <div class="act" onclick="show('scr-readings')">
       <div class="act-ico">📟</div><div class="act-txt"><div class="act-title">LOG READING</div><div class="act-desc">KM · Hours · Tank levels</div></div><div class="act-arr">›</div>
     </div>
+    <div class="act" onclick="show('scr-pending')" style="${pending>0?'border-color:var(--red)':''}">
+      <div class="act-ico">🪣</div><div class="act-txt"><div class="act-title">PENDING DIP GAUGES</div>
+      <div class="act-desc" style="${pending>0?'color:var(--red)':''}">${pending} pending verification${pending!==1?'s':''}</div></div>
+      <div class="act-arr" style="${pending>0?'color:var(--red)':''}">›</div>
+    </div>
+    ${isOwner()||isAdmin()?`
     <div class="sec-lbl" style="margin-top:4px">Accounts</div>
     <div class="act" onclick="show('scr-purchases')">
       <div class="act-ico">🛢</div><div class="act-txt"><div class="act-title">BOWSER PURCHASE</div><div class="act-desc">Buy fuel · Track balance</div></div><div class="act-arr">›</div>
+    </div>`:''}
+    <div class="pad-bot"></div>`;
+}
+
+// ── REPORTS TAB ──
+function renderReportsTab(el){
+  el.innerHTML=`
+    <div class="sec-lbl">Reports & Analytics</div>
+    <div class="act prim" onclick="show('scr-reports')">
+      <div class="act-ico">📊</div><div class="act-txt"><div class="act-title">FUEL REPORTS</div><div class="act-desc">Day-wise · Vehicle · Driver · Site</div></div><div class="act-arr">›</div>
     </div>
-    <div class="act" onclick="show('scr-reports')">
-      <div class="act-ico">📊</div><div class="act-txt"><div class="act-title">REPORTS</div><div class="act-desc">Usage · Efficiency · Audit trail</div></div><div class="act-arr">›</div>
+    <div class="act" onclick="show('scr-reports');setTimeout(()=>repTab('vehicle'),100)">
+      <div class="act-ico">🚚</div><div class="act-txt"><div class="act-title">VEHICLE EFFICIENCY</div><div class="act-desc">km/L · Cost per vehicle</div></div><div class="act-arr">›</div>
     </div>
-    <div class="sec-lbl" style="margin-top:4px">Settings</div>
+    <div class="act" onclick="show('scr-reports');setTimeout(()=>repTab('daywise'),100)">
+      <div class="act-ico">📅</div><div class="act-txt"><div class="act-title">DAY-WISE SUMMARY</div><div class="act-desc">Daily fuel and cost breakdown</div></div><div class="act-arr">›</div>
+    </div>
+    <div class="pad-bot"></div>`;
+}
+
+// ── FLEET TAB ──
+function renderFleetTab(el){
+  if(!canSettings()&&!isManager()){el.innerHTML='<div class="muted-txt" style="padding:40px;text-align:center">Access restricted</div>';return;}
+  el.innerHTML=`
+    <div class="sec-lbl">Fleet Management</div>
     <div class="act" onclick="show('scr-fleet')">
       <div class="act-ico">🚜</div><div class="act-txt"><div class="act-title">FLEET SETUP</div><div class="act-desc">Vehicles · Calibration · Targets</div></div><div class="act-arr">›</div>
-    </div>
-    <div class="act" onclick="show('scr-pumps')">
-      <div class="act-ico">🏪</div><div class="act-txt"><div class="act-title">PUMP STATIONS</div><div class="act-desc">Manage designated pumps</div></div><div class="act-arr">›</div>
-    </div>
-    <div class="act" onclick="show('scr-sites')">
-      <div class="act-ico">🏗</div><div class="act-txt"><div class="act-title">SITES</div><div class="act-desc">Manage project sites</div></div><div class="act-arr">›</div>
     </div>
     <div class="act" onclick="show('scr-drivers')">
       <div class="act-ico">👷</div><div class="act-txt"><div class="act-title">DRIVERS & OPERATORS</div><div class="act-desc">Add staff · Assign to vehicles</div></div><div class="act-arr">›</div>
     </div>
+    <div class="act" onclick="show('scr-sites')">
+      <div class="act-ico">🏗</div><div class="act-txt"><div class="act-title">SITES</div><div class="act-desc">Manage project sites</div></div><div class="act-arr">›</div>
+    </div>
+    <div class="act" onclick="show('scr-pumps')">
+      <div class="act-ico">🏪</div><div class="act-txt"><div class="act-title">PUMP STATIONS</div><div class="act-desc">Manage designated pumps</div></div><div class="act-arr">›</div>
+    </div>
+    <div class="pad-bot"></div>`;
+}
+
+// ── MORE TAB ──
+function renderMoreTab(el){
+  el.innerHTML=`
+    ${isOwner()||isAdmin()?`
+    <div class="sec-lbl">Administration</div>
     <div class="act" onclick="show('scr-users')">
-      <div class="act-ico">👥</div><div class="act-txt"><div class="act-title">USERS</div><div class="act-desc">Add staff · Manage access</div></div><div class="act-arr">›</div>
+      <div class="act-ico">👥</div><div class="act-txt"><div class="act-title">USERS</div><div class="act-desc">Add staff · Manage access · Reset PIN</div></div><div class="act-arr">›</div>
     </div>
-    <div class="pad-bot"></div>`;
-}
-
-// ════════════════════════════════════
-// MANAGER HOME — operations focus
-// ════════════════════════════════════
-function renderHomeManager(){
-  const td=today();
-  const todayL=disbs.filter(x=>x.date===td).reduce((a,x)=>a+x.litres,0)
-             +(pumpFills||[]).filter(x=>x.date===td).reduce((a,x)=>a+x.litres,0);
-  const pending=disbs.filter(d=>(d.source==='can'||d.destType==='can')&&d.dipStatus==='pending').length;
-  const stock=getBowserStock();
-
-  document.getElementById('home-tag').textContent=
-    new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})+' · Chiddarwar Construction';
-  document.getElementById('sess-who').textContent=sess.name;
-  document.getElementById('sess-bdg').innerHTML=`<span class="bdg ${rBdg(sess.role)}">${rLbl(sess.role)}</span>`;
-
-  document.getElementById('home-stock-banner').innerHTML=`
-    <div class="stock-banner">
-      <div class="stock-cell">
-        <div class="stock-val" style="color:${stock<500?'var(--red)':'var(--amber)'}">${fmt(stock,0)}<span style="font-size:10px;color:var(--muted)"> L</span></div>
-        <div class="stock-lbl">Bowser Stock</div>
-      </div>
-      <div class="stock-cell">
-        <div class="stock-val">${fmt(todayL,0)}<span style="font-size:10px;color:var(--muted)"> L</span></div>
-        <div class="stock-lbl">Today Out</div>
-      </div>
-      <div class="stock-cell">
-        <div class="stock-val" style="${pending>0?'color:var(--red)':''}">${pending}</div>
-        <div class="stock-lbl">Dip Pending</div>
-      </div>
-      <div class="stock-cell">
-        <div class="stock-val" style="color:var(--muted)">${disbs.filter(x=>x.date===td).length}</div>
-        <div class="stock-lbl">Today Entries</div>
-      </div>
-    </div>`;
-
-  const ralert=document.getElementById('refuel-alert');
-  if(stock<500){
-    ralert.innerHTML=`<div class="refuel-alert"><div style="font-size:22px">⚠️</div><div><div class="refuel-txt">REFUEL BOWSER — ${fmt(stock,0)} L remaining</div><div class="refuel-sub">Stock below 500 L. Inform Owner.</div></div></div>`;
-  } else { ralert.innerHTML=''; }
-
-  renderMusterReminder();
-  renderPendBanner();
-
-  // Manager sees no efficiency alerts, no settings
-  document.getElementById('efficiency-alerts').innerHTML='';
-
-  document.getElementById('home-actions').innerHTML=`
-    <div class="sec-lbl">Operations</div>
-    <div class="act prim" onclick="show('scr-source')">
-      <div class="act-ico">⛽</div><div class="act-txt"><div class="act-title">GIVE FUEL</div><div class="act-desc">Bowser · Direct pump · Can</div></div><div class="act-arr">›</div>
+    <div class="act" onclick="show('scr-checklists')">
+      <div class="act-ico">✅</div><div class="act-txt"><div class="act-title">CHECKLISTS</div><div class="act-desc">Pre-start · Post-shift templates</div></div><div class="act-arr">›</div>
+    </div>`:''}
+    <div class="sec-lbl" style="margin-top:4px">System</div>
+    <div class="act" onclick="fbManualSync();flash('SYNCING...','Uploading to cloud')">
+      <div class="act-ico">☁</div><div class="act-txt"><div class="act-title">SYNC DATA</div><div class="act-desc">Push all data to Firebase cloud</div></div>
+      <span id="fb-status-more" style="font-size:11px;font-weight:700;color:var(--muted)"></span>
     </div>
-    <div class="act" onclick="show('scr-muster')">
-      <div class="act-ico">📋</div><div class="act-txt"><div class="act-title">MORNING MUSTER</div><div class="act-desc">Mark attendance · Assign drivers</div></div><div class="act-arr">›</div>
+    <div class="act" onclick="logout()">
+      <div class="act-ico">↩</div><div class="act-txt"><div class="act-title">LOGOUT</div><div class="act-desc">Sign out of ${sess?.name||'account'}</div></div><div class="act-arr">›</div>
     </div>
-    <div class="act" onclick="show('scr-readings')">
-      <div class="act-ico">📟</div><div class="act-txt"><div class="act-title">LOG READING</div><div class="act-desc">KM · Hours · Tank levels</div></div><div class="act-arr">›</div>
-    </div>
-    <div class="sec-lbl" style="margin-top:4px">Accounts</div>
-    <div class="act" onclick="show('scr-purchases')">
-      <div class="act-ico">🛢</div><div class="act-txt"><div class="act-title">BOWSER PURCHASE</div><div class="act-desc">Buy fuel · Track balance</div></div><div class="act-arr">›</div>
-    </div>
-    <div class="act" onclick="show('scr-reports')">
-      <div class="act-ico">📊</div><div class="act-txt"><div class="act-title">REPORTS</div><div class="act-desc">Usage · Efficiency · Audit trail</div></div><div class="act-arr">›</div>
-    </div>
-    <div class="pad-bot"></div>`;
-}
-
-// ════════════════════════════════════
-// SITE SUPERVISOR HOME — task focused
-// ════════════════════════════════════
-function renderHomeSiteSup(){
-  const td=today();
-  const pending=disbs.filter(d=>(d.source==='can'||d.destType==='can')&&d.dipStatus==='pending').length;
-  const myMuster=musters?musters.filter(m=>m.date===td&&m.markedBy===sess.userId).length:0;
-
-  document.getElementById('home-tag').textContent=
-    new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})+' · Site Supervisor';
-  document.getElementById('sess-who').textContent=sess.name;
-  document.getElementById('sess-bdg').innerHTML=`<span class="bdg bg-pur">👷 SITE SUP</span>`;
-
-  // Simple stat strip for site sup
-  document.getElementById('home-stock-banner').innerHTML=`
-    <div class="stock-banner">
-      <div class="stock-cell">
-        <div class="stock-val" style="${pending>0?'color:var(--red)':''}">${pending}</div>
-        <div class="stock-lbl">Dip Pending</div>
-      </div>
-      <div class="stock-cell">
-        <div class="stock-val">${myMuster}</div>
-        <div class="stock-lbl">Muster Done</div>
-      </div>
-      <div class="stock-cell">
-        <div class="stock-val">${disbs.filter(x=>x.date===td&&x.loggedBy===sess.userId).length}</div>
-        <div class="stock-lbl">My Entries</div>
-      </div>
-      <div class="stock-cell">
-        <div class="stock-val">${new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</div>
-        <div class="stock-lbl">Time</div>
-      </div>
-    </div>`;
-
-  document.getElementById('refuel-alert').innerHTML='';
-  document.getElementById('efficiency-alerts').innerHTML='';
-  renderPendBanner();
-  document.getElementById('muster-reminder').innerHTML='';
-
-  // Build task list for site sup
-  const pendingDips=disbs.filter(d=>(d.source==='can'||d.destType==='can')&&d.dipStatus==='pending');
-  const taskHTML=pendingDips.length?`
-    <div style="margin:8px 12px 0;background:rgba(255,61,61,.08);border:2px solid var(--red);border-radius:12px;overflow:hidden">
-      <div style="background:rgba(255,61,61,.12);padding:10px 14px;font-family:var(--fh);font-size:14px;color:var(--red)">
-        ⏳ DIP GAUGE PENDING (${pendingDips.length})
-      </div>
-      ${pendingDips.slice(0,3).map(d=>{
-        const veh=gV(d.vehicleId);
-        return `<div style="padding:10px 14px;border-top:1px solid rgba(255,61,61,.2);display:flex;align-items:center;gap:10px;cursor:pointer" onclick="openDip('${d.id}')">
-          <div style="font-size:20px">${veh?vIco(veh.type):'🪣'}</div>
-          <div style="flex:1"><div style="font-family:var(--fh);font-size:14px;color:var(--white)">${veh?veh.name:'Unknown'}</div>
-          <div style="font-size:11px;color:var(--muted);font-weight:600">${fmt(d.litres,1)} L · ${fmtD(d.date)}</div></div>
-          <div style="color:var(--red);font-size:14px">›</div>
-        </div>`;
-      }).join('')}
-    </div>`:'';
-
-  document.getElementById('home-actions').innerHTML=`
-    ${taskHTML}
-    <div class="sec-lbl" style="margin-top:8px">My Tasks</div>
-    <div class="act prim" onclick="show('scr-source')">
-      <div class="act-ico">⛽</div><div class="act-txt"><div class="act-title">GIVE FUEL</div><div class="act-desc">Bowser · Direct pump · Can</div></div><div class="act-arr">›</div>
-    </div>
-    <div class="act" onclick="show('scr-muster')">
-      <div class="act-ico">📋</div><div class="act-txt"><div class="act-title">MORNING MUSTER</div><div class="act-desc">Mark attendance for today</div></div><div class="act-arr">›</div>
-    </div>
-    <div class="act" onclick="show('scr-readings')">
-      <div class="act-ico">📟</div><div class="act-txt"><div class="act-title">LOG READING</div><div class="act-desc">Dip gauge · KM reading</div></div><div class="act-arr">›</div>
-    </div>
-    <div class="act" onclick="show('scr-pending')">
-      <div class="act-ico">🪣</div><div class="act-txt"><div class="act-title">PENDING DIP GAUGES</div><div class="act-desc">${pending} pending verification${pending!==1?'s':''}</div></div>
-      <div class="act-arr" style="color:${pending>0?'var(--red)':'var(--muted)'}">›</div>
-    </div>
-    <div class="pad-bot"></div>`;
-}
-
-// ════════════════════════════════════
-// DRIVER/OPERATOR HOME — checklist only
-// ════════════════════════════════════
-function renderHomeDriver(){
-  document.getElementById('home-tag').textContent=
-    new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})+' · Driver / Operator';
-  document.getElementById('sess-who').textContent=sess.name;
-  document.getElementById('sess-bdg').innerHTML=`<span class="bdg bg-grn">🚜 DRIVER/OP</span>`;
-
-  const myVehs=fleet.filter(f=>f.driverId===sess.userId);
-
-  document.getElementById('home-stock-banner').innerHTML=myVehs.length?`
-    <div class="stock-banner">
-      ${myVehs.map(v=>`<div class="stock-cell" style="padding:10px 8px;text-align:center">
-        <div style="font-size:22px">${vIco(v.type)}</div>
-        <div style="font-family:var(--fh);font-size:13px;color:var(--white);margin-top:2px">${v.name}</div>
-        <div style="font-size:10px;color:var(--muted);font-weight:600">📍 ${v.siteName||'Mobile'}</div>
-      </div>`).join('')}
-    </div>`:`
-    <div style="margin:10px 14px;background:rgba(255,179,0,.07);border:1px solid var(--amber);border-radius:10px;padding:14px;text-align:center">
-      <div style="font-size:28px">🚜</div>
-      <div style="font-family:var(--fh);font-size:15px;color:var(--amber);margin-top:6px">NO VEHICLE ASSIGNED</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:4px;font-weight:600">Ask your manager to assign you a vehicle</div>
-    </div>`;
-
-  document.getElementById('refuel-alert').innerHTML='';
-  document.getElementById('efficiency-alerts').innerHTML='';
-  document.getElementById('muster-reminder').innerHTML='';
-  document.getElementById('pend-banner').innerHTML='';
-
-  const td=today();
-  const taskDate=new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'short'});
-
-  const vehButtons=myVehs.map(v=>{
-    const preStartDone=checklistRecords?.find(r=>r.vehicleId===v.id&&r.date===td&&r.shiftType==='prestart'&&r.status==='submitted');
-    const postShiftDone=checklistRecords?.find(r=>r.vehicleId===v.id&&r.date===td&&r.shiftType==='postshift'&&r.status==='submitted');
-    return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden">
-      <div style="background:var(--bg3);padding:10px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)">
-        <div style="font-size:20px">${vIco(v.type)}</div>
-        <div style="font-family:var(--fh);font-size:15px;color:var(--white)">${v.name}</div>
-        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-left:4px">· ${v.siteName||'Mobile'}</div>
-      </div>
-      <div style="padding:10px;display:flex;gap:8px">
-        <button onclick="openChecklistForVehicle('prestart','${v.id}')"
-          style="flex:1;height:56px;background:${preStartDone?'rgba(0,200,83,.2)':'var(--bg3)'};border:2px solid ${preStartDone?'var(--green)':'var(--border2)'};color:${preStartDone?'var(--green)':'var(--white)'};border-radius:10px;font-family:var(--fh);font-size:13px;cursor:pointer">
-          ${preStartDone?'✅ PRE-START DONE':'✅ PRE-START'}
-        </button>
-        <button onclick="openChecklistForVehicle('postshift','${v.id}')"
-          style="flex:1;height:56px;background:${postShiftDone?'rgba(0,200,83,.2)':'var(--bg3)'};border:2px solid ${postShiftDone?'var(--green)':'var(--border2)'};color:${postShiftDone?'var(--green)':'var(--white)'};border-radius:10px;font-family:var(--fh);font-size:13px;cursor:pointer">
-          ${postShiftDone?'✅ POST-SHIFT DONE':'🔚 POST-SHIFT'}
-        </button>
-      </div>
-    </div>`;
-  }).join('');
-
-  document.getElementById('home-actions').innerHTML=`
-    <div class="sec-lbl">My Tasks — ${taskDate}</div>
-    ${vehButtons||'<div class="muted-txt" style="padding:20px">No vehicles assigned</div>'}
     <div class="pad-bot"></div>`;
 }
 
@@ -1819,6 +1884,61 @@ function renderPendingReadings(){
 // ════════════════════════════════════
 const gf={source:'',vehicleId:'',meterBefore:0,litres:0,meterAfter:0};
 
+// ── Recent vehicles tracking ──
+const RECENT_KEY = 'fl7_recent_veh';
+function getRecentVehs(){
+  try{return JSON.parse(localStorage.getItem(RECENT_KEY)||'[]');}catch{return[];}
+}
+function addRecentVeh(id){
+  let recent = getRecentVehs();
+  recent = [id, ...recent.filter(x=>x!==id)].slice(0,5);
+  localStorage.setItem(RECENT_KEY, JSON.stringify(recent));
+}
+
+function buildVehTile(f, onclick){
+  return `<div class="veh-tile" onclick="${onclick}">
+    <div class="vt-ico">${vIco(f.type)}</div>
+    <div style="flex:1">
+      <div class="vt-name">${f.name}</div>
+      <div class="vt-sub">${f.type}${f.calibration?' · 📏 '+f.calibration+' L/cm':''}${f.unit&&f.unit!=='none'?' · '+f.unit.toUpperCase():''}</div>
+    </div>
+    <div class="vt-arr">›</div>
+  </div>`;
+}
+
+function renderVehGrid(filtered){
+  if(!fleet.length)
+    return `<div class="no-fleet"><div class="nf-ico">🚜</div><div class="nf-ttl">No Fleet Added</div><div class="nf-sub">Go to Fleet Setup first</div></div>`;
+  if(filtered!==undefined){
+    // Search mode — just show filtered results
+    if(!filtered.length)
+      return `<div style="padding:30px;text-align:center;color:var(--muted);font-size:14px;font-weight:600">No vehicles match your search</div>`;
+    return filtered.map(f=>buildVehTile(f,`pickVehForFuel('${f.id}')`)).join('');
+  }
+  // Normal mode — recent + all
+  const recentIds = getRecentVehs();
+  const recentVehs = recentIds.map(id=>fleet.find(f=>f.id===id)).filter(Boolean);
+  let html = '';
+  if(recentVehs.length){
+    html += `<div style="padding:8px 14px 4px;font-size:10px;color:var(--amber);font-weight:700;letter-spacing:.8px;text-transform:uppercase">⚡ Recently Used</div>`;
+    html += recentVehs.map(f=>buildVehTile(f,`pickVehForFuel('${f.id}')`)).join('');
+    html += `<div style="padding:8px 14px 4px;font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.8px;text-transform:uppercase;border-top:1px solid var(--border);margin-top:4px">All Vehicles</div>`;
+  }
+  html += fleet.map(f=>buildVehTile(f,`pickVehForFuel('${f.id}')`)).join('');
+  return html;
+}
+
+function filterVehGrid(q){
+  const el = document.getElementById('veh-grid');
+  if(!el) return;
+  if(!q.trim()){
+    el.innerHTML = renderVehGrid();
+    return;
+  }
+  const filtered = fleet.filter(f=>f.name.toLowerCase().includes(q.toLowerCase()));
+  el.innerHTML = renderVehGrid(filtered);
+}
+
 function selSource(src){
   gf.source=src;
   const title=src==='can'?'SELECT MACHINE':'SELECT VEHICLE';
@@ -1827,22 +1947,18 @@ function selSource(src){
             'Which machine are the cans going to?';
   document.getElementById('pv-title').textContent=title;
   document.getElementById('pv-sub').textContent=sub;
-  document.getElementById('veh-grid').innerHTML=!fleet.length
-    ?`<div class="no-fleet"><div class="nf-ico">🚜</div><div class="nf-ttl">No Fleet Added</div><div class="nf-sub">Go to Fleet Setup first</div></div>`
-    :fleet.map(f=>`
-      <div class="veh-tile" onclick="pickVehForFuel('${f.id}')">
-        <div class="vt-ico">${vIco(f.type)}</div>
-        <div style="flex:1">
-          <div class="vt-name">${f.name}</div>
-          <div class="vt-sub">${f.type}${f.calibration?' · 📏 '+f.calibration+' L/cm':''}${f.unit&&f.unit!=='none'?' · '+f.unit.toUpperCase():''}</div>
-        </div>
-        <div class="vt-arr">›</div>
-      </div>`).join('');
+  // Clear search and render
+  const searchEl = document.getElementById('veh-search');
+  if(searchEl) searchEl.value='';
+  document.getElementById('veh-grid').innerHTML = renderVehGrid();
   show('scr-pick-veh');
+  // Focus search after screen shows
+  setTimeout(()=>{ if(searchEl) searchEl.focus(); }, 300);
 }
 
 function pickVehForFuel(id){
   gf.vehicleId=id;
+  addRecentVeh(id); // track recently used
   const veh=gV(id);
   if(gf.source==='pump'){
     // Direct pump fill — go to pump fill form
@@ -2533,20 +2649,39 @@ function renderPumpLog(){
 
 
 // ════════════════════════════════════
-function renderReadingsVehGrid(){
+function renderReadingsVehGrid(filter=''){
   const el=document.getElementById('readings-veh-grid');if(!el)return;
   if(!fleet.length){el.innerHTML='<div class="no-fleet"><div class="nf-ico">🚜</div><div class="nf-ttl">No Fleet</div><div class="nf-sub">Add vehicles first</div></div>';return;}
-  el.innerHTML=fleet.map(f=>{
+  const filtered = filter ? fleet.filter(f=>f.name.toLowerCase().includes(filter.toLowerCase())) : fleet;
+  if(!filtered.length){el.innerHTML='<div style="padding:30px;text-align:center;color:var(--muted);font-size:14px;font-weight:600">No vehicles match your search</div>';return;}
+  const recentIds = getRecentVehs();
+  const recentVehs = !filter ? recentIds.map(id=>fleet.find(f=>f.id===id)).filter(Boolean) : [];
+  let html = '';
+  if(recentVehs.length){
+    html += `<div style="padding:8px 14px 4px;font-size:10px;color:var(--amber);font-weight:700;letter-spacing:.8px;text-transform:uppercase">⚡ Recently Used</div>`;
+    html += recentVehs.map(f=>{
+      const lastR=[...readings].filter(r=>r.vehicleId===f.id).sort((a,b)=>b.date.localeCompare(a.date))[0];
+      return `<div class="veh-tile" onclick="openReadingEntry('${f.id}')">
+        <div class="vt-ico">${vIco(f.type)}</div>
+        <div style="flex:1"><div class="vt-name">${f.name}</div>
+        <div class="vt-sub">${f.type} · Last: ${lastR?fmtD(lastR.date):'No entries'}</div></div>
+        <div class="vt-arr">›</div></div>`;
+    }).join('');
+    html += `<div style="padding:8px 14px 4px;font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.8px;text-transform:uppercase;border-top:1px solid var(--border);margin-top:4px">All Vehicles</div>`;
+  }
+  html += filtered.map(f=>{
     const lastR=[...readings].filter(r=>r.vehicleId===f.id).sort((a,b)=>b.date.localeCompare(a.date))[0];
     return `<div class="veh-tile" onclick="openReadingEntry('${f.id}')">
       <div class="vt-ico">${vIco(f.type)}</div>
-      <div style="flex:1">
-        <div class="vt-name">${f.name}</div>
-        <div class="vt-sub">${f.type} · Last: ${lastR?fmtD(lastR.date):'No entries'}</div>
-      </div>
-      <div class="vt-arr">›</div>
-    </div>`;
+      <div style="flex:1"><div class="vt-name">${f.name}</div>
+      <div class="vt-sub">${f.type} · Last: ${lastR?fmtD(lastR.date):'No entries'}</div></div>
+      <div class="vt-arr">›</div></div>`;
   }).join('');
+  el.innerHTML = html;
+}
+
+function filterReadingsVehGrid(q){
+  renderReadingsVehGrid(q);
 }
 
 function openReadingEntry(vehId){
@@ -2867,255 +3002,219 @@ function getFuelRate(){
   return 90;
 }
 
-function repGetTotals(range){
+function renderReports(){
+  const el=document.getElementById('rep-content');
+  if(!el)return;
+  if(!fleet.length){el.innerHTML='<div class="muted-txt" style="padding:40px;text-align:center">Add fleet first</div>';renderAttendanceReport();return;}
+  const range=repGetRange();
   const fuelRate=getFuelRate();
+  const fmtINR=n=>'₹'+Number(Math.round(n)).toLocaleString('en-IN');
+
+  // ── Common data ──
   const allDisbs=disbs.filter(d=>d.date>=range.from&&d.date<=range.to);
   const allPF=(pumpFills||[]).filter(d=>d.date>=range.from&&d.date<=range.to);
   const totalL=allDisbs.reduce((a,d)=>a+d.litres,0)+allPF.reduce((a,d)=>a+d.litres,0);
   const totalCost=totalL*fuelRate;
   const stock=getBowserStock();
-  let effSum=0,effCount=0;
-  fleet.forEach(v=>{
-    const eff=getRoadEfficiency(v);
-    if(eff&&eff.kpl){effSum+=eff.kpl;effCount++;}
-  });
-  const avgEff=effCount>0?effSum/effCount:null;
-  return{totalL,totalCost,stock,avgEff,fuelRate};
-}
+  const totalPurchased=purchases.filter(p=>p.date>=range.from&&p.date<=range.to).reduce((a,p)=>a+p.litres,0);
 
-function repSummaryCard(range){
-  const {totalL,totalCost,stock,avgEff,fuelRate}=repGetTotals(range);
-  const fmtINR=n=>'₹'+Number(Math.round(n)).toLocaleString('en-IN');
-  return `
-  <div style="margin:12px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden">
-    <div style="background:var(--bg3);padding:12px 16px;border-bottom:1px solid var(--border)">
-      <div style="font-family:var(--fh);font-size:13px;color:var(--amber);letter-spacing:.5px">CHIDDARWAR CONSTRUCTION CO.</div>
-      <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">📅 ${repFmtRange(range)} &nbsp;·&nbsp; Rate ₹${fmt(fuelRate,1)}/L</div>
+  // ── Avg efficiency ──
+  let totalKm=0,totalConsumedForEff=0;
+  fleet.forEach(veh=>{
+    const eff=getRoadEfficiency(veh);
+    if(eff&&eff.km&&eff.consumed){totalKm+=eff.km;totalConsumedForEff+=eff.consumed;}
+  });
+  const avgEff=totalConsumedForEff>0?totalKm/totalConsumedForEff:0;
+
+  // ── Summary cards (always shown at top) ──
+  let html=`
+  <div style="margin:10px 14px 0;font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.5px">
+    📅 ${repFmtRange(range)} &nbsp;·&nbsp; ₹${fmt(fuelRate,1)}/L
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);margin:8px 14px;border-radius:12px;overflow:hidden;border:1px solid var(--border)">
+    <div style="background:var(--bg2);padding:12px 14px">
+      <div style="font-family:var(--fh);font-size:22px;color:var(--amber)">${fmt(totalL,1)} L</div>
+      <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-top:3px">Dispensed</div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border)">
-      <div style="background:var(--bg2);padding:12px 14px">
-        <div style="font-family:var(--fh);font-size:22px;color:var(--amber)">${fmt(totalL,1)} L</div>
-        <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-top:2px">Total Dispensed</div>
-      </div>
-      <div style="background:var(--bg2);padding:12px 14px">
-        <div style="font-family:var(--fh);font-size:22px;color:var(--amber)">${fmtINR(totalCost)}</div>
-        <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-top:2px">Total Cost ₹</div>
-      </div>
-      <div style="background:var(--bg2);padding:12px 14px">
-        <div style="font-family:var(--fh);font-size:22px;color:${stock<500?'var(--red)':'var(--green)'}">${fmt(stock,0)} L</div>
-        <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-top:2px">Stock Remaining</div>
-      </div>
-      <div style="background:var(--bg2);padding:12px 14px">
-        <div style="font-family:var(--fh);font-size:22px;color:var(--amber)">${avgEff?fmt(avgEff,2)+' km/L':'—'}</div>
-        <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-top:2px">Avg Efficiency</div>
-      </div>
+    <div style="background:var(--bg2);padding:12px 14px">
+      <div style="font-family:var(--fh);font-size:22px;color:var(--amber)">${fmtINR(totalCost)}</div>
+      <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-top:3px">Total Cost</div>
+    </div>
+    <div style="background:var(--bg2);padding:12px 14px">
+      <div style="font-family:var(--fh);font-size:22px;color:${stock<500?'var(--red)':'var(--green)'}">${fmt(stock,0)} L</div>
+      <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-top:3px">Stock</div>
+    </div>
+    <div style="background:var(--bg2);padding:12px 14px">
+      <div style="font-family:var(--fh);font-size:22px;color:${avgEff>0?(avgEff>=3?'var(--green)':'var(--red)'):'var(--muted)'}">${avgEff>0?fmt(avgEff,2)+' km/L':'—'}</div>
+      <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-top:3px">Avg Efficiency</div>
     </div>
   </div>`;
-}
 
-function renderReports(){
-  const el=document.getElementById('rep-content');
-  if(!el)return;
-  const range=repGetRange();
-  const fuelRate=getFuelRate();
-  if(repActiveTab==='summary') renderRepSummary(el,range,fuelRate);
-  else if(repActiveTab==='daywise') renderRepDaywise(el,range,fuelRate);
-  else if(repActiveTab==='vehicle') renderRepVehicle(el,range,fuelRate);
-  else if(repActiveTab==='driver') renderRepDriver(el,range,fuelRate);
-  else if(repActiveTab==='site') renderRepSite(el,range,fuelRate);
+  // ── Tab content ──
+  if(repActiveTab==='summary'){
+    // Top vehicles by consumption
+    const vehData=fleet.map(v=>{
+      const L=allDisbs.filter(d=>d.vehicleId===v.id).reduce((a,d)=>a+d.litres,0)
+              +allPF.filter(d=>d.vehicleId===v.id).reduce((a,d)=>a+d.litres,0);
+      return{name:v.name,L};
+    }).filter(x=>x.L>0).sort((a,b)=>b.L-a.L);
+
+    if(vehData.length){
+      html+=`<div class="rep-card">
+        <div class="rep-hd">🚚 Vehicle Summary</div>`;
+      vehData.forEach(({name,L})=>{
+        const pct=totalL>0?Math.round(L/totalL*100):0;
+        html+=`<div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px">
+          <div style="flex:1;min-width:0">
+            <div style="font-family:var(--fh);font-size:13px;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
+            <div style="background:var(--border);border-radius:3px;height:4px;margin-top:5px;overflow:hidden">
+              <div style="width:${pct}%;background:var(--amber);height:100%;border-radius:3px"></div>
+            </div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;min-width:90px">
+            <div style="font-family:var(--fh);font-size:14px;color:var(--amber)">${fmtINR(L*fuelRate)}</div>
+            <div style="font-size:10px;color:var(--muted);font-weight:700">${fmt(L,1)} L · ${pct}%</div>
+          </div>
+        </div>`;
+      });
+      html+='</div>';
+    } else {
+      html+='<div class="muted-txt" style="padding:30px;text-align:center">No fuel entries in this period</div>';
+    }
+
+  } else if(repActiveTab==='daywise'){
+    // Build list of dates in range
+    const days=[];
+    let d=new Date(range.from);const end=new Date(range.to);
+    while(d<=end){days.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}
+    html+=`<div class="rep-card"><div class="rep-hd">📅 Day-wise Fuel</div>`;
+    let anyDay=false;
+    days.forEach(dt=>{
+      const dL=allDisbs.filter(x=>x.date===dt).reduce((a,x)=>a+x.litres,0);
+      const pL=allPF.filter(x=>x.date===dt).reduce((a,x)=>a+x.litres,0);
+      const total=dL+pL;
+      if(!total)return;
+      anyDay=true;
+      const entries=allDisbs.filter(x=>x.date===dt).length+allPF.filter(x=>x.date===dt).length;
+      html+=`<div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-family:var(--fh);font-size:14px;color:var(--white)">${fmtD(dt)}</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:2px">${entries} entries</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-family:var(--fh);font-size:15px;color:var(--amber)">${fmtINR(total*fuelRate)}</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:700">${fmt(total,1)} L</div>
+        </div>
+      </div>`;
+    });
+    if(!anyDay)html+='<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">No entries in this period</div>';
+    html+='</div>';
+
+  } else if(repActiveTab==='vehicle'){
+    html+=`<div class="rep-card"><div class="rep-hd">🚚 Vehicle-wise Fuel</div>`;
+    let anyVeh=false;
+    fleet.forEach(v=>{
+      const vDisbs=allDisbs.filter(d=>d.vehicleId===v.id);
+      const vPF=allPF.filter(d=>d.vehicleId===v.id);
+      const L=vDisbs.reduce((a,d)=>a+d.litres,0)+vPF.reduce((a,d)=>a+d.litres,0);
+      if(!L)return;
+      anyVeh=true;
+      const entries=vDisbs.length+vPF.length;
+      const eff=getRoadEfficiency(v);
+      const effStr=eff&&eff.kpl?fmt(eff.kpl,2)+' km/L':'—';
+      const effCol=eff&&eff.kpl?(v.expected&&eff.kpl>=v.expected*0.9?'var(--green)':'var(--red)'):'var(--muted)';
+      html+=`<div style="padding:10px 14px;border-top:1px solid var(--border)">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="flex:1;min-width:0">
+            <div style="font-family:var(--fh);font-size:13px;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.name}</div>
+            <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:2px">${entries} entries · Eff: <span style="color:${effCol}">${effStr}</span></div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;min-width:90px">
+            <div style="font-family:var(--fh);font-size:14px;color:var(--amber)">${fmtINR(L*fuelRate)}</div>
+            <div style="font-size:10px;color:var(--muted);font-weight:700">${fmt(L,1)} L</div>
+          </div>
+        </div>
+      </div>`;
+    });
+    if(!anyVeh)html+='<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">No entries in this period</div>';
+    html+='</div>';
+
+  } else if(repActiveTab==='driver'){
+    // Group by driver name
+    const driverMap={};
+    allDisbs.forEach(d=>{
+      const key=d.operator||d.loggedByName||'Unknown';
+      if(!driverMap[key])driverMap[key]={L:0,entries:0};
+      driverMap[key].L+=d.litres;driverMap[key].entries++;
+    });
+    allPF.forEach(d=>{
+      const key=d.operator||d.loggedByName||'Unknown';
+      if(!driverMap[key])driverMap[key]={L:0,entries:0};
+      driverMap[key].L+=d.litres;driverMap[key].entries++;
+    });
+    const driverList=Object.entries(driverMap).sort((a,b)=>b[1].L-a[1].L);
+    html+=`<div class="rep-card"><div class="rep-hd">👤 Driver-wise Fuel</div>`;
+    if(driverList.length){
+      driverList.forEach(([name,{L,entries}])=>{
+        html+=`<div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-family:var(--fh);font-size:14px;color:var(--white)">${name}</div>
+            <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:2px">${entries} entries</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-family:var(--fh);font-size:15px;color:var(--amber)">${fmtINR(L*fuelRate)}</div>
+            <div style="font-size:10px;color:var(--muted);font-weight:700">${fmt(L,1)} L</div>
+          </div>
+        </div>`;
+      });
+    } else {
+      html+='<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">No entries in this period</div>';
+    }
+    html+='</div>';
+
+  } else if(repActiveTab==='site'){
+    // Group by site
+    const siteMap={};
+    allDisbs.forEach(d=>{
+      const v=gV(d.vehicleId);
+      const key=v?.siteName||'Mobile/Unassigned';
+      if(!siteMap[key])siteMap[key]={L:0,entries:0,vehicles:new Set()};
+      siteMap[key].L+=d.litres;siteMap[key].entries++;
+      if(v)siteMap[key].vehicles.add(v.name);
+    });
+    allPF.forEach(d=>{
+      const v=gV(d.vehicleId);
+      const key=v?.siteName||'Mobile/Unassigned';
+      if(!siteMap[key])siteMap[key]={L:0,entries:0,vehicles:new Set()};
+      siteMap[key].L+=d.litres;siteMap[key].entries++;
+      if(v)siteMap[key].vehicles.add(v.name);
+    });
+    const siteList=Object.entries(siteMap).sort((a,b)=>b[1].L-a[1].L);
+    html+=`<div class="rep-card"><div class="rep-hd">📍 Site-wise Fuel</div>`;
+    if(siteList.length){
+      siteList.forEach(([name,{L,entries,vehicles}])=>{
+        html+=`<div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <div style="flex:1;min-width:0">
+            <div style="font-family:var(--fh);font-size:14px;color:var(--white)">${name}</div>
+            <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:2px">${entries} entries · ${vehicles.size} vehicles</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;min-width:90px">
+            <div style="font-family:var(--fh);font-size:15px;color:var(--amber)">${fmtINR(L*fuelRate)}</div>
+            <div style="font-size:10px;color:var(--muted);font-weight:700">${fmt(L,1)} L</div>
+          </div>
+        </div>`;
+      });
+    } else {
+      html+='<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">No entries in this period</div>';
+    }
+    html+='</div>';
+  }
+
+  el.innerHTML=html+'<div class="pad-bot"></div>';
   renderAttendanceReport();
 }
 
-function renderRepSummary(el,range,fuelRate){
-  const fmtINR=n=>'₹'+Number(Math.round(n)).toLocaleString('en-IN');
-  const allDisbs=disbs.filter(d=>d.date>=range.from&&d.date<=range.to);
-  const allPF=(pumpFills||[]).filter(d=>d.date>=range.from&&d.date<=range.to);
-  const totalL=allDisbs.reduce((a,d)=>a+d.litres,0)+allPF.reduce((a,d)=>a+d.litres,0);
-  const totalEntries=allDisbs.length+allPF.length;
-  let html=repSummaryCard(range);
-  html+=`<div style="margin:0 14px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:10px">
-    <div style="background:var(--bg3);padding:10px 14px;font-family:var(--fh);font-size:13px;color:var(--white);border-bottom:1px solid var(--border)">
-      Total Entries: ${totalEntries}
-    </div>`;
-  const vehData=fleet.map(v=>{
-    const vd=allDisbs.filter(d=>d.vehicleId===v.id);
-    const vpf=allPF.filter(d=>d.vehicleId===v.id);
-    const L=vd.reduce((a,d)=>a+d.litres,0)+vpf.reduce((a,d)=>a+d.litres,0);
-    return{v,L};
-  }).filter(x=>x.L>0).sort((a,b)=>b.L-a.L).slice(0,5);
-  if(vehData.length){
-    html+=`<div style="padding:10px 14px 4px;font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Top Consumers</div>`;
-    vehData.forEach(({v,L})=>{
-      const pct=totalL>0?Math.round(L/totalL*100):0;
-      html+=`<div style="padding:8px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px">
-        <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.name}</div>
-          <div style="background:var(--border);border-radius:3px;height:4px;margin-top:5px">
-            <div style="width:${pct}%;background:var(--amber);height:100%;border-radius:3px"></div>
-          </div>
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div style="font-family:var(--fh);font-size:14px;color:var(--amber)">${fmt(L,1)} L</div>
-          <div style="font-size:10px;color:var(--muted);font-weight:700">${pct}%</div>
-        </div>
-      </div>`;
-    });
-  }
-  html+='</div>';
-  el.innerHTML=html+'<div class="pad-bot"></div>';
-}
-
-function renderRepDaywise(el,range,fuelRate){
-  const fmtINR=n=>'₹'+Number(Math.round(n)).toLocaleString('en-IN');
-  let html=repSummaryCard(range);
-  const days=[];
-  let d=new Date(range.from);const end=new Date(range.to);
-  while(d<=end){days.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}
-  html+=`<div style="margin:0 14px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden">
-    <div style="background:var(--bg3);padding:10px 14px;border-bottom:1px solid var(--border)">
-      <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">
-        <span>Date</span><span style="text-align:right">Litres</span><span style="text-align:right">Cost</span>
-      </div>
-    </div>`;
-  let anyDay=false;
-  [...days].reverse().forEach(dt=>{
-    const dL=disbs.filter(x=>x.date===dt).reduce((a,x)=>a+x.litres,0)
-             +(pumpFills||[]).filter(x=>x.date===dt).reduce((a,x)=>a+x.litres,0);
-    if(!dL)return;
-    anyDay=true;
-    const entries=disbs.filter(x=>x.date===dt).length+(pumpFills||[]).filter(x=>x.date===dt).length;
-    html+=`<div style="padding:10px 14px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center">
-      <div>
-        <div style="font-size:13px;font-weight:700;color:var(--white)">${fmtD(dt)}</div>
-        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:1px">${entries} entries</div>
-      </div>
-      <div style="font-family:var(--fh);font-size:14px;color:var(--amber);text-align:right">${fmt(dL,1)} L</div>
-      <div style="font-family:var(--fh);font-size:13px;color:var(--white);text-align:right">${fmtINR(dL*fuelRate)}</div>
-    </div>`;
-  });
-  if(!anyDay)html+=`<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">No data in this period</div>`;
-  html+='</div>';
-  el.innerHTML=html+'<div class="pad-bot"></div>';
-}
-
-function renderRepVehicle(el,range,fuelRate){
-  const fmtINR=n=>'₹'+Number(Math.round(n)).toLocaleString('en-IN');
-  const allDisbs=disbs.filter(d=>d.date>=range.from&&d.date<=range.to);
-  const allPF=(pumpFills||[]).filter(d=>d.date>=range.from&&d.date<=range.to);
-  let html=repSummaryCard(range);
-  html+=`<div style="margin:0 14px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden">
-    <div style="background:var(--bg3);padding:10px 14px;border-bottom:1px solid var(--border)">
-      <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">
-        <span>Vehicle</span><span style="text-align:right">Litres</span><span style="text-align:right">Cost</span>
-      </div>
-    </div>`;
-  let anyVeh=false;
-  fleet.map(v=>{
-    const L=allDisbs.filter(d=>d.vehicleId===v.id).reduce((a,d)=>a+d.litres,0)
-            +allPF.filter(d=>d.vehicleId===v.id).reduce((a,d)=>a+d.litres,0);
-    const entries=allDisbs.filter(d=>d.vehicleId===v.id).length+allPF.filter(d=>d.vehicleId===v.id).length;
-    return{v,L,entries};
-  }).filter(x=>x.L>0).sort((a,b)=>b.L-a.L).forEach(({v,L,entries})=>{
-    anyVeh=true;
-    const eff=getRoadEfficiency(v);
-    const effStr=eff&&eff.kpl?`${fmt(eff.kpl,2)} km/L`:'—';
-    html+=`<div style="padding:10px 14px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center">
-      <div>
-        <div style="font-size:13px;font-weight:700;color:var(--white)">${v.name}</div>
-        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:1px">${entries} entries · ${effStr}</div>
-      </div>
-      <div style="font-family:var(--fh);font-size:14px;color:var(--amber);text-align:right">${fmt(L,1)} L</div>
-      <div style="font-family:var(--fh);font-size:13px;color:var(--white);text-align:right">${fmtINR(L*fuelRate)}</div>
-    </div>`;
-  });
-  if(!anyVeh)html+=`<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">No data in this period</div>`;
-  html+='</div>';
-  el.innerHTML=html+'<div class="pad-bot"></div>';
-}
-
-function renderRepDriver(el,range,fuelRate){
-  const fmtINR=n=>'₹'+Number(Math.round(n)).toLocaleString('en-IN');
-  const allDisbs=disbs.filter(d=>d.date>=range.from&&d.date<=range.to);
-  const allPF=(pumpFills||[]).filter(d=>d.date>=range.from&&d.date<=range.to);
-  const driverMap={};
-  allDisbs.forEach(d=>{
-    const key=d.operator||d.loggedByName||'Unknown';
-    if(!driverMap[key])driverMap[key]={L:0,entries:0};
-    driverMap[key].L+=d.litres;driverMap[key].entries++;
-  });
-  allPF.forEach(d=>{
-    const key=d.operator||d.loggedByName||'Unknown';
-    if(!driverMap[key])driverMap[key]={L:0,entries:0};
-    driverMap[key].L+=d.litres;driverMap[key].entries++;
-  });
-  let html=repSummaryCard(range);
-  html+=`<div style="margin:0 14px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden">
-    <div style="background:var(--bg3);padding:10px 14px;border-bottom:1px solid var(--border)">
-      <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">
-        <span>Driver / Operator</span><span style="text-align:right">Litres</span><span style="text-align:right">Cost</span>
-      </div>
-    </div>`;
-  const rows=Object.entries(driverMap).sort((a,b)=>b[1].L-a[1].L);
-  if(rows.length){
-    rows.forEach(([name,{L,entries}])=>{
-      html+=`<div style="padding:10px 14px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center">
-        <div>
-          <div style="font-size:13px;font-weight:700;color:var(--white)">${name}</div>
-          <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:1px">${entries} entries</div>
-        </div>
-        <div style="font-family:var(--fh);font-size:14px;color:var(--amber);text-align:right">${fmt(L,1)} L</div>
-        <div style="font-family:var(--fh);font-size:13px;color:var(--white);text-align:right">${fmtINR(L*fuelRate)}</div>
-      </div>`;
-    });
-  } else {
-    html+=`<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">No data in this period</div>`;
-  }
-  html+='</div>';
-  el.innerHTML=html+'<div class="pad-bot"></div>';
-}
-
-function renderRepSite(el,range,fuelRate){
-  const fmtINR=n=>'₹'+Number(Math.round(n)).toLocaleString('en-IN');
-  const allDisbs=disbs.filter(d=>d.date>=range.from&&d.date<=range.to);
-  const allPF=(pumpFills||[]).filter(d=>d.date>=range.from&&d.date<=range.to);
-  const siteMap={};
-  const getSite=vehicleId=>{const v=gV(vehicleId);return v?.siteName||'Mobile/Unassigned';};
-  allDisbs.forEach(d=>{
-    const key=getSite(d.vehicleId);
-    if(!siteMap[key])siteMap[key]={L:0,entries:0,vehicles:new Set()};
-    siteMap[key].L+=d.litres;siteMap[key].entries++;siteMap[key].vehicles.add(d.vehicleId);
-  });
-  allPF.forEach(d=>{
-    const key=getSite(d.vehicleId);
-    if(!siteMap[key])siteMap[key]={L:0,entries:0,vehicles:new Set()};
-    siteMap[key].L+=d.litres;siteMap[key].entries++;siteMap[key].vehicles.add(d.vehicleId);
-  });
-  let html=repSummaryCard(range);
-  html+=`<div style="margin:0 14px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden">
-    <div style="background:var(--bg3);padding:10px 14px;border-bottom:1px solid var(--border)">
-      <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">
-        <span>Site</span><span style="text-align:right">Litres</span><span style="text-align:right">Cost</span>
-      </div>
-    </div>`;
-  const rows=Object.entries(siteMap).sort((a,b)=>b[1].L-a[1].L);
-  if(rows.length){
-    rows.forEach(([site,{L,entries,vehicles}])=>{
-      html+=`<div style="padding:10px 14px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center">
-        <div>
-          <div style="font-size:13px;font-weight:700;color:var(--white)">📍 ${site}</div>
-          <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:1px">${vehicles.size} vehicles · ${entries} entries</div>
-        </div>
-        <div style="font-family:var(--fh);font-size:14px;color:var(--amber);text-align:right">${fmt(L,1)} L</div>
-        <div style="font-family:var(--fh);font-size:13px;color:var(--white);text-align:right">${fmtINR(L*fuelRate)}</div>
-      </div>`;
-    });
-  } else {
-    html+=`<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">No data in this period</div>`;
-  }
-  html+='</div>';
-  el.innerHTML=html+'<div class="pad-bot"></div>';
-}
-
+// ── WhatsApp Export ──
 function exportReportWhatsApp(){
   const range=repGetRange();
   const fuelRate=getFuelRate();
@@ -3126,20 +3225,23 @@ function exportReportWhatsApp(){
   let txt='⛽ *FUELLOG REPORT*\n';
   txt+=`📍 Chiddarwar Construction Co.\n`;
   txt+=`📅 ${repFmtRange(range)}\n\n`;
-  txt+=`*Total Dispensed: ${fmt(totalL,1)} L*\n`;
-  txt+=`*Total Cost: ${fmtINR(totalL*fuelRate)}*\n`;
-  txt+=`Stock: ${fmt(getBowserStock(),0)} L · Rate ₹${fmt(fuelRate,1)}/L\n\n`;
+  txt+=`🛢 *Summary*\n`;
+  txt+=`Total Dispensed: *${fmt(totalL,1)} L*\n`;
+  txt+=`Total Cost: *${fmtINR(totalL*fuelRate)}*\n`;
+  txt+=`Stock: ${fmt(getBowserStock(),0)} L\n`;
+  txt+=`Rate: ₹${fmt(fuelRate,1)}/L\n\n`;
   txt+='🚚 *Vehicle-wise*\n';
-  fleet.forEach(v=>{
+  const vehRows=fleet.map(v=>{
     const L=allDisbs.filter(d=>d.vehicleId===v.id).reduce((a,d)=>a+d.litres,0)
-           +allPF.filter(d=>d.vehicleId===v.id).reduce((a,d)=>a+d.litres,0);
-    if(!L)return;
-    txt+=`• ${v.name}: ${fmt(L,1)} L = ${fmtINR(L*fuelRate)}\n`;
-  });
-  txt+='\n_Sent from FuelLog App_';
+            +allPF.filter(d=>d.vehicleId===v.id).reduce((a,d)=>a+d.litres,0);
+    return{name:v.name,L};
+  }).filter(x=>x.L>0).sort((a,b)=>b.L-a.L);
+  vehRows.forEach(({name,L})=>txt+=`• ${name}: ${fmt(L,1)} L = ${fmtINR(L*fuelRate)}\n`);
+  txt+='\n_Sent from FuelLog — Chiddarwar Construction_';
   window.open('https://api.whatsapp.com/send?text='+encodeURIComponent(txt),'_blank');
 }
 
+// ── PDF Export ──
 function exportRepPDF(){
   const range=repGetRange();
   const fuelRate=getFuelRate();
@@ -3149,46 +3251,82 @@ function exportRepPDF(){
   const totalL=allDisbs.reduce((a,d)=>a+d.litres,0)+allPF.reduce((a,d)=>a+d.litres,0);
   const totalCost=totalL*fuelRate;
   const stock=getBowserStock();
+
+  // Vehicle rows
   const vehRows=fleet.map(v=>{
     const L=allDisbs.filter(d=>d.vehicleId===v.id).reduce((a,d)=>a+d.litres,0)
             +allPF.filter(d=>d.vehicleId===v.id).reduce((a,d)=>a+d.litres,0);
-    return{name:v.name,L};
+    const eff=getRoadEfficiency(v);
+    return{name:v.name,L,eff:eff?.kpl||0};
   }).filter(x=>x.L>0).sort((a,b)=>b.L-a.L);
-  const vehHTML=vehRows.map(({name,L})=>`
-    <tr><td>${name}</td><td style="text-align:right">${fmt(L,1)} L</td><td style="text-align:right">${fmtINR(L*fuelRate)}</td></tr>`).join('');
-  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>FuelLog Report</title>
+
+  // Day rows
+  const days=[];
+  let d=new Date(range.from);const endD=new Date(range.to);
+  while(d<=endD){days.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}
+  const dayRows=days.map(dt=>{
+    const L=allDisbs.filter(x=>x.date===dt).reduce((a,x)=>a+x.litres,0)
+            +allPF.filter(x=>x.date===dt).reduce((a,x)=>a+x.litres,0);
+    return{dt,L};
+  }).filter(x=>x.L>0);
+
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <title>FuelLog Report — ${repFmtRange(range)}</title>
   <style>
-    body{font-family:Arial,sans-serif;margin:30px;color:#111;font-size:13px}
-    h1{font-size:20px;margin:0}.sub{color:#666;font-size:12px;margin-top:4px}
-    .summary{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin:20px 0;border:1px solid #ddd;border-radius:8px;overflow:hidden}
-    .sum-cell{padding:14px;border-right:1px solid #ddd}.sum-cell:last-child{border-right:none}
-    .sum-val{font-size:20px;font-weight:700;color:#e65100}.sum-lbl{font-size:10px;color:#999;text-transform:uppercase;letter-spacing:.4px;margin-top:3px}
-    table{width:100%;border-collapse:collapse;margin-top:16px}
-    th{background:#f5f5f5;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px;border-bottom:2px solid #ddd}
-    td{padding:8px 12px;border-bottom:1px solid #eee}tr:last-child td{border-bottom:none}
-    .footer{margin-top:30px;font-size:11px;color:#999;border-top:1px solid #eee;padding-top:12px}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;padding:24px;color:#111;font-size:12px}
+    .header{border-bottom:3px solid #e65100;padding-bottom:12px;margin-bottom:16px}
+    .header h1{font-size:22px;color:#e65100}
+    .header .sub{color:#666;font-size:11px;margin-top:4px}
+    .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid #ddd;border-radius:6px;overflow:hidden;margin-bottom:20px}
+    .sum-cell{padding:12px 14px;border-right:1px solid #ddd;background:#fff8e1}
+    .sum-cell:last-child{border-right:none}
+    .sum-val{font-size:18px;font-weight:700;color:#e65100}
+    .sum-lbl{font-size:9px;color:#999;text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+    h2{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+       color:#e65100;border-bottom:1px solid #eee;padding-bottom:6px;margin:16px 0 8px}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th{background:#f5f5f5;padding:7px 10px;text-align:left;font-size:10px;
+       text-transform:uppercase;letter-spacing:.4px;border-bottom:2px solid #ddd}
+    td{padding:7px 10px;border-bottom:1px solid #eee}
+    tr:last-child td{border-bottom:none}
+    .tfoot td{font-weight:700;background:#fff8e1;border-top:2px solid #ddd}
+    .right{text-align:right}
+    .footer{margin-top:24px;font-size:10px;color:#999;border-top:1px solid #eee;padding-top:10px;text-align:center}
+    @media print{body{padding:12px}}
   </style></head><body>
-  <h1>⛽ FUELLOG REPORT</h1>
-  <div class="sub">Chiddarwar Construction Co. | ${repFmtRange(range)} | Generated: ${new Date().toLocaleString('en-IN')}</div>
+  <div class="header">
+    <h1>⛽ FUELLOG REPORT</h1>
+    <div class="sub">Chiddarwar Construction Co. Pvt. Ltd. &nbsp;|&nbsp; Period: ${repFmtRange(range)} &nbsp;|&nbsp; Generated: ${new Date().toLocaleString('en-IN')} &nbsp;|&nbsp; Rate: ₹${fmt(fuelRate,1)}/L</div>
+  </div>
   <div class="summary">
     <div class="sum-cell"><div class="sum-val">${fmt(totalL,1)} L</div><div class="sum-lbl">Total Dispensed</div></div>
     <div class="sum-cell"><div class="sum-val">${fmtINR(totalCost)}</div><div class="sum-lbl">Total Cost</div></div>
     <div class="sum-cell"><div class="sum-val">${fmt(stock,0)} L</div><div class="sum-lbl">Stock Remaining</div></div>
-    <div class="sum-cell"><div class="sum-val">₹${fmt(fuelRate,1)}/L</div><div class="sum-lbl">Fuel Rate</div></div>
+    <div class="sum-cell"><div class="sum-val">${vehRows.length} vehicles</div><div class="sum-lbl">Active This Period</div></div>
   </div>
+  <h2>Vehicle-wise Breakdown</h2>
   <table>
-    <thead><tr><th>Vehicle</th><th style="text-align:right">Litres</th><th style="text-align:right">Cost</th></tr></thead>
-    <tbody>${vehHTML}</tbody>
-    <tfoot><tr style="font-weight:700;background:#fff8e1">
-      <td>TOTAL</td><td style="text-align:right">${fmt(totalL,1)} L</td><td style="text-align:right">${fmtINR(totalCost)}</td>
-    </tr></tfoot>
+    <thead><tr><th>#</th><th>Vehicle</th><th class="right">Litres</th><th class="right">Cost (₹)</th><th class="right">Efficiency</th></tr></thead>
+    <tbody>
+      ${vehRows.map((v,i)=>`<tr><td>${i+1}</td><td>${v.name}</td><td class="right">${fmt(v.L,1)}</td><td class="right">${fmtINR(v.L*fuelRate)}</td><td class="right">${v.eff?fmt(v.eff,2)+' km/L':'—'}</td></tr>`).join('')}
+    </tbody>
+    <tfoot><tr class="tfoot"><td colspan="2">TOTAL</td><td class="right">${fmt(totalL,1)} L</td><td class="right">${fmtINR(totalCost)}</td><td></td></tr></tfoot>
   </table>
-  <div class="footer">Total Entries: ${allDisbs.length+allPF.length} | Generated from FuelLog App</div>
+  <h2>Day-wise Summary</h2>
+  <table>
+    <thead><tr><th>Date</th><th class="right">Litres</th><th class="right">Cost (₹)</th></tr></thead>
+    <tbody>${dayRows.map(({dt,L})=>`<tr><td>${fmtD(dt)}</td><td class="right">${fmt(L,1)}</td><td class="right">${fmtINR(L*fuelRate)}</td></tr>`).join('')}</tbody>
+  </table>
+  <div class="footer">Total Entries: ${allDisbs.length+allPF.length} &nbsp;|&nbsp; Generated from FuelLog App &nbsp;|&nbsp; Chiddarwar Construction Co. Pvt. Ltd.</div>
   </body></html>`;
+
   const w=window.open('','_blank');
-  w.document.write(html);w.document.close();
-  setTimeout(()=>w.print(),500);
+  w.document.write(html);
+  w.document.close();
+  setTimeout(()=>w.print(),600);
 }
+
 
 function delEntry(id,type){
   if(!canDelEntry()){alert('Only Owner can delete');return;}
