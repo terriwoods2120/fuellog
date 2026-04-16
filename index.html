@@ -529,7 +529,7 @@ input[type=file]{display:none}
     <span id="sess-bdg"></span>
   </div>
   <!-- SCROLLABLE CONTENT -->
-  <div id="home-content" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch">
+  <div id="home-content" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0">
     <div id="home-dashboard"></div>
     <div id="home-alerts"></div>
     <div id="home-actions" class="home-actions"></div>
@@ -567,136 +567,92 @@ input[type=file]{display:none}
 </div>
 
 <!-- ═══ GIVE FUEL: BOWSER BEFORE ═══ -->
-<div class="screen" id="scr-bow-before">
-  <div class="topbar">
-    <button class="tb-back" onclick="show('scr-home')">‹</button>
-    <div><div class="tb-title">BOWSER METER</div><div class="tb-sub">Reading BEFORE dispensing</div></div>
-    <div class="tb-right" id="bb-date"></div>
-  </div>
-  <div class="np-wrap">
-    <div class="np-lbl">Totaliser reading now (L)</div>
-    <div class="np-val"><span id="npv-before">0</span><span class="np-unit">L</span></div>
-    <div class="np-hint" id="np-before-hint"></div>
-  </div>
-  <div class="np-grid" id="npg-before"></div>
-  <div class="btn-row">
-    <button class="big-btn bb-cancel" onclick="show('scr-home')">BACK</button>
-    <button class="big-btn bb-amber" onclick="stepLitres()">NEXT ›</button>
-  </div>
-  <div class="pad-bot"></div>
-</div>
-
-<!-- ═══ GIVE FUEL: DESTINATION ═══ -->
-<div class="screen" id="scr-dest">
-  <div class="topbar">
-    <button class="tb-back" onclick="show('scr-bow-before')">‹</button>
-    <div><div class="tb-title">FUEL GOING TO?</div><div class="tb-sub" id="dest-sub"></div></div>
-  </div>
-  <div class="dest-wrap">
-    <div class="dest-lbl">Select destination type</div>
-    <div class="dest-row">
-      <div class="dest-btn" id="dbtn-direct" onclick="selDest('direct')">
-        <div class="d-ico">🚗</div>
-        <div class="d-title">DIRECT TO VEHICLE</div>
-        <div class="d-sub">Fuel into machine on site right now</div>
-      </div>
-      <div class="dest-btn" id="dbtn-can" onclick="selDest('can')">
-        <div class="d-ico">🪣</div>
-        <div class="d-title">INTO CAN</div>
-        <div class="d-sub">Going offsite — dip gauge to follow</div>
-      </div>
-    </div>
-  </div>
-  <div class="pad-bot"></div>
-</div>
-
-<!-- ═══ GIVE FUEL: PICK VEHICLE ═══ -->
-<div class="screen" id="scr-pick-veh">
-  <div class="topbar">
-    <button class="tb-back" onclick="show('scr-dest')">‹</button>
-    <div><div class="tb-title" id="pv-title">SELECT VEHICLE</div><div class="tb-sub" id="pv-sub"></div></div>
-  </div>
-  <!-- Search bar -->
-  <div style="padding:10px 12px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0">
-    <div style="position:relative">
-      <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none">🔍</span>
-      <input id="veh-search" type="text" placeholder="Search vehicle number..."
-        autocomplete="off" autocorrect="off" spellcheck="false"
-        oninput="filterVehGrid(this.value)"
-        style="width:100%;background:var(--bg3);border:2px solid var(--border);color:var(--white);
-               padding:11px 12px 11px 38px;border-radius:10px;font-size:15px;font-family:var(--fb);
-               outline:none;-webkit-appearance:none">
-    </div>
-  </div>
-  <div class="veh-grid" id="veh-grid" style="padding-top:4px"></div>
-  <div class="pad-bot"></div>
-</div>
-
-<!-- ═══ GIVE FUEL: LITRES ═══ -->
-<div class="screen" id="scr-litres">
+<!-- ═══ GIVE FUEL: SINGLE ENTRY FORM ═══ -->
+<div class="screen" id="scr-fuel-entry">
   <div class="topbar">
     <button class="tb-back" onclick="show('scr-pick-veh')">‹</button>
-    <div><div class="tb-title">LITRES ISSUED</div><div class="tb-sub" id="lit-veh-sub"></div></div>
-    <div class="tb-right" id="lit-src-tag"></div>
+    <div>
+      <div class="tb-title" id="fe-title">LOG FUEL</div>
+      <div class="tb-sub" id="fe-veh-name"></div>
+    </div>
+    <div class="tb-right" id="fe-src-tag"></div>
   </div>
-  <div class="np-wrap">
-    <div class="np-lbl">How many litres?</div>
-    <div class="np-val"><span id="npv-litres">0</span><span class="np-unit">L</span></div>
-  </div>
-  <div class="np-grid" id="npg-litres"></div>
-  <div class="btn-row">
-    <button class="big-btn bb-cancel" onclick="show('scr-pick-veh')">BACK</button>
-    <button class="big-btn bb-amber" onclick="stepBowserAfter()">NEXT ›</button>
-  </div>
-  <div class="pad-bot"></div>
-</div>
+  <div class="form-body" style="gap:0;padding:0">
 
-<!-- ═══ GIVE FUEL: BOWSER AFTER ═══ -->
-<div class="screen" id="scr-bow-after">
-  <div class="topbar">
-    <button class="tb-back" onclick="show('scr-litres')">‹</button>
-    <div><div class="tb-title">BOWSER METER</div><div class="tb-sub">Reading AFTER dispensing</div></div>
-  </div>
-  <div class="np-wrap">
-    <div class="np-lbl">Totaliser reading now (L)</div>
-    <div class="np-val"><span id="npv-after">0</span><span class="np-unit">L</span></div>
-    <div class="np-hint" id="np-after-hint"></div>
-  </div>
-  <div class="np-grid" id="npg-after"></div>
-  <div id="meter-alert-box"></div>
-  <div class="btn-row">
-    <button class="big-btn bb-cancel" onclick="show('scr-litres')">BACK</button>
-    <button class="big-btn bb-amber" onclick="stepConfirm()">NEXT ›</button>
-  </div>
-  <div class="pad-bot"></div>
-</div>
+    <!-- Meter Before -->
+    <div style="padding:14px 14px 10px;border-bottom:1px solid var(--border)">
+      <label class="f-lbl" style="margin-bottom:6px;display:block">📟 Bowser Meter BEFORE (L)</label>
+      <input class="f-inp" id="fe-before" type="number" inputmode="decimal"
+        placeholder="e.g. 12450" style="font-size:22px;font-family:var(--fh);height:56px"
+        oninput="feLiveCheck()">
+      <div id="fe-before-hint" style="font-size:11px;color:var(--muted);font-weight:600;margin-top:4px"></div>
+    </div>
 
-<!-- ═══ GIVE FUEL: CONFIRM + DETAILS ═══ -->
-<div class="screen" id="scr-details">
-  <div class="topbar">
-    <button class="tb-back" onclick="show('scr-bow-after')">‹</button>
-    <div><div class="tb-title">CONFIRM ENTRY</div><div class="tb-sub" id="det-sub"></div></div>
-  </div>
-  <div class="conf-card" id="det-summary"></div>
-  <div class="form-body" style="padding-top:4px">
-    <div class="opt-tog" onclick="toggleOpt('opt-det')">+ Add Details <span>▾</span></div>
-    <div class="opt-body" id="opt-det">
-      <div class="f-field">
-        <label class="f-lbl">Received By (Driver / Operator)</label>
-        <input class="f-inp" id="det-operator" placeholder="Name of driver or operator" type="text">
-      </div>
-      <div class="f-field">
-        <label class="f-lbl">Remarks</label>
-        <input class="f-inp" id="det-remarks" placeholder="Any note" type="text">
+    <!-- Litres -->
+    <div style="padding:14px 14px 10px;border-bottom:1px solid var(--border)">
+      <label class="f-lbl" style="margin-bottom:6px;display:block">⛽ Litres Issued</label>
+      <input class="f-inp" id="fe-litres" type="number" inputmode="decimal"
+        placeholder="e.g. 120" style="font-size:28px;font-family:var(--fh);height:64px;color:var(--amber)"
+        oninput="feLiveCheck()">
+    </div>
+
+    <!-- Meter After -->
+    <div style="padding:14px 14px 10px;border-bottom:1px solid var(--border)">
+      <label class="f-lbl" style="margin-bottom:6px;display:block">📟 Bowser Meter AFTER (L)</label>
+      <input class="f-inp" id="fe-after" type="number" inputmode="decimal"
+        placeholder="e.g. 12570" style="font-size:22px;font-family:var(--fh);height:56px"
+        oninput="feLiveCheck()">
+      <!-- Live meter check -->
+      <div id="fe-meter-check" style="margin-top:8px"></div>
+    </div>
+
+    <!-- Destination toggle (only for bowser) -->
+    <div id="fe-dest-wrap" style="padding:14px;border-bottom:1px solid var(--border)">
+      <label class="f-lbl" style="margin-bottom:8px;display:block">⬇️ Fuel Going To</label>
+      <div style="display:flex;gap:8px">
+        <div id="fe-dest-direct" onclick="feSelDest('direct')"
+          style="flex:1;padding:12px;background:var(--amber);border:2px solid var(--amber);
+                 border-radius:10px;text-align:center;cursor:pointer">
+          <div style="font-size:20px">🚗</div>
+          <div style="font-family:var(--fh);font-size:12px;color:#111;margin-top:4px">DIRECT</div>
+        </div>
+        <div id="fe-dest-can" onclick="feSelDest('can')"
+          style="flex:1;padding:12px;background:var(--bg3);border:2px solid var(--border);
+                 border-radius:10px;text-align:center;cursor:pointer">
+          <div style="font-size:20px">🪣</div>
+          <div style="font-family:var(--fh);font-size:12px;color:var(--muted);margin-top:4px">INTO CAN</div>
+        </div>
       </div>
     </div>
+
+    <!-- Driver + Remarks -->
+    <div style="padding:14px">
+      <div class="f-field">
+        <label class="f-lbl">👤 Received By (optional)</label>
+        <input class="f-inp" id="fe-operator" placeholder="Driver / operator name" type="text">
+      </div>
+      <div class="f-field">
+        <label class="f-lbl">📝 Remarks (optional)</label>
+        <input class="f-inp" id="fe-remarks" placeholder="Any note" type="text">
+      </div>
+    </div>
+
   </div>
-  <div class="btn-row">
-    <button class="big-btn bb-cancel" onclick="show('scr-bow-after')">BACK</button>
-    <button class="big-btn bb-go" onclick="saveDisb()">✓ SAVE</button>
+  <!-- Save button -->
+  <div style="padding:12px 14px;background:var(--bg2);border-top:1px solid var(--border);flex-shrink:0">
+    <button class="big-btn bb-go bb-full" style="height:60px;font-size:20px" onclick="saveFuelEntry()">
+      ✓ SAVE FUEL ENTRY
+    </button>
   </div>
   <div class="pad-bot"></div>
 </div>
+
+<!-- Legacy screens kept for back-compat (hidden, not used) -->
+<div style="display:none" id="scr-bow-before"></div>
+<div style="display:none" id="scr-dest"></div>
+<div style="display:none" id="scr-litres"></div>
+<div style="display:none" id="scr-bow-after"></div>
+<div style="display:none" id="scr-details"></div>
 
 <!-- ═══ DIP GAUGE ═══ -->
 <div class="screen" id="scr-dip">
@@ -1491,7 +1447,7 @@ function renderHome(){
   if(moreBtn)moreBtn.style.display=isDriver()?'none':'';
   if(reportsBtn)reportsBtn.style.display=isDriver()?'none':'';
   // Render active tab
-  const tab=window._bnavTab||'home';
+  const tab=_bnavTab||'home';
   bnavRender(tab);
 }
 
@@ -1958,109 +1914,114 @@ function selSource(src){
 
 function pickVehForFuel(id){
   gf.vehicleId=id;
-  addRecentVeh(id); // track recently used
+  addRecentVeh(id);
   const veh=gV(id);
   if(gf.source==='pump'){
-    // Direct pump fill — go to pump fill form
+    // Pump fill — separate form
     populatePumpSelect();
     document.getElementById('pf-veh-name').textContent=veh?.name||'';
     document.getElementById('pf-loggedby').value=sess?.name||'';
     resetPFPhotos();
     ['pf-litres','pf-rate','pf-amount','pf-paid','pf-bill','pf-operator'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
     show('scr-pump-fill');
+    return;
+  }
+  // Bowser or can — go to single entry form
+  openFuelEntryForm(veh);
+}
+
+function openFuelEntryForm(veh){
+  // Set header
+  document.getElementById('fe-title').textContent = gf.source==='can'?'CAN DISPATCH':'BOWSER FUEL';
+  document.getElementById('fe-veh-name').textContent = veh?.name||'';
+  document.getElementById('fe-src-tag').innerHTML = gf.source==='can'
+    ? '<span style="color:var(--amber);font-size:11px;font-weight:700">🪣 CAN</span>'
+    : '<span style="color:var(--green);font-size:11px;font-weight:700">🛢 BOWSER</span>';
+
+  // Clear fields
+  document.getElementById('fe-before').value='';
+  document.getElementById('fe-litres').value='';
+  document.getElementById('fe-after').value='';
+  document.getElementById('fe-operator').value='';
+  document.getElementById('fe-remarks').value='';
+  document.getElementById('fe-meter-check').innerHTML='';
+
+  // Hint for meter before
+  const last=[...disbs].filter(d=>d.source==='bowser'||d.source==='can').sort((a,b)=>b.ts-a.ts)[0];
+  document.getElementById('fe-before-hint').textContent=
+    last?'Last reading: '+fmt(last.meterAfter,0)+' L':'First entry — enter current totaliser';
+
+  // Destination toggle — default direct, hide for can source
+  const destWrap=document.getElementById('fe-dest-wrap');
+  if(gf.source==='can'){
+    destWrap.style.display='none';
+    gf.destType='can';
   } else {
-    // Bowser or can — enter meter before
-    document.getElementById('bb-date').textContent=fmtD(today());
-    const last=[...disbs].filter(d=>d.source==='bowser'||d.source==='can').sort((a,b)=>b.ts-a.ts)[0];
-    document.getElementById('np-before-hint').textContent=
-      last?'Last bowser reading: '+fmt(last.meterAfter,0)+' L':'First entry — enter current totaliser';
-    buildNP('before','npg-before','npv-before',{max:8});
-    show('scr-bow-before');
+    destWrap.style.display='';
+    feSelDest('direct');
+  }
+
+  show('scr-fuel-entry');
+  // Focus first input
+  setTimeout(()=>document.getElementById('fe-before').focus(),300);
+}
+
+let feDestType='direct';
+function feSelDest(d){
+  feDestType=d;
+  const dir=document.getElementById('fe-dest-direct');
+  const can=document.getElementById('fe-dest-can');
+  if(d==='direct'){
+    dir.style.background='var(--amber)';dir.style.borderColor='var(--amber)';
+    dir.querySelector('div:last-child').style.color='#111';
+    can.style.background='var(--bg3)';can.style.borderColor='var(--border)';
+    can.querySelector('div:last-child').style.color='var(--muted)';
+  } else {
+    can.style.background='var(--amber)';can.style.borderColor='var(--amber)';
+    can.querySelector('div:last-child').style.color='#111';
+    dir.style.background='var(--bg3)';dir.style.borderColor='var(--border)';
+    dir.querySelector('div:last-child').style.color='var(--muted)';
   }
 }
 
-function stepLitres(){
-  const v=NP['before'].get();
-  if(!v){alert('Enter bowser meter reading');return;}
-  gf.meterBefore=v;
+function feLiveCheck(){
+  const before=parseFloat(document.getElementById('fe-before').value)||0;
+  const litres=parseFloat(document.getElementById('fe-litres').value)||0;
+  const after=parseFloat(document.getElementById('fe-after').value)||0;
+  const box=document.getElementById('fe-meter-check');
+  if(!before||!litres||!after){box.innerHTML='';return;}
+  const diff=after-before;
+  const gap=Math.abs(diff-litres);
+  const pct=litres>0?(gap/litres)*100:0;
+  let bg,ico,msg;
+  if(diff<0){bg='rgba(255,61,61,.12)';ico='🚫';msg='After reading is less than before — check meter.';}
+  else if(gap<=1){bg='rgba(0,200,83,.1)';ico='✅';msg='Meter matches — diff '+fmt(diff,1)+' L vs '+fmt(litres,1)+' L entered';}
+  else if(pct<=5){bg='rgba(255,179,0,.1)';ico='⚠️';msg='Small variance: meter diff '+fmt(diff,1)+' L, entered '+fmt(litres,1)+' L';}
+  else{bg='rgba(255,61,61,.12)';ico='🚨';msg='MISMATCH: meter diff '+fmt(diff,1)+' L vs entered '+fmt(litres,1)+' L';}
+  box.innerHTML=`<div style="background:${bg};border-radius:8px;padding:10px 12px;display:flex;gap:8px;align-items:center;font-size:12px;font-weight:600">
+    <span style="font-size:16px">${ico}</span><span>${msg}</span>
+  </div>`;
+}
+
+function saveFuelEntry(){
+  const before=parseFloat(document.getElementById('fe-before').value)||0;
+  const litres=parseFloat(document.getElementById('fe-litres').value)||0;
+  const after=parseFloat(document.getElementById('fe-after').value)||0;
+  if(!before){alert('Enter bowser meter BEFORE');document.getElementById('fe-before').focus();return;}
+  if(!litres){alert('Enter litres issued');document.getElementById('fe-litres').focus();return;}
+  if(!after){alert('Enter bowser meter AFTER');document.getElementById('fe-after').focus();return;}
   const veh=gV(gf.vehicleId);
-  document.getElementById('lit-veh-sub').textContent=veh?.name||'';
-  document.getElementById('lit-src-tag').innerHTML=
-    gf.source==='can'
-      ?'<span style="color:var(--amber);font-size:11px;font-weight:700">🪣 CAN</span>'
-      :'<span style="color:var(--green);font-size:11px;font-weight:700">🛢 BOWSER</span>';
-  buildNP('litres','npg-litres','npv-litres');
-  show('scr-litres');
-}
-
-function stepBowserAfter(){
-  const L=NP['litres'].get();
-  if(!L){alert('Enter litres');return;}
-  gf.litres=L;
-  document.getElementById('np-after-hint').textContent=
-    'Expected ~'+fmt(gf.meterBefore+L,0)+' L (before '+fmt(gf.meterBefore,0)+' + '+fmt(L,1)+' L)';
-  document.getElementById('meter-alert-box').innerHTML='';
-  buildNP('after','npg-after','npv-after',{max:8,onChange:liveCheckMeter});
-  show('scr-bow-after');
-}
-
-function liveCheckMeter(afterVal){
-  const box=document.getElementById('meter-alert-box');
-  if(!afterVal){box.innerHTML='';return;}
-  const diff=afterVal-gf.meterBefore;
-  const gap=Math.abs(diff-gf.litres);
-  const pct=gf.litres>0?(gap/gf.litres)*100:0;
-  let cls,ico,msg;
-  if(diff<0){cls='m-bad';ico='🚫';msg='After reading is less than before. Check meter.';}
-  else if(gap<=1){cls='m-ok';ico='✅';msg='Meter matches — diff '+fmt(diff,1)+' L vs '+fmt(gf.litres,1)+' L entered';}
-  else if(pct<=5){cls='m-warn';ico='⚠️';msg='Small variance: meter shows '+fmt(diff,1)+' L, entered '+fmt(gf.litres,1)+' L';}
-  else{cls='m-bad';ico='🚨';msg='MISMATCH: meter '+fmt(diff,1)+' L vs entered '+fmt(gf.litres,1)+' L. Recheck.';}
-  box.innerHTML=`<div class="m-alert ${cls}"><div class="m-ico">${ico}</div><div>${msg}</div></div>`;
-}
-
-function stepConfirm(){
-  const after=NP['after'].get();
-  if(!after){alert('Enter bowser meter after reading');return;}
-  gf.meterAfter=after;
-  const veh=gV(gf.vehicleId);
-  const mDiff=after-gf.meterBefore;
-  const gap=Math.abs(mDiff-gf.litres);
-  const pct=gf.litres>0?(gap/gf.litres)*100:0;
-  const mismatch=mDiff<0||gap>1;
-  document.getElementById('det-sub').textContent=
-    gf.source==='can'?'Will go to dip gauge pending list':'Entry complete after saving';
-  const card=document.getElementById('det-summary');
-  card.className='conf-card'+(mismatch?' wb':'');
-  card.innerHTML=`
-    <div class="conf-row"><span class="conf-k">Vehicle</span><span class="conf-v">${veh?.name||'—'}</span></div>
-    <div class="conf-row"><span class="conf-k">Destination</span><span class="conf-v">${gf.source==='can'?'🪣 Into Can':'🚗 Direct'}</span></div>
-    <div class="conf-row"><span class="conf-k">Litres Entered</span><span class="conf-v big">${fmt(gf.litres,1)} L</span></div>
-    <div class="conf-row"><span class="conf-k">Meter Before</span><span class="conf-v">${fmt(gf.meterBefore,0)} L</span></div>
-    <div class="conf-row"><span class="conf-k">Meter After</span><span class="conf-v">${fmt(after,0)} L</span></div>
-    <div class="conf-row"><span class="conf-k">Meter Diff</span>
-      <span class="conf-v ${mDiff<0?'cbad':gap<=1?'cok':pct<=5?'':'cbad'}">
-        ${fmt(mDiff,1)} L ${mDiff<0?'🚫':gap<=1?'✅':pct<=5?'⚠️':'🚨'}
-      </span>
-    </div>
-    <div class="conf-row"><span class="conf-k">Issued By</span><span class="conf-v" style="color:var(--amber)">${sess.name}</span></div>
-    <div class="conf-row"><span class="conf-k">Date</span><span class="conf-v">${fmtD(today())}</span></div>`;
-  document.getElementById('det-operator').value='';
-  document.getElementById('det-remarks').value='';
-  document.getElementById('opt-det').classList.remove('open');
-  show('scr-details');
-}
-
-function saveDisb(){
-  const veh=gV(gf.vehicleId);
-  const mDiff=gf.meterAfter-gf.meterBefore;
-  const isCan=gf.source==='can';
+  const mDiff=after-before;
+  const isCan=gf.source==='can'||feDestType==='can';
+  const source=gf.source==='can'?'can':'bowser';
   disbs.push({
     id:uid(),date:today(),ts:Date.now(),
-    vehicleId:gf.vehicleId,litres:gf.litres,source:gf.source,
-    meterBefore:gf.meterBefore,meterAfter:gf.meterAfter,meterDiff:mDiff,
-    meterMismatch:mDiff<0||Math.abs(mDiff-gf.litres)>1,
-    operator:document.getElementById('det-operator').value,
-    remarks:document.getElementById('det-remarks').value,
+    vehicleId:gf.vehicleId,litres,source,
+    destType:feDestType==='can'?'can':null,
+    meterBefore:before,meterAfter:after,meterDiff:mDiff,
+    meterMismatch:mDiff<0||Math.abs(mDiff-litres)>1,
+    operator:document.getElementById('fe-operator').value,
+    remarks:document.getElementById('fe-remarks').value,
     loggedBy:sess.userId,loggedByName:sess.name,
     dipStatus:isCan?'pending':null,
     gaugeBefore:null,gaugeAfter:null,gaugeIncreaseCm:null,
@@ -2069,9 +2030,14 @@ function saveDisb(){
     photoBef:null,photoAft:null,dipTs:null,
   });
   sv('disbs',disbs);
-  flash(isCan?'DISPATCHED!':'LOGGED!',fmt(gf.litres,1)+' L → '+(veh?.name||'—')+(isCan?'\n⏳ Dip gauge pending':''));
+  flash(isCan?'DISPATCHED!':'LOGGED!',fmt(litres,1)+' L → '+(veh?.name||'—')+(isCan?'\n⏳ Dip gauge pending':''));
   show('scr-home');
+  _bnavTab='home';
+  bnavTab('home');
 }
+
+
+// Old step functions replaced by saveFuelEntry()
 
 // ════════════════════════════════════
 // DIP GAUGE
