@@ -436,43 +436,22 @@ input[type=file]{display:none}
     <div class="login-co">Chiddarwar Construction Co.</div>
     <div class="login-dt" id="login-dt"></div>
   </div>
-  <div style="padding:12px 14px 4px"><div style="font-family:var(--fh);font-size:15px;color:var(--muted);letter-spacing:.5px">SELECT YOUR ROLE</div></div>
-  <div class="user-grid" id="user-grid"></div>
-  <div style="margin:8px 14px 0;text-align:center">
-    <button onclick="showDriverLogin()" style="width:100%;padding:14px;background:var(--bg2);border:2px solid var(--border);color:var(--muted);font-family:var(--fh);font-size:15px;border-radius:12px;cursor:pointer">
-      🚜 Driver / Operator Login
-    </button>
+  <div style="padding:12px 14px 4px"><div style="font-family:var(--fh);font-size:15px;color:var(--muted);letter-spacing:.5px">WHO ARE YOU?</div></div>
+  <div id="user-grid" style="padding:0 14px">
+    <!-- Populated by initLogin -->
   </div>
-  <div id="driver-login-form" style="display:none;margin:10px 14px 0;background:var(--bg2);border:2px solid var(--amber);border-radius:14px">
-    <div style="background:rgba(255,179,0,.1);padding:12px 16px;border-bottom:1px solid var(--amber);font-family:var(--fh);font-size:15px;color:var(--amber);letter-spacing:.5px">
-      🚜 DRIVER / OPERATOR LOGIN
-    </div>
-    <div style="padding:14px">
-      <!-- Name picker -->
-      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Select Your Name</div>
-      <div style="position:relative">
-        <input id="driver-login-name" placeholder="Search name..." autocomplete="off"
-          oninput="filterDriverNames(this.value)"
-          onfocus="showDriverNames()"
-          style="width:100%;background:var(--bg3);border:2px solid var(--border2);color:var(--white);padding:12px 14px;border-radius:10px;font-size:16px;font-family:var(--fb);box-sizing:border-box">
-        <div id="driver-name-dropdown" style="display:none;background:var(--bg3);border:2px solid var(--amber);border-top:none;border-radius:0 0 10px 10px;max-height:200px;overflow-y:auto;margin-top:-2px"></div>
-      </div>
-      <!-- Selected name display -->
-      <div id="driver-selected-name" style="display:none;margin-top:8px;background:rgba(255,179,0,.1);border:1px solid var(--amber);border-radius:8px;padding:10px 14px;font-family:var(--fh);font-size:16px;color:var(--amber)"></div>
-      <!-- PIN section — shown after name selected -->
-      <div id="driver-pin-section" style="display:none;margin-top:12px">
-        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Enter PIN</div>
-        <div style="display:flex;gap:8px;margin-bottom:12px">
-          <div id="dpd0" style="flex:1;height:16px;border-radius:8px;background:var(--border2);transition:.15s"></div>
-          <div id="dpd1" style="flex:1;height:16px;border-radius:8px;background:var(--border2);transition:.15s"></div>
-          <div id="dpd2" style="flex:1;height:16px;border-radius:8px;background:var(--border2);transition:.15s"></div>
-          <div id="dpd3" style="flex:1;height:16px;border-radius:8px;background:var(--border2);transition:.15s"></div>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px" id="driver-pin-grid"></div>
-        <div id="driver-pin-err" style="color:var(--red);font-size:12px;font-weight:700;margin-top:8px;text-align:center;min-height:18px"></div>
-      </div>
-    </div>
-  </div>
+  <!-- Hidden legacy elements for driver login compat -->
+  <div id="driver-login-form" style="display:none"></div>
+  <input id="driver-login-name" style="display:none">
+  <div id="driver-name-dropdown" style="display:none"></div>
+  <div id="driver-selected-name" style="display:none"></div>
+  <div id="driver-pin-section" style="display:none"></div>
+  <div id="dpd0" style="display:none"></div>
+  <div id="dpd1" style="display:none"></div>
+  <div id="dpd2" style="display:none"></div>
+  <div id="dpd3" style="display:none"></div>
+  <div id="driver-pin-grid" style="display:none"></div>
+  <div id="driver-pin-err" style="display:none"></div>
   <div id="first-setup" style="display:none;padding:0 14px 20px">
     <div class="setup-box" style="margin:0 0 12px">
       <div style="font-size:32px">👷</div>
@@ -1314,17 +1293,15 @@ let activeLoginRole=null;
 function initLogin(){
   document.getElementById('login-dt').textContent=
     new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  // Only show first-setup if Firebase confirmed no users exist
   if(!users.length && fbOnline){
     document.getElementById('first-setup').style.display='block';
     document.getElementById('user-grid').innerHTML='';
     return;
   }
-  // If Firebase not yet online and no local users, show loading message not setup screen
   if(!users.length && !fbOnline){
     document.getElementById('first-setup').style.display='none';
     document.getElementById('user-grid').innerHTML=`
-      <div style="margin:20px 14px;background:rgba(255,179,0,.07);border:1.5px solid var(--amber);
+      <div style="margin:10px 0;background:rgba(255,179,0,.07);border:1.5px solid var(--amber);
                   border-radius:14px;padding:24px;text-align:center">
         <div style="font-size:32px;margin-bottom:10px">⟳</div>
         <div style="font-family:var(--fh);font-size:15px;color:var(--amber);margin-bottom:6px">CONNECTING...</div>
@@ -1333,102 +1310,62 @@ function initLogin(){
     return;
   }
   document.getElementById('first-setup').style.display='none';
-  activeLoginRole=null;
-  renderRoleBands();
+  renderUnifiedLogin();
 }
 
-function renderRoleBands(){
-  const bands=[
-    {roles:['owner','admin'], label:'OWNER  /  ADMIN',  color:'#ffb300', bg:'rgba(255,179,0,.12)' },
-    {roles:['supervisor'],    label:'MANAGER',           color:'#2979ff', bg:'rgba(41,121,255,.12)'},
-    {roles:['sitesup'],       label:'SITE SUPERVISOR',   color:'#9463b0', bg:'rgba(148,99,176,.12)'},
-  ];
-
-  const hasUsers = r => users.some(u=>r.includes(u.role));
-
-  document.getElementById('user-grid').innerHTML = `
-    <div style="padding:0 0 8px">
-      ${bands.filter(b=>hasUsers(b.roles)).map(b=>`
-        <div id="band-${b.roles[0]}" onclick="toggleRoleBand('${b.roles.join(',')}')"
-          style="margin:0 0 2px;cursor:pointer;transition:all .2s">
-          <div style="background:${b.bg};border-left:4px solid ${b.color};
-                      padding:18px 20px;display:flex;align-items:center;justify-content:space-between">
-            <span style="font-family:var(--fh);font-size:15px;color:${b.color};
-                         letter-spacing:2px;font-weight:900">${b.label}</span>
-            <span id="band-arr-${b.roles[0]}" style="color:${b.color};font-size:20px;transition:transform .2s">›</span>
-          </div>
-          <div id="band-body-${b.roles[0]}" style="display:none;background:var(--bg2);
-               border-left:4px solid ${b.color};padding:14px 16px">
-            <input id="band-inp-${b.roles[0]}" placeholder="Type your name..."
-              oninput="filterBandUsers('${b.roles.join(',')}',this.value)"
-              style="width:100%;background:var(--bg3);border:1.5px solid ${b.color}44;
-                     color:var(--white);padding:12px 14px;border-radius:10px;
-                     font-size:15px;font-family:var(--fb);box-sizing:border-box;outline:none">
-            <div id="band-list-${b.roles[0]}" style="margin-top:10px"></div>
-          </div>
-        </div>`).join('')}
+function renderUnifiedLogin(){
+  const el = document.getElementById('user-grid');
+  // All users except drivers who use driver login
+  const allUsers = users.filter(u => u.role !== 'driver');
+  el.innerHTML = `
+    <div style="position:relative;margin-bottom:8px">
+      <input id="unified-login-search" placeholder="Type your name..." autocomplete="off"
+        oninput="filterUnifiedLogin(this.value)"
+        onfocus="filterUnifiedLogin(this.value)"
+        style="width:100%;background:var(--bg3);border:2px solid var(--border2);color:var(--white);
+               padding:14px 16px;border-radius:12px;font-size:16px;font-family:var(--fb);
+               box-sizing:border-box;outline:none">
+      <div id="unified-login-list" style="margin-top:6px"></div>
     </div>`;
+  filterUnifiedLogin('');
 }
 
-function toggleRoleBand(rolesStr){
-  const key=rolesStr.split(',')[0];
-  const body=document.getElementById('band-body-'+key);
-  const arr=document.getElementById('band-arr-'+key);
-  const isOpen=body.style.display!=='none';
-  // Close all
-  ['owner','supervisor','sitesup'].forEach(r=>{
-    const b=document.getElementById('band-body-'+r);
-    const a=document.getElementById('band-arr-'+r);
-    if(b)b.style.display='none';
-    if(a)a.style.transform='';
-  });
-  if(!isOpen){
-    body.style.display='block';
-    arr.style.transform='rotate(90deg)';
-    setTimeout(()=>{
-      const inp=document.getElementById('band-inp-'+key);
-      if(inp){inp.focus();filterBandUsers(rolesStr,'');}
-    },100);
-  }
-}
-
-function filterBandUsers(rolesStr, q){
-  const roles=rolesStr.split(',');
-  const key=roles[0];
-  const el=document.getElementById('band-list-'+key);
-  if(!el)return;
-  const filtered=users.filter(u=>roles.includes(u.role)&&
-    (!q||u.name.toLowerCase().includes(q.toLowerCase())));
+function filterUnifiedLogin(q){
+  const el = document.getElementById('unified-login-list');
+  if(!el) return;
+  const filtered = users.filter(u =>
+    !q || u.name.toLowerCase().includes(q.toLowerCase())
+  );
   if(!filtered.length){
-    el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:4px 0">No match found</div>';
+    el.innerHTML='<div style="padding:12px;color:var(--muted);font-size:13px;text-align:center">No match found</div>';
     return;
   }
-  const col=rCol(filtered[0]?.role||roles[0]);
-  el.innerHTML=filtered.map(u=>`
+  el.innerHTML = filtered.map(u => `
     <div onclick="startLogin('${u.id}')"
-      style="padding:12px 14px;border-radius:10px;cursor:pointer;
-             display:flex;align-items:center;gap:12px;margin-bottom:6px;
-             background:var(--bg3);border:1.5px solid var(--border2);transition:border-color .15s"
-      onmouseover="this.style.borderColor='${col}'" onmouseout="this.style.borderColor='var(--border2)'">
-      <div style="width:38px;height:38px;border-radius:50%;background:${col}22;color:${col};
-                  display:flex;align-items:center;justify-content:center;
-                  font-family:var(--fh);font-size:17px;flex-shrink:0">${u.name[0].toUpperCase()}</div>
+      style="padding:14px 16px;background:var(--bg2);border:1.5px solid var(--border);
+             border-radius:12px;margin-bottom:6px;cursor:pointer;display:flex;align-items:center;gap:12px">
+      <div style="width:42px;height:42px;border-radius:50%;background:${rCol(u.role)}22;
+                  color:${rCol(u.role)};display:flex;align-items:center;justify-content:center;
+                  font-family:var(--fh);font-size:18px;flex-shrink:0">${u.name[0].toUpperCase()}</div>
       <div style="flex:1">
-        <div style="font-family:var(--fh);font-size:15px;color:var(--white)">${u.name}</div>
-        <div style="font-size:11px;color:${col};font-weight:600;margin-top:1px">${rLbl(u.role)}</div>
+        <div style="font-family:var(--fh);font-size:16px;color:var(--white)">${u.name}</div>
+        <div style="font-size:11px;color:${rCol(u.role)};font-weight:700;margin-top:2px">${rLbl(u.role)}</div>
       </div>
-      <div style="color:var(--muted);font-size:18px">›</div>
+      <div style="color:var(--muted);font-size:20px">›</div>
     </div>`).join('');
 }
-function createOwner(){
-  const name=document.getElementById('setup-name').value.trim();
-  const pin=document.getElementById('setup-pin').value.trim();
-  if(!name){alert('Enter your name');return;}
-  if(pin.length!==4||isNaN(Number(pin))){alert('PIN must be 4 digits');return;}
-  users.push({id:uid(),name,role:'owner',pin});
-  sv('users',users);initLogin();
-}
-let pinTarget=null,pinBuf='';
+
+// Keep legacy functions to avoid errors
+function showDriverLogin(){ renderUnifiedLogin(); }
+function renderRoleBands(){ renderUnifiedLogin(); }
+function toggleRoleBand(){}
+function filterBandUsers(){}
+function showDriverNames(){}
+function filterDriverNames(q){ filterUnifiedLogin(q); }
+function selectDriverName(){}
+function buildDriverPinGrid(){}
+function driverPk(){}
+function checkDriverPin(){}
 function startLogin(uid_){
   const u=gU(uid_);if(!u)return;
   pinTarget=u;pinBuf='';
@@ -1732,10 +1669,7 @@ function renderMoreTab(el){
       <div class="act-ico">☁</div><div class="act-txt"><div class="act-title">SYNC DATA</div><div class="act-desc">Push all data to Firebase cloud</div></div>
       <span id="fb-status-more" style="font-size:11px;font-weight:700;color:var(--muted)"></span>
     </div>
-    <div class="act" onclick="backupData()">
-      <div class="act-ico">💾</div><div class="act-txt"><div class="act-title">BACKUP DATA</div><div class="act-desc">Download all data as JSON file</div></div><div class="act-arr">›</div>
-    </div>
-    <div class="act" onclick="confirmLogout()">
+    <div class="act" onclick="logout()">
       <div class="act-ico">↩</div><div class="act-txt"><div class="act-title">LOGOUT</div><div class="act-desc">Sign out of ${sess?.name||'account'}</div></div><div class="act-arr">›</div>
     </div>
     <div class="pad-bot"></div>`;
@@ -4682,48 +4616,6 @@ async function fbInit(){
 }
 
 // ── Manual sync button ──
-function backupData(){
-  flash('PREPARING...','Reading data from Firebase');
-  fbGet('fuellog').then(function(data){
-    if(!data){
-      // Fall back to local data
-      data = {};
-      FB_KEYS.forEach(k => {
-        const localKey = SK[k] || ('fl7_' + k);
-        try { data[k] = JSON.parse(localStorage.getItem(localKey) || '[]'); }
-        catch(e){ data[k] = []; }
-      });
-    }
-    const backup = {
-      exportDate: new Date().toISOString(),
-      exportedBy: sess?.name || 'Owner',
-      appVersion: 'FuelLog v1',
-      company: 'Chiddarwar Construction Co.',
-      data: data
-    };
-    const json = JSON.stringify(backup, null, 2);
-    const blob = new Blob([json], {type:'application/json'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const date = new Date().toISOString().slice(0,10);
-    a.download = 'FuelLog_Backup_' + date + '.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    flash('BACKUP SAVED!', 'FuelLog_Backup_' + date + '.json');
-  }).catch(function(e){
-    flash('BACKUP FAILED', 'Check internet connection');
-  });
-}
-
-function confirmLogout(){
-  showConfirm('Are you sure you want to logout?', function(){
-    logout();
-  }, '↩', 'LOGOUT');
-}
-
 async function fbManualSync(){
   fbSetStatus('syncing');
   const ok = await fbPushAll();
