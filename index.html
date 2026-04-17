@@ -5,10 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FuelLog">
+<meta name="theme-color" content="#ffb300">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>FuelLog — Chiddarwar Construction</title>
 <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans:wght@400;600;700;900&display=swap" rel="stylesheet">
 <style>
-
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{width:100%;height:100%;background:#111;overflow:hidden}
 :root{
@@ -414,10 +419,9 @@ input[type=file]{display:none}
 .nf-sub{font-size:11px;color:var(--muted);font-weight:600}
 .pad-bot{height:calc(16px + var(--sib))}
 ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-
 </style>
 
-
+</style>
 </head>
 <body>
 <!-- ═══ LOGIN ═══ -->
@@ -1093,8 +1097,6 @@ input[type=file]{display:none}
 </div>
 
 <script>
-// --- fl-core.js ---
-
 'use strict';
 
 // ════════════════════════════════════
@@ -1452,7 +1454,6 @@ function logout(){
 
 
 
-// --- fl-home.js ---
 // ════════════════════════════════════
 // HOME
 // ════════════════════════════════════
@@ -1849,7 +1850,6 @@ function renderPendingReadings(){
   el.innerHTML='<div class="muted-txt">No pending readings</div>';
 }
 
-// --- fl-fuel.js ---
 // ════════════════════════════════════
 // GIVE FUEL FLOW
 // ════════════════════════════════════
@@ -2191,7 +2191,6 @@ function saveDip(){
 
 
 
-// --- fl-purchases.js ---
 // ════════════════════════════════════
 // PURCHASES
 // ════════════════════════════════════
@@ -2286,7 +2285,6 @@ function renderPurchases(){
   }).join('');
 }
 
-// --- fl-fleet.js ---
 // ════════════════════════════════════
 // FLEET
 // ════════════════════════════════════
@@ -2803,7 +2801,6 @@ function saveReadingRoad(vehId){
 
 
 
-// --- fl-reports.js ---
 // ════════════════════════════════════
 // REPORTS
 // ════════════════════════════════════
@@ -3335,7 +3332,17 @@ function exportRepPDF(){
     <tbody>${dayRows.map(({dt,L})=>`<tr><td>${fmtD(dt)}</td><td class="right">${fmt(L,1)}</td><td class="right">${fmtINR(L*fuelRate)}</td></tr>`).join('')}</tbody>
   </table>
   <div class="footer">Total Entries: ${allDisbs.length+allPF.length} &nbsp;|&nbsp; Generated from FuelLog App &nbsp;|&nbsp; Chiddarwar Construction Co. Pvt. Ltd.</div>
-  </body></html>`;
+  
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('/fuellog/sw.js')
+      .then(function(reg){ console.log('SW registered'); })
+      .catch(function(err){ console.log('SW error:', err); });
+  });
+}
+</script>
+</body></html>`;
 
   const w=window.open('','_blank');
   w.document.write(html);
@@ -3361,7 +3368,6 @@ function delEntry(id,type){
   }
 }
 
-// --- fl-utils.js ---
 // ════════════════════════════════════
 // SAVE EDIT (readings + disbursements)
 // ════════════════════════════════════
@@ -3872,7 +3878,6 @@ function getSwapDriverId(){
 // ════════════════════════════════════
 
 
-// --- fl-checklist.js ---
 // ════════════════════════════════════
 // CHECKLIST — PRE-LOADED TEMPLATES
 // ════════════════════════════════════
@@ -4475,7 +4480,6 @@ function renderChecklistReview(){
 }
 
 
-// --- fl-firebase.js ---
 // ════════════════════════════════════
 // FIREBASE REALTIME DATABASE SYNC
 // ════════════════════════════════════
@@ -4762,7 +4766,8 @@ function doOwnerReset(){
   });
 }
 
-// fbInit() called from index.html
+// ── Start app ──
+fbInit();
 
 </script>
 
@@ -4910,9 +4915,16 @@ function saveEdit(){
   if(typeof saveEditMain==='function')saveEditMain();
 }
 /* ═══ END MODAL CORE ═══ */
-
-fbInit();
 </script>
 
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('/fuellog/sw.js')
+      .then(function(reg){ console.log('SW registered'); })
+      .catch(function(err){ console.log('SW error:', err); });
+  });
+}
+</script>
 </body>
 </html>
