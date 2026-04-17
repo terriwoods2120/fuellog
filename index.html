@@ -436,13 +436,11 @@ input[type=file]{display:none}
     <div class="login-co">Chiddarwar Construction Co.</div>
     <div class="login-dt" id="login-dt"></div>
   </div>
-  <div style="padding:12px 14px 4px"><div style="font-family:var(--fh);font-size:15px;color:var(--muted);letter-spacing:.5px">WHO ARE YOU?</div></div>
-  <div id="user-grid" style="padding:0 14px">
-    <!-- Populated by initLogin -->
-  </div>
-  <!-- Hidden legacy elements for driver login compat -->
+  <div style="padding:12px 14px 4px"><div style="font-family:var(--fh);font-size:15px;color:var(--muted);letter-spacing:.5px">SELECT YOUR ROLE</div></div>
+  <div id="user-grid" style="padding:0 14px 8px"></div>
+  <!-- Driver PIN elements (shared) -->
   <div id="driver-login-form" style="display:none"></div>
-  <input id="driver-login-name" style="display:none">
+  <input id="driver-login-name" style="display:none" autocomplete="off">
   <div id="driver-name-dropdown" style="display:none"></div>
   <div id="driver-selected-name" style="display:none"></div>
   <div id="driver-pin-section" style="display:none"></div>
@@ -1313,55 +1311,101 @@ function initLogin(){
   renderUnifiedLogin();
 }
 
+// ── Unified band-style login for ALL roles ──
+var _openBand = null;
+
 function renderUnifiedLogin(){
   const el = document.getElementById('user-grid');
-  // All users except drivers who use driver login
-  const allUsers = users.filter(u => u.role !== 'driver');
-  el.innerHTML = `
-    <div style="position:relative;margin-bottom:8px">
-      <input id="unified-login-search" placeholder="Type your name..." autocomplete="off"
-        oninput="filterUnifiedLogin(this.value)"
-        onfocus="filterUnifiedLogin(this.value)"
-        style="width:100%;background:var(--bg3);border:2px solid var(--border2);color:var(--white);
-               padding:14px 16px;border-radius:12px;font-size:16px;font-family:var(--fb);
-               box-sizing:border-box;outline:none">
-      <div id="unified-login-list" style="margin-top:6px"></div>
-    </div>`;
-  filterUnifiedLogin('');
-}
-
-function filterUnifiedLogin(q){
-  const el = document.getElementById('unified-login-list');
   if(!el) return;
-  const filtered = users.filter(u =>
-    !q || u.name.toLowerCase().includes(q.toLowerCase())
-  );
-  if(!filtered.length){
-    el.innerHTML='<div style="padding:12px;color:var(--muted);font-size:13px;text-align:center">No match found</div>';
-    return;
-  }
-  el.innerHTML = filtered.map(u => `
-    <div onclick="startLogin('${u.id}')"
-      style="padding:14px 16px;background:var(--bg2);border:1.5px solid var(--border);
-             border-radius:12px;margin-bottom:6px;cursor:pointer;display:flex;align-items:center;gap:12px">
-      <div style="width:42px;height:42px;border-radius:50%;background:${rCol(u.role)}22;
-                  color:${rCol(u.role)};display:flex;align-items:center;justify-content:center;
-                  font-family:var(--fh);font-size:18px;flex-shrink:0">${u.name[0].toUpperCase()}</div>
-      <div style="flex:1">
-        <div style="font-family:var(--fh);font-size:16px;color:var(--white)">${u.name}</div>
-        <div style="font-size:11px;color:${rCol(u.role)};font-weight:700;margin-top:2px">${rLbl(u.role)}</div>
+  _openBand = null;
+
+  // Define bands — same style for everyone
+  const bands = [
+    {key:'owner',    roles:['owner','admin'],  label:'OWNER / ADMIN',     color:'var(--amber)',  bg:'rgba(255,179,0,.1)'},
+    {key:'manager',  roles:['supervisor'],      label:'MANAGER',           color:'var(--blue)',   bg:'rgba(41,121,255,.1)'},
+    {key:'sitesup',  roles:['sitesup'],         label:'SITE SUPERVISOR',   color:'var(--purple)', bg:'rgba(156,39,176,.1)'},
+    {key:'driver',   roles:['driver'],          label:'DRIVER / OPERATOR', color:'var(--green)',  bg:'rgba(0,200,83,.1)'},
+  ];
+
+  const visible = bands.filter(b => users.some(u => b.roles.includes(u.role)));
+
+  el.innerHTML = visible.map(b => `
+    <div style="margin-bottom:4px;border-radius:12px;overflow:hidden;border:1.5px solid var(--border)">
+      <div id="band-hdr-${b.key}" onclick="toggleLoginBand('${b.key}')"
+        style="background:${b.bg};padding:16px 18px;display:flex;align-items:center;
+               justify-content:space-between;cursor:pointer">
+        <span style="font-family:var(--fh);font-size:15px;color:${b.color};
+                     letter-spacing:1.5px">${b.label}</span>
+        <span id="band-arr-${b.key}" style="color:${b.color};font-size:22px;transition:transform .2s">›</span>
       </div>
-      <div style="color:var(--muted);font-size:20px">›</div>
+      <div id="band-body-${b.key}" style="display:none;background:var(--bg2);padding:12px 14px">
+        <input id="band-inp-${b.key}" placeholder="Type your name..." autocomplete="off"
+          oninput="filterLoginBand('${b.key}','${b.roles.join(',')}')"
+          style="width:100%;background:var(--bg3);border:2px solid var(--border2);
+                 color:var(--white);padding:12px 14px;border-radius:10px;
+                 font-size:15px;font-family:var(--fb);box-sizing:border-box;outline:none">
+        <div id="band-list-${b.key}" style="margin-top:8px"></div>
+      </div>
     </div>`).join('');
 }
 
-// Keep legacy functions to avoid errors
-function showDriverLogin(){ renderUnifiedLogin(); }
+function toggleLoginBand(key){
+  const body = document.getElementById('band-body-'+key);
+  const arr = document.getElementById('band-arr-'+key);
+  const isOpen = body.style.display !== 'none';
+  // Close all
+  ['owner','manager','sitesup','driver'].forEach(k=>{
+    const b=document.getElementById('band-body-'+k);
+    const a=document.getElementById('band-arr-'+k);
+    if(b)b.style.display='none';
+    if(a)a.style.transform='';
+  });
+  if(!isOpen){
+    body.style.display='block';
+    arr.style.transform='rotate(90deg)';
+    const inp = document.getElementById('band-inp-'+key);
+    if(inp){ setTimeout(()=>{ inp.focus(); filterLoginBand(key, getBandRoles(key)); }, 100); }
+  }
+}
+
+function getBandRoles(key){
+  const map={owner:'owner,admin',manager:'supervisor',sitesup:'sitesup',driver:'driver'};
+  return map[key]||key;
+}
+
+function filterLoginBand(key, rolesStr){
+  const roles = rolesStr.split(',');
+  const q = document.getElementById('band-inp-'+key)?.value||'';
+  const el = document.getElementById('band-list-'+key);
+  if(!el) return;
+  const filtered = users.filter(u=>roles.includes(u.role)&&(!q||u.name.toLowerCase().includes(q.toLowerCase())));
+  if(!filtered.length){
+    el.innerHTML='<div style="padding:8px 4px;color:var(--muted);font-size:13px">No match found</div>';
+    return;
+  }
+  el.innerHTML = filtered.map(u=>`
+    <div onclick="startLogin('${u.id}')"
+      style="padding:12px 14px;border-radius:10px;cursor:pointer;display:flex;
+             align-items:center;gap:12px;margin-bottom:4px;background:var(--bg3);
+             border:1px solid var(--border)">
+      <div style="width:38px;height:38px;border-radius:50%;background:${rCol(u.role)}22;
+                  color:${rCol(u.role)};display:flex;align-items:center;justify-content:center;
+                  font-family:var(--fh);font-size:16px;flex-shrink:0">${u.name[0].toUpperCase()}</div>
+      <div style="flex:1">
+        <div style="font-family:var(--fh);font-size:15px;color:var(--white)">${u.name}</div>
+        <div style="font-size:11px;color:${rCol(u.role)};font-weight:700;margin-top:1px">${rLbl(u.role)}</div>
+      </div>
+      <div style="color:var(--muted);font-size:18px">›</div>
+    </div>`).join('');
+}
+
+// Legacy stubs
+function showDriverLogin(){ toggleLoginBand('driver'); }
 function renderRoleBands(){ renderUnifiedLogin(); }
 function toggleRoleBand(){}
 function filterBandUsers(){}
 function showDriverNames(){}
-function filterDriverNames(q){ filterUnifiedLogin(q); }
+function filterDriverNames(q){ filterLoginBand('driver','driver'); }
 function selectDriverName(){}
 function buildDriverPinGrid(){}
 function driverPk(){}
@@ -4859,9 +4903,14 @@ fbInit();
 
 <script>
 if('serviceWorker' in navigator){
-  var swCode="self.addEventListener('install',e=>e.waitUntil(caches.open('fl-v1').then(c=>c.addAll(['/fuellog/'])).then(()=>self.skipWaiting())));self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));self.addEventListener('fetch',e=>{if(e.request.url.includes('firebaseio.com')||e.request.url.includes('googleapis.com'))return;e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)).catch(()=>caches.match('/fuellog/')));});";
+  var swCode="var CACHE='fl-v202604171525';self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/fuellog/'])).then(()=>self.skipWaiting())));self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));self.addEventListener('fetch',e=>{if(e.request.url.includes('firebaseio.com')||e.request.url.includes('googleapis.com'))return;e.respondWith(fetch(e.request).then(r=>{var c=r.clone();caches.open(CACHE).then(cache=>cache.put(e.request,c));return r;}).catch(()=>caches.match(e.request)));});";
   var blob=new Blob([swCode],{type:'text/javascript'});
-  navigator.serviceWorker.register(URL.createObjectURL(blob)).then(function(){console.log('SW ready');}).catch(function(e){console.log('SW skip:',e.message);});
+  navigator.serviceWorker.register(URL.createObjectURL(blob))
+    .then(function(reg){
+      console.log('SW ready v202604171525');
+      // Check for updates immediately
+      reg.update();
+    }).catch(function(e){console.log('SW skip:',e.message);});
 }
 </script>
 </body>
