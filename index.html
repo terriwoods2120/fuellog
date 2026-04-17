@@ -1732,10 +1732,9 @@ function renderMoreTab(el){
       <div class="act-ico">☁</div><div class="act-txt"><div class="act-title">SYNC DATA</div><div class="act-desc">Push all data to Firebase cloud</div></div>
       <span id="fb-status-more" style="font-size:11px;font-weight:700;color:var(--muted)"></span>
     </div>
-    ${isOwner()?`
     <div class="act" onclick="backupData()">
       <div class="act-ico">💾</div><div class="act-txt"><div class="act-title">BACKUP DATA</div><div class="act-desc">Download all data as JSON file</div></div><div class="act-arr">›</div>
-    </div>`:''}
+    </div>
     <div class="act" onclick="confirmLogout()">
       <div class="act-ico">↩</div><div class="act-txt"><div class="act-title">LOGOUT</div><div class="act-desc">Sign out of ${sess?.name||'account'}</div></div><div class="act-arr">›</div>
     </div>
