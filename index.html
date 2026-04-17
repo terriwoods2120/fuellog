@@ -1714,7 +1714,10 @@ function renderMoreTab(el){
       <div class="act-ico">☁</div><div class="act-txt"><div class="act-title">SYNC DATA</div><div class="act-desc">Push all data to Firebase cloud</div></div>
       <span id="fb-status-more" style="font-size:11px;font-weight:700;color:var(--muted)"></span>
     </div>
-    <div class="act" onclick="logout()">
+    <div class="act" onclick="backupData()">
+      <div class="act-ico">💾</div><div class="act-txt"><div class="act-title">BACKUP DATA</div><div class="act-desc">Download all data as JSON file</div></div><div class="act-arr">›</div>
+    </div>
+    <div class="act" onclick="confirmLogout()">
       <div class="act-ico">↩</div><div class="act-txt"><div class="act-title">LOGOUT</div><div class="act-desc">Sign out of ${sess?.name||'account'}</div></div><div class="act-arr">›</div>
     </div>
     <div class="pad-bot"></div>`;
@@ -4661,6 +4664,41 @@ async function fbInit(){
 }
 
 // ── Manual sync button ──
+function backupData(){
+  flash('PREPARING...','Reading data from Firebase');
+  fbGet('fuellog').then(function(data){
+    if(!data){
+      data={};
+      FB_KEYS.forEach(k=>{
+        const localKey=SK[k]||('fl7_'+k);
+        try{data[k]=JSON.parse(localStorage.getItem(localKey)||'[]');}
+        catch(e){data[k]=[];}
+      });
+    }
+    const backup={
+      exportDate:new Date().toISOString(),
+      exportedBy:sess?.name||'Owner',
+      appVersion:'FuelLog v1',
+      company:'Chiddarwar Construction Co.',
+      data:data
+    };
+    const json=JSON.stringify(backup,null,2);
+    const blob=new Blob([json],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    const date=new Date().toISOString().slice(0,10);
+    a.download='FuelLog_Backup_'+date+'.json';
+    document.body.appendChild(a);a.click();
+    document.body.removeChild(a);URL.revokeObjectURL(url);
+    flash('BACKUP SAVED!','FuelLog_Backup_'+date+'.json');
+  }).catch(function(){flash('BACKUP FAILED','Check internet connection');});
+}
+
+function confirmLogout(){
+  showConfirm('Are you sure you want to logout?',function(){logout();},'↩','LOGOUT');
+}
+
 async function fbManualSync(){
   fbSetStatus('syncing');
   const ok = await fbPushAll();
