@@ -4709,8 +4709,12 @@ async function fbInit(){
   if(data){
     FB_KEYS.forEach(k => {
       const localKey = SK[k] || ('fl7_' + k);
-      const val = data[k] || [];
+      // Firebase stores arrays as objects when keys are numeric — convert back
+      let val = data[k];
+      if(val === null || val === undefined) val = [];
+      else if(!Array.isArray(val) && typeof val === 'object') val = Object.values(val);
       localStorage.setItem(localKey, JSON.stringify(val));
+      // Update in-memory variables immediately
       if(k==='users') users=val;
       else if(k==='fleet') fleet=val;
       else if(k==='disbs') disbs=val;
@@ -4724,6 +4728,7 @@ async function fbInit(){
       else if(k==='checklistTemplates') checklistTemplates=val;
       else if(k==='checklistRecords') checklistRecords=val;
     });
+    console.log('Loaded from Firebase — disbs:',disbs.length,'fleet:',fleet.length,'users:',users.length);
   }
 
   // Remove loading overlay and show login
