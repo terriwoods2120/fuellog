@@ -1085,7 +1085,18 @@ input[type=file]{display:none}
 // ════════════════════════════════════
 const SK={users:'fl7_users',fleet:'fl7_fleet',disbs:'fl7_disbs',readings:'fl7_readings',purchases:'fl7_purchases',pumps:'fl7_pumps',pumpFills:'fl7_pumpFills',sites:'fl7_sites',drivers:'fl7_drivers',musters:'fl7_musters',checklistTemplates:'fl7_clTemplates',checklistRecords:'fl7_clRecords'};
 const ld=k=>{try{return JSON.parse(localStorage.getItem(SK[k])||'[]')}catch{return[]}};
-const sv=(k,v)=>localStorage.setItem(SK[k],JSON.stringify(v));
+const sv=(k,v)=>{
+  localStorage.setItem(SK[k],JSON.stringify(v));
+  // Also push to Firebase immediately
+  if(typeof FB_URL !== 'undefined' && typeof FB_KEY !== 'undefined'){
+    const path = 'fuellog/' + k;
+    fetch(FB_URL+'/'+path+'.json?auth='+FB_KEY, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(v)
+    }).catch(e=>console.log('Firebase sv error:',k,e.message));
+  }
+};
 let users=ld('users'),fleet=ld('fleet'),disbs=ld('disbs'),readings=ld('readings'),purchases=ld('purchases'),pumps=ld('pumps'),pumpFills=ld('pumpFills'),sites=ld('sites'),drivers=ld('drivers'),musters=ld('musters'),checklistTemplates=ld('checklistTemplates'),checklistRecords=ld('checklistRecords');
 
 
