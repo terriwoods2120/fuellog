@@ -936,8 +936,8 @@ input[type=file]{display:none}
     <button class="tb-back" onclick="show('scr-home')">‹</button>
     <div><div class="tb-title">REPORTS</div><div class="tb-sub">Chiddarwar Construction Co.</div></div>
     <div style="margin-left:auto;display:flex;gap:6px">
-      <button class="tb-back" style="font-size:16px;width:40px" onclick="exportRepPDF()" title="Download PDF">📄</button>
-      <button class="tb-back" style="font-size:16px;width:40px" onclick="exportReportWhatsApp()" title="Share on WhatsApp">📤</button>
+      <button class="tb-back" style="font-size:15px;width:44px;color:var(--green)" onclick="exportReportWhatsApp()" title="Share on WhatsApp">📤</button>
+      <button class="tb-back" style="font-size:15px;width:44px;color:var(--blue)" onclick="exportRepPDF()" title="Download PDF">📄</button>
     </div>
   </div>
   <!-- DATE FILTER -->
@@ -1085,7 +1085,18 @@ input[type=file]{display:none}
 // ════════════════════════════════════
 const SK={users:'fl7_users',fleet:'fl7_fleet',disbs:'fl7_disbs',readings:'fl7_readings',purchases:'fl7_purchases',pumps:'fl7_pumps',pumpFills:'fl7_pumpFills',sites:'fl7_sites',drivers:'fl7_drivers',musters:'fl7_musters',checklistTemplates:'fl7_clTemplates',checklistRecords:'fl7_clRecords'};
 const ld=k=>{try{return JSON.parse(localStorage.getItem(SK[k])||'[]')}catch{return[]}};
-const sv=(k,v)=>localStorage.setItem(SK[k],JSON.stringify(v));
+const sv=(k,v)=>{
+  localStorage.setItem(SK[k],JSON.stringify(v));
+  // Also push to Firebase immediately
+  if(typeof FB_URL !== 'undefined' && typeof FB_KEY !== 'undefined'){
+    const path = 'fuellog/' + k;
+    fetch(FB_URL+'/'+path+'.json?auth='+FB_KEY, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(v)
+    }).catch(e=>console.log('Firebase sv error:',k,e.message));
+  }
+};
 let users=ld('users'),fleet=ld('fleet'),disbs=ld('disbs'),readings=ld('readings'),purchases=ld('purchases'),pumps=ld('pumps'),pumpFills=ld('pumpFills'),sites=ld('sites'),drivers=ld('drivers'),musters=ld('musters'),checklistTemplates=ld('checklistTemplates'),checklistRecords=ld('checklistRecords');
 
 
@@ -1716,6 +1727,9 @@ function renderMoreTab(el){
     </div>
     <div class="act" onclick="backupData()">
       <div class="act-ico">💾</div><div class="act-txt"><div class="act-title">BACKUP DATA</div><div class="act-desc">Download all data as JSON file</div></div><div class="act-arr">›</div>
+    </div>
+    <div class="act" onclick="restoreBackup()">
+      <div class="act-ico">📂</div><div class="act-txt"><div class="act-title">RESTORE FROM BACKUP</div><div class="act-desc">Import JSON backup file to restore data</div></div><div class="act-arr">›</div>
     </div>
     <div class="act" onclick="confirmLogout()">
       <div class="act-ico">↩</div><div class="act-txt"><div class="act-title">LOGOUT</div><div class="act-desc">Sign out of ${sess?.name||'account'}</div></div><div class="act-arr">›</div>
@@ -3016,8 +3030,6 @@ function renderReports(){
   const range=repGetRange();
   const fuelRate=getFuelRate();
   const fmtINR=n=>'₹'+Number(Math.round(n)).toLocaleString('en-IN');
-
-  // ── Common data ──
   const allDisbs=disbs.filter(d=>d.date>=range.from&&d.date<=range.to);
   const allPF=(pumpFills||[]).filter(d=>d.date>=range.from&&d.date<=range.to);
   const totalL=allDisbs.reduce((a,d)=>a+d.litres,0)+allPF.reduce((a,d)=>a+d.litres,0);
@@ -3025,171 +3037,222 @@ function renderReports(){
   const stock=getBowserStock();
   const totalPurchased=purchases.filter(p=>p.date>=range.from&&p.date<=range.to).reduce((a,p)=>a+p.litres,0);
 
-  // ── Avg efficiency ──
+  // Avg efficiency
   let totalKm=0,totalConsumedForEff=0;
-  fleet.forEach(veh=>{
-    const eff=getRoadEfficiency(veh);
-    if(eff&&eff.km&&eff.consumed){totalKm+=eff.km;totalConsumedForEff+=eff.consumed;}
-  });
+  fleet.forEach(veh=>{const eff=getRoadEfficiency(veh);if(eff&&eff.km&&eff.consumed){totalKm+=eff.km;totalConsumedForEff+=eff.consumed;}});
   const avgEff=totalConsumedForEff>0?totalKm/totalConsumedForEff:0;
 
-  // ── Summary cards (always shown at top) ──
+  // ── Header KPI strip — always visible ──
   let html=`
   <div style="margin:10px 14px 0;font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.5px">
     📅 ${repFmtRange(range)} &nbsp;·&nbsp; ₹${fmt(fuelRate,1)}/L
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);margin:8px 14px;border-radius:12px;overflow:hidden;border:1px solid var(--border)">
-    <div style="background:var(--bg2);padding:12px 14px">
-      <div style="font-family:var(--fh);font-size:22px;color:var(--amber)">${fmt(totalL,1)} L</div>
-      <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-top:3px">Dispensed</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1px;background:var(--border);
+    margin:8px 14px 12px;border-radius:12px;overflow:hidden;border:1px solid var(--border)">
+    <div style="background:var(--bg2);padding:10px 8px;text-align:center">
+      <div style="font-family:var(--fh);font-size:18px;color:var(--amber);line-height:1">${fmt(totalL,0)}</div>
+      <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:3px;text-transform:uppercase">Litres</div>
     </div>
-    <div style="background:var(--bg2);padding:12px 14px">
-      <div style="font-family:var(--fh);font-size:22px;color:var(--amber)">${fmtINR(totalCost)}</div>
-      <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-top:3px">Total Cost</div>
+    <div style="background:var(--bg2);padding:10px 8px;text-align:center">
+      <div style="font-family:var(--fh);font-size:15px;color:var(--amber);line-height:1">${fmtINR(totalCost)}</div>
+      <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:3px;text-transform:uppercase">Cost</div>
     </div>
-    <div style="background:var(--bg2);padding:12px 14px">
-      <div style="font-family:var(--fh);font-size:22px;color:${stock<500?'var(--red)':'var(--green)'}">${fmt(stock,0)} L</div>
-      <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-top:3px">Stock</div>
+    <div style="background:var(--bg2);padding:10px 8px;text-align:center">
+      <div style="font-family:var(--fh);font-size:18px;color:${stock<500?'var(--red)':'var(--green)'};line-height:1">${fmt(stock,0)}</div>
+      <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:3px;text-transform:uppercase">Stock L</div>
     </div>
-    <div style="background:var(--bg2);padding:12px 14px">
-      <div style="font-family:var(--fh);font-size:22px;color:${avgEff>0?(avgEff>=3?'var(--green)':'var(--red)'):'var(--muted)'}">${avgEff>0?fmt(avgEff,2)+' km/L':'—'}</div>
-      <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-top:3px">Avg Efficiency</div>
+    <div style="background:var(--bg2);padding:10px 8px;text-align:center">
+      <div style="font-family:var(--fh);font-size:16px;color:${avgEff>0?(avgEff>=3?'var(--green)':'var(--red)'):'var(--muted)'};line-height:1">${avgEff>0?fmt(avgEff,1):'—'}</div>
+      <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:3px;text-transform:uppercase">km/L</div>
     </div>
   </div>`;
 
-  // ── Tab content ──
+  // ── SUMMARY TAB ──
   if(repActiveTab==='summary'){
-    // Top vehicles by consumption
     const vehData=fleet.map(v=>{
       const L=allDisbs.filter(d=>d.vehicleId===v.id).reduce((a,d)=>a+d.litres,0)
               +allPF.filter(d=>d.vehicleId===v.id).reduce((a,d)=>a+d.litres,0);
-      return{name:v.name,L};
+      return{name:v.name,type:v.type,L};
     }).filter(x=>x.L>0).sort((a,b)=>b.L-a.L);
 
     if(vehData.length){
-      html+=`<div class="rep-card">
-        <div class="rep-hd">🚚 Vehicle Summary</div>`;
-      vehData.forEach(({name,L})=>{
+      // Top consumer highlight
+      const top=vehData[0];
+      html+=`<div style="margin:0 14px 10px;background:linear-gradient(135deg,rgba(255,179,0,.15),rgba(255,179,0,.05));
+        border:1.5px solid var(--amber);border-radius:14px;padding:16px">
+        <div style="font-size:10px;color:var(--amber);font-weight:700;letter-spacing:1px;margin-bottom:4px">TOP CONSUMER</div>
+        <div style="font-family:var(--fh);font-size:20px;color:var(--white)">${top.name}</div>
+        <div style="display:flex;justify-content:space-between;margin-top:8px">
+          <div><div style="font-family:var(--fh);font-size:24px;color:var(--amber)">${fmt(top.L,1)} L</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:700">LITRES</div></div>
+          <div style="text-align:right"><div style="font-family:var(--fh);font-size:24px;color:var(--amber)">${fmtINR(top.L*fuelRate)}</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:700">COST</div></div>
+        </div>
+      </div>`;
+      // Rest as bars
+      html+=`<div class="rep-card"><div class="rep-hd">All Vehicles — ${vehData.length} active</div>`;
+      vehData.forEach(({name,L},i)=>{
         const pct=totalL>0?Math.round(L/totalL*100):0;
-        html+=`<div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px">
-          <div style="flex:1;min-width:0">
-            <div style="font-family:var(--fh);font-size:13px;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
-            <div style="background:var(--border);border-radius:3px;height:4px;margin-top:5px;overflow:hidden">
-              <div style="width:${pct}%;background:var(--amber);height:100%;border-radius:3px"></div>
+        const barW=Math.max(4,pct);
+        html+=`<div style="padding:10px 14px;border-top:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <div style="font-family:var(--fh);font-size:13px;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%">${i===0?'🥇 ':''}${name}</div>
+            <div style="text-align:right;flex-shrink:0">
+              <span style="font-family:var(--fh);font-size:13px;color:var(--amber)">${fmtINR(L*fuelRate)}</span>
+              <span style="font-size:10px;color:var(--muted);font-weight:700;margin-left:6px">${fmt(L,1)}L</span>
             </div>
           </div>
-          <div style="text-align:right;flex-shrink:0;min-width:90px">
-            <div style="font-family:var(--fh);font-size:14px;color:var(--amber)">${fmtINR(L*fuelRate)}</div>
-            <div style="font-size:10px;color:var(--muted);font-weight:700">${fmt(L,1)} L · ${pct}%</div>
+          <div style="background:var(--border);border-radius:3px;height:5px;overflow:hidden">
+            <div style="width:${barW}%;background:${i===0?'var(--amber)':'var(--muted2)'};height:100%;border-radius:3px;transition:width .6s ease"></div>
           </div>
         </div>`;
       });
       html+='</div>';
     } else {
-      html+='<div class="muted-txt" style="padding:30px;text-align:center">No fuel entries in this period</div>';
+      html+='<div class="muted-txt" style="padding:40px;text-align:center">No fuel entries in this period</div>';
     }
 
+  // ── DAY-WISE TAB ──
   } else if(repActiveTab==='daywise'){
-    // Build list of dates in range
     const days=[];
-    let d=new Date(range.from);const end=new Date(range.to);
-    while(d<=end){days.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}
-    html+=`<div class="rep-card"><div class="rep-hd">📅 Day-wise Fuel</div>`;
-    let anyDay=false;
-    days.forEach(dt=>{
+    let d=new Date(range.from);const endD=new Date(range.to);
+    while(d<=endD){days.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}
+    
+    const dayData=days.map(dt=>{
       const dL=allDisbs.filter(x=>x.date===dt).reduce((a,x)=>a+x.litres,0);
       const pL=allPF.filter(x=>x.date===dt).reduce((a,x)=>a+x.litres,0);
-      const total=dL+pL;
-      if(!total)return;
-      anyDay=true;
-      const entries=allDisbs.filter(x=>x.date===dt).length+allPF.filter(x=>x.date===dt).length;
-      html+=`<div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
-        <div>
-          <div style="font-family:var(--fh);font-size:14px;color:var(--white)">${fmtD(dt)}</div>
-          <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:2px">${entries} entries</div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-family:var(--fh);font-size:15px;color:var(--amber)">${fmtINR(total*fuelRate)}</div>
-          <div style="font-size:10px;color:var(--muted);font-weight:700">${fmt(total,1)} L</div>
+      return{dt,L:dL+pL,entries:allDisbs.filter(x=>x.date===dt).length+allPF.filter(x=>x.date===dt).length};
+    }).filter(x=>x.L>0);
+
+    if(dayData.length){
+      const maxL=Math.max(...dayData.map(x=>x.L),1);
+      // Bar chart
+      html+=`<div class="rep-card"><div class="rep-hd">📊 Daily Fuel Chart</div>
+        <div style="padding:14px;overflow-x:auto">
+          <div style="display:flex;align-items:flex-end;gap:4px;height:80px;min-width:${dayData.length*32}px">
+            ${dayData.map(({dt,L})=>{
+              const h=Math.max(4,Math.round(L/maxL*64));
+              const lbl=dt.slice(8);
+              return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:28px;gap:2px">
+                <div style="font-size:8px;color:var(--amber);font-weight:700">${fmt(L,0)}</div>
+                <div style="width:100%;max-width:24px;height:${h}px;background:var(--amber);border-radius:3px 3px 0 0"></div>
+                <div style="font-size:8px;color:var(--muted);font-weight:700">${lbl}</div>
+              </div>`;
+            }).join('')}
+          </div>
         </div>
       </div>`;
-    });
-    if(!anyDay)html+='<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">No entries in this period</div>';
-    html+='</div>';
+      // Detail rows
+      html+=`<div class="rep-card" style="margin-top:8px"><div class="rep-hd">📅 Daily Breakdown</div>`;
+      dayData.forEach(({dt,L,entries})=>{
+        const dow=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(dt).getDay()];
+        html+=`<div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px">
+          <div style="background:var(--bg3);border-radius:8px;padding:6px 10px;text-align:center;min-width:44px">
+            <div style="font-family:var(--fh);font-size:16px;color:var(--white)">${dt.slice(8)}</div>
+            <div style="font-size:9px;color:var(--muted);font-weight:700">${dow}</div>
+          </div>
+          <div style="flex:1">
+            <div style="font-family:var(--fh);font-size:15px;color:var(--amber)">${fmt(L,1)} L</div>
+            <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:2px">${entries} entries · ${fmtINR(L*fuelRate)}</div>
+          </div>
+          <div style="background:var(--border);border-radius:4px;height:6px;width:60px;overflow:hidden">
+            <div style="width:${Math.round(L/maxL*100)}%;background:var(--amber);height:100%;border-radius:4px"></div>
+          </div>
+        </div>`;
+      });
+      html+='</div>';
+    } else {
+      html+='<div class="muted-txt" style="padding:40px;text-align:center">No entries in this period</div>';
+    }
 
+  // ── VEHICLE TAB ──
   } else if(repActiveTab==='vehicle'){
-    html+=`<div class="rep-card"><div class="rep-hd">🚚 Vehicle-wise Fuel</div>`;
-    let anyVeh=false;
-    fleet.forEach(v=>{
+    const vehData=fleet.map(v=>{
       const vDisbs=allDisbs.filter(d=>d.vehicleId===v.id);
       const vPF=allPF.filter(d=>d.vehicleId===v.id);
       const L=vDisbs.reduce((a,d)=>a+d.litres,0)+vPF.reduce((a,d)=>a+d.litres,0);
-      if(!L)return;
-      anyVeh=true;
-      const entries=vDisbs.length+vPF.length;
+      if(!L)return null;
       const eff=getRoadEfficiency(v);
-      const effStr=eff&&eff.kpl?fmt(eff.kpl,2)+' km/L':'—';
-      const effCol=eff&&eff.kpl?(v.expected&&eff.kpl>=v.expected*0.9?'var(--green)':'var(--red)'):'var(--muted)';
-      html+=`<div style="padding:10px 14px;border-top:1px solid var(--border)">
-        <div style="display:flex;align-items:center;justify-content:space-between">
-          <div style="flex:1;min-width:0">
-            <div style="font-family:var(--fh);font-size:13px;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.name}</div>
-            <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:2px">${entries} entries · Eff: <span style="color:${effCol}">${effStr}</span></div>
-          </div>
-          <div style="text-align:right;flex-shrink:0;min-width:90px">
-            <div style="font-family:var(--fh);font-size:14px;color:var(--amber)">${fmtINR(L*fuelRate)}</div>
-            <div style="font-size:10px;color:var(--muted);font-weight:700">${fmt(L,1)} L</div>
-          </div>
-        </div>
-      </div>`;
-    });
-    if(!anyVeh)html+='<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">No entries in this period</div>';
-    html+='</div>';
+      const effOk=eff&&v.expected?eff.kpl>=v.expected*0.9:null;
+      return{v,L,entries:vDisbs.length+vPF.length,eff,effOk};
+    }).filter(Boolean).sort((a,b)=>b.L-a.L);
 
+    if(vehData.length){
+      vehData.forEach(({v,L,entries,eff,effOk})=>{
+        const effStr=eff&&eff.kpl?fmt(eff.kpl,2)+' km/L':'No data';
+        const effCol=effOk===null?'var(--muted)':effOk?'var(--green)':'var(--red)';
+        const pct=totalL>0?Math.round(L/totalL*100):0;
+        html+=`<div style="margin:0 14px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+          <div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div style="font-family:var(--fh);font-size:14px;color:var(--white)">${vIco(v.type)} ${v.name}</div>
+              <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:2px">${entries} entries · ${v.siteName||'Mobile'}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-family:var(--fh);font-size:16px;color:var(--amber)">${fmtINR(L*fuelRate)}</div>
+              <div style="font-size:10px;color:var(--muted);font-weight:700">${fmt(L,1)} L · ${pct}%</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border)">
+            <div style="background:var(--bg2);padding:8px 12px">
+              <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Efficiency</div>
+              <div style="font-family:var(--fh);font-size:15px;color:${effCol};margin-top:2px">${effStr}</div>
+            </div>
+            <div style="background:var(--bg2);padding:8px 12px">
+              <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Target</div>
+              <div style="font-family:var(--fh);font-size:15px;color:var(--muted);margin-top:2px">${v.expected?v.expected+' km/L':'Not set'}</div>
+            </div>
+          </div>
+          <div style="padding:8px 14px;background:var(--bg2)">
+            <div style="background:var(--border);border-radius:3px;height:5px;overflow:hidden">
+              <div style="width:${pct}%;background:var(--amber);height:100%;border-radius:3px"></div>
+            </div>
+          </div>
+        </div>`;
+      });
+    } else {
+      html+='<div class="muted-txt" style="padding:40px;text-align:center">No entries in this period</div>';
+    }
+
+  // ── DRIVER TAB ──
   } else if(repActiveTab==='driver'){
-    // Group by driver name
     const driverMap={};
     allDisbs.forEach(d=>{
-      const key=d.operator||d.loggedByName||'Unknown';
-      if(!driverMap[key])driverMap[key]={L:0,entries:0};
-      driverMap[key].L+=d.litres;driverMap[key].entries++;
-    });
-    allPF.forEach(d=>{
-      const key=d.operator||d.loggedByName||'Unknown';
-      if(!driverMap[key])driverMap[key]={L:0,entries:0};
-      driverMap[key].L+=d.litres;driverMap[key].entries++;
+      const key=d.operator||'Unknown';
+      if(!driverMap[key])driverMap[key]={L:0,entries:0,dates:new Set()};
+      driverMap[key].L+=d.litres;driverMap[key].entries++;driverMap[key].dates.add(d.date);
     });
     const driverList=Object.entries(driverMap).sort((a,b)=>b[1].L-a[1].L);
-    html+=`<div class="rep-card"><div class="rep-hd">👤 Driver-wise Fuel</div>`;
+    
     if(driverList.length){
-      driverList.forEach(([name,{L,entries}])=>{
-        html+=`<div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
-          <div>
+      html+=`<div style="margin:0 14px 10px;font-size:11px;color:var(--muted);font-weight:700">${driverList.length} receivers in this period</div>`;
+      driverList.forEach(([name,{L,entries,dates}],i)=>{
+        const pct=totalL>0?Math.round(L/totalL*100):0;
+        html+=`<div style="margin:0 14px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px">
+          <div style="width:40px;height:40px;border-radius:50%;background:rgba(255,179,0,.15);
+            display:flex;align-items:center;justify-content:center;font-family:var(--fh);
+            font-size:18px;color:var(--amber);flex-shrink:0">${i+1}</div>
+          <div style="flex:1;min-width:0">
             <div style="font-family:var(--fh);font-size:14px;color:var(--white)">${name}</div>
-            <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:2px">${entries} entries</div>
+            <div style="background:var(--border);border-radius:3px;height:4px;margin:5px 0;overflow:hidden">
+              <div style="width:${pct}%;background:var(--amber);height:100%;border-radius:3px"></div>
+            </div>
+            <div style="font-size:10px;color:var(--muted);font-weight:700">${entries} fills · ${dates.size} days · ${pct}% of total</div>
           </div>
-          <div style="text-align:right">
-            <div style="font-family:var(--fh);font-size:15px;color:var(--amber)">${fmtINR(L*fuelRate)}</div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-family:var(--fh);font-size:14px;color:var(--amber)">${fmtINR(L*fuelRate)}</div>
             <div style="font-size:10px;color:var(--muted);font-weight:700">${fmt(L,1)} L</div>
           </div>
         </div>`;
       });
     } else {
-      html+='<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">No entries in this period</div>';
+      html+='<div class="muted-txt" style="padding:40px;text-align:center">No can dispatches in this period</div>';
     }
-    html+='</div>';
 
+  // ── SITE TAB ──
   } else if(repActiveTab==='site'){
-    // Group by site
     const siteMap={};
-    allDisbs.forEach(d=>{
-      const v=gV(d.vehicleId);
-      const key=v?.siteName||'Mobile/Unassigned';
-      if(!siteMap[key])siteMap[key]={L:0,entries:0,vehicles:new Set()};
-      siteMap[key].L+=d.litres;siteMap[key].entries++;
-      if(v)siteMap[key].vehicles.add(v.name);
-    });
-    allPF.forEach(d=>{
+    [...allDisbs,...allPF].forEach(d=>{
       const v=gV(d.vehicleId);
       const key=v?.siteName||'Mobile/Unassigned';
       if(!siteMap[key])siteMap[key]={L:0,entries:0,vehicles:new Set()};
@@ -3197,29 +3260,38 @@ function renderReports(){
       if(v)siteMap[key].vehicles.add(v.name);
     });
     const siteList=Object.entries(siteMap).sort((a,b)=>b[1].L-a[1].L);
-    html+=`<div class="rep-card"><div class="rep-hd">📍 Site-wise Fuel</div>`;
+    
     if(siteList.length){
       siteList.forEach(([name,{L,entries,vehicles}])=>{
-        html+=`<div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
-          <div style="flex:1;min-width:0">
-            <div style="font-family:var(--fh);font-size:14px;color:var(--white)">${name}</div>
-            <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:2px">${entries} entries · ${vehicles.size} vehicles</div>
+        const pct=totalL>0?Math.round(L/totalL*100):0;
+        const ico=name==='Mobile/Unassigned'?'🚛':'🏗';
+        html+=`<div style="margin:0 14px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+          <div style="background:var(--bg3);padding:10px 14px;display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div style="font-family:var(--fh);font-size:15px;color:var(--white)">${ico} ${name}</div>
+              <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:2px">${vehicles.size} vehicles · ${entries} entries</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-family:var(--fh);font-size:17px;color:var(--amber)">${fmtINR(L*fuelRate)}</div>
+              <div style="font-size:10px;color:var(--muted);font-weight:700">${fmt(L,1)} L · ${pct}%</div>
+            </div>
           </div>
-          <div style="text-align:right;flex-shrink:0;min-width:90px">
-            <div style="font-family:var(--fh);font-size:15px;color:var(--amber)">${fmtINR(L*fuelRate)}</div>
-            <div style="font-size:10px;color:var(--muted);font-weight:700">${fmt(L,1)} L</div>
+          <div style="padding:8px 14px">
+            <div style="background:var(--border);border-radius:3px;height:6px;overflow:hidden">
+              <div style="width:${pct}%;background:var(--amber);height:100%;border-radius:3px"></div>
+            </div>
           </div>
         </div>`;
       });
     } else {
-      html+='<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">No entries in this period</div>';
+      html+='<div class="muted-txt" style="padding:40px;text-align:center">No entries in this period</div>';
     }
-    html+='</div>';
   }
 
   el.innerHTML=html+'<div class="pad-bot"></div>';
   renderAttendanceReport();
 }
+
 
 // ── WhatsApp Export ──
 function exportReportWhatsApp(){
@@ -3328,10 +3400,21 @@ function exportRepPDF(){
   <div class="footer">Total Entries: ${allDisbs.length+allPF.length} &nbsp;|&nbsp; Generated from FuelLog App &nbsp;|&nbsp; Chiddarwar Construction Co. Pvt. Ltd.</div>
   </body></html>`;
 
+  // Add back/close button and print button to PDF
+  const printBar = `<div style="background:#111;padding:10px 20px;display:flex;gap:10px;align-items:center;
+    border-bottom:3px solid #ffb300;position:sticky;top:0;z-index:100" class="no-print">
+    <button onclick="window.close()" style="background:#333;color:#ffb300;border:none;padding:10px 18px;
+      font-size:14px;font-weight:700;border-radius:8px;cursor:pointer">‹ BACK TO APP</button>
+    <button onclick="window.print()" style="background:#ffb300;color:#111;border:none;padding:10px 18px;
+      font-size:14px;font-weight:700;border-radius:8px;cursor:pointer">🖨 PRINT / SAVE PDF</button>
+    <span style="color:#777;font-size:12px;margin-left:auto">FuelLog — Chiddarwar Construction</span>
+  </div>`;
+  html = html.replace('<body>', '<body>' + printBar);
+  // Add no-print style
+  html = html.replace('</style>', '.no-print{display:flex!important;}@media print{.no-print{display:none!important;}}</style>');
   const w=window.open('','_blank');
   w.document.write(html);
   w.document.close();
-  setTimeout(()=>w.print(),600);
 }
 
 
@@ -4640,8 +4723,12 @@ async function fbInit(){
   if(data){
     FB_KEYS.forEach(k => {
       const localKey = SK[k] || ('fl7_' + k);
-      const val = data[k] || [];
+      // Firebase stores arrays as objects when keys are numeric — convert back
+      let val = data[k];
+      if(val === null || val === undefined) val = [];
+      else if(!Array.isArray(val) && typeof val === 'object') val = Object.values(val);
       localStorage.setItem(localKey, JSON.stringify(val));
+      // Update in-memory variables immediately
       if(k==='users') users=val;
       else if(k==='fleet') fleet=val;
       else if(k==='disbs') disbs=val;
@@ -4655,6 +4742,7 @@ async function fbInit(){
       else if(k==='checklistTemplates') checklistTemplates=val;
       else if(k==='checklistRecords') checklistRecords=val;
     });
+    console.log('Loaded from Firebase — disbs:',disbs.length,'fleet:',fleet.length,'users:',users.length);
   }
 
   // Remove loading overlay and show login
@@ -4693,6 +4781,48 @@ function backupData(){
     document.body.removeChild(a);URL.revokeObjectURL(url);
     flash('BACKUP SAVED!','FuelLog_Backup_'+date+'.json');
   }).catch(function(){flash('BACKUP FAILED','Check internet connection');});
+}
+
+function restoreBackup(){
+  showConfirm('This will OVERWRITE all current data with the backup file. Continue?',function(){
+    var inp=document.createElement('input');
+    inp.type='file';inp.accept='.json';
+    inp.onchange=function(e){
+      var file=e.target.files[0];if(!file)return;
+      var reader=new FileReader();
+      reader.onload=function(ev){
+        try{
+          var backup=JSON.parse(ev.target.result);
+          if(!backup.data){alert('Invalid backup file.');return;}
+          var data=backup.data;
+          flash('RESTORING...','Importing data from backup');
+          var keys=Object.keys(data);
+          keys.forEach(function(k){
+            var val=Array.isArray(data[k])?data[k]:(data[k]?Object.values(data[k]):[]);
+            sv(k,val);
+            if(k==='users')users=val;
+            else if(k==='fleet')fleet=val;
+            else if(k==='disbs')disbs=val;
+            else if(k==='readings')readings=val;
+            else if(k==='purchases')purchases=val;
+            else if(k==='pumps')pumps=val;
+            else if(k==='pumpFills')pumpFills=val;
+            else if(k==='sites')sites=val;
+            else if(k==='drivers')drivers=val;
+            else if(k==='musters')musters=val;
+            else if(k==='checklistTemplates')checklistTemplates=val;
+            else if(k==='checklistRecords')checklistRecords=val;
+          });
+          setTimeout(function(){
+            flash('RESTORE DONE!','Disbs:'+disbs.length+' Fleet:'+fleet.length+' Users:'+users.length);
+            if(document.getElementById('scr-home').classList.contains('show'))renderHome();
+          },500);
+        }catch(err){alert('Error reading file: '+err.message);}
+      };
+      reader.readAsText(file);
+    };
+    inp.click();
+  },'Restore','RESTORE');
 }
 
 function confirmLogout(){
