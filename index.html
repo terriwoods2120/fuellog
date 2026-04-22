@@ -961,6 +961,33 @@ input[type=file]{display:none}
   <div class="pad-bot"></div>
 </div>
 
+<!-- ═══ FUEL LOG (Owner — edit/delete entries) ═══ -->
+<div class="screen" id="scr-fuel-log">
+  <div class="topbar">
+    <button class="tb-back" onclick="show('scr-home');bnavTab('ops')">‹</button>
+    <div><div class="tb-title">FUEL LOG</div><div class="tb-sub" id="fuel-log-sub">All entries</div></div>
+    <div style="margin-left:auto;padding-right:4px">
+      <span style="font-size:10px;color:var(--amber);font-weight:700;background:rgba(255,179,0,.1);padding:4px 8px;border-radius:6px">OWNER ONLY</span>
+    </div>
+  </div>
+  <div style="background:var(--bg2);border-bottom:1px solid var(--border);padding:8px 14px;display:flex;gap:6px;flex-shrink:0">
+    <input id="fuel-log-search" type="text" placeholder="Search vehicle..." autocomplete="off"
+      oninput="renderFuelLog()"
+      style="flex:1;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);
+             padding:9px 12px;border-radius:8px;font-size:14px;font-family:var(--fb);outline:none">
+    <select id="fuel-log-filter" onchange="renderFuelLog()"
+      style="background:var(--bg3);border:1.5px solid var(--border);color:var(--white);
+             padding:9px 10px;border-radius:8px;font-size:13px;font-family:var(--fb)">
+      <option value="all">All Time</option>
+      <option value="today">Today</option>
+      <option value="week">This Week</option>
+      <option value="month">This Month</option>
+    </select>
+  </div>
+  <div id="fuel-log-list" style="overflow-y:auto;flex:1"></div>
+  <div class="pad-bot"></div>
+</div>
+
 <!-- ═══ REPORTS ═══ -->
 <div class="screen" id="scr-reports">
   <div class="topbar">
@@ -988,7 +1015,6 @@ input[type=file]{display:none}
     <div style="display:flex;gap:5px;margin-top:8px;overflow-x:auto">
       <button class="rep-tab active" id="rtab-daily" onclick="repTab('daily')">📋 Daily Ops</button>
       <button class="rep-tab" id="rtab-financial" onclick="repTab('financial')">💰 Financial</button>
-      <button class="rep-tab" id="rtab-log" onclick="repTab('log')">📝 Fuel Log</button>
     </div>
   </div>
   <div id="attendance-report"></div>
@@ -1897,12 +1923,137 @@ function renderOpsTab(el){
       <div class="act-desc" style="${pending>0?'color:var(--red)':''}">${pending} pending verification${pending!==1?'s':''}</div></div>
       <div class="act-arr" style="${pending>0?'color:var(--red)':''}">›</div>
     </div>
+    ${isOwner()?`
+    <div class="sec-lbl" style="margin-top:4px">Corrections</div>
+    <div class="act" onclick="showFuelLog()">
+      <div class="act-ico">📝</div><div class="act-txt"><div class="act-title">FUEL LOG</div><div class="act-desc">View · Edit · Delete entries</div></div><div class="act-arr">›</div>
+    </div>`:''}
     ${isOwner()||isAdmin()?`
     <div class="sec-lbl" style="margin-top:4px">Accounts</div>
     <div class="act" onclick="show('scr-purchases')">
       <div class="act-ico">🛢</div><div class="act-txt"><div class="act-title">BOWSER PURCHASE</div><div class="act-desc">Buy fuel · Track balance</div></div><div class="act-arr">›</div>
     </div>`:''}
     <div class="pad-bot"></div>`;
+}
+
+// ════════════════════════════════════
+// FUEL LOG SCREEN (Owner — view/edit/delete)
+// ════════════════════════════════════
+function showFuelLog(){
+  if(!isOwner()){alert('Owner only');return;}
+  show('scr-fuel-log');
+  renderFuelLog();
+}
+
+function renderFuelLog(){
+  const el=document.getElementById('fuel-log-list');
+  if(!el)return;
+  const q=(document.getElementById('fuel-log-search')?.value||'').toLowerCase();
+  const filter=document.getElementById('fuel-log-filter')?.value||'all';
+  const fuelRate=getFuelRate();
+  const fmtINR=n=>'₹'+Number(Math.round(n)).toLocaleString('en-IN');
+  const td=today();
+
+  // Date range based on filter
+  let fromDate='2000-01-01';
+  if(filter==='today') fromDate=td;
+  else if(filter==='week'){
+    const d=new Date();d.setDate(d.getDate()-6);
+    fromDate=d.toISOString().slice(0,10);
+  } else if(filter==='month'){
+    const d=new Date();
+    fromDate=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+  }
+
+  // Build combined list
+  let entries=[];
+  disbs.forEach(d=>{
+    entries.push({...d,_type:'disb',_ts:d.ts||0});
+  });
+  (pumpFills||[]).forEach(p=>{
+    entries.push({...p,_type:'pf',_ts:p.ts||0});
+  });
+
+  // Apply filters
+  entries=entries.filter(e=>e.date>=fromDate);
+  if(q){
+    entries=entries.filter(e=>{
+      const veh=gV(e.vehicleId);
+      return (veh?.name||'').toLowerCase().includes(q)||
+             (e.operator||'').toLowerCase().includes(q)||
+             (e.loggedByName||'').toLowerCase().includes(q);
+    });
+  }
+  entries.sort((a,b)=>b._ts-a._ts||b.date.localeCompare(a.date));
+
+  // Update sub label
+  const sub=document.getElementById('fuel-log-sub');
+  if(sub)sub.textContent=entries.length+' entries'+(q?' matching "'+q+'"':'');
+
+  if(!entries.length){
+    el.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted);font-size:13px;font-weight:600">No entries found</div>';
+    return;
+  }
+
+  el.innerHTML=entries.map(e=>{
+    const veh=gV(e.vehicleId);
+    const isCan=e.source==='can'||e.destType==='can';
+    const srcLabel=e._type==='pf'?'🏪 Pump':isCan?'🪣 Can':'🛢 Bowser';
+    const srcCol=e._type==='pf'?'var(--blue)':isCan?'var(--amber)':'var(--green)';
+    const timeStr=e._ts?new Date(e._ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}):'';
+    const editedBadge=e.editedBy?`<span style="color:var(--blue);font-size:10px;margin-left:4px">✏ edited</span>`:'';
+    return `<div style="margin:0;border-bottom:1px solid var(--border);background:var(--bg)">
+      <div style="padding:8px 14px;background:var(--bg2);display:flex;align-items:center;gap:8px">
+        <span style="font-size:11px;font-weight:700;color:${srcCol}">${srcLabel}</span>
+        <span style="font-size:11px;color:var(--muted);font-weight:600">${fmtD(e.date)}${timeStr?' · '+timeStr:''}</span>
+        ${editedBadge}
+        ${e.meterMismatch?`<span style="font-size:10px;color:var(--red);font-weight:700;margin-left:auto">⚠ MISMATCH</span>`:''}
+        ${e.dipStatus==='pending'?`<span style="font-size:10px;color:var(--red);font-weight:700;margin-left:auto">⏳ DIP PENDING</span>`:''}
+      </div>
+      <div style="padding:10px 14px;display:flex;align-items:center;gap:10px">
+        <div style="flex:1;min-width:0">
+          <div style="font-family:var(--fh);font-size:14px;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            ${vIco(veh?.type||'other')} ${veh?.name||'Unknown Vehicle'}
+          </div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">
+            ${e.operator?e.operator+' · ':''}by ${e.loggedByName||'—'}
+          </div>
+          ${e.remarks?`<div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:3px">📝 ${e.remarks}</div>`:''}
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-family:var(--fh);font-size:16px;color:var(--amber)">${fmt(e.litres,1)} L</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600">${fmtINR(e.litres*fuelRate)}</div>
+        </div>
+      </div>
+      <div style="padding:0 14px 10px;display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="openEditModal('${e._type==='pf'?'pumpFill':'disb'}','${e.id}');document.getElementById('edit-modal').dataset.returnTo='fuel-log'"
+          style="background:var(--bg2);border:1.5px solid var(--amber);color:var(--amber);
+                 font-size:12px;font-weight:700;padding:7px 16px;border-radius:8px;cursor:pointer">
+          ✏️ EDIT
+        </button>
+        <button onclick="deleteFuelEntry('${e._type==='pf'?'pumpFill':'disb'}','${e.id}')"
+          style="background:var(--bg2);border:1.5px solid var(--red);color:var(--red);
+                 font-size:12px;font-weight:700;padding:7px 16px;border-radius:8px;cursor:pointer">
+          🗑 DELETE
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function deleteFuelEntry(type,id){
+  if(!isOwner()){alert('Owner only');return;}
+  showConfirm('Delete this entry? This cannot be undone.',function(){
+    if(type==='disb'){
+      disbs=disbs.filter(x=>x.id!==id);
+      sv('disbs',disbs);
+    } else {
+      pumpFills=(pumpFills||[]).filter(x=>x.id!==id);
+      sv('pumpFills',pumpFills);
+    }
+    renderFuelLog();
+    flash('DELETED','Entry removed');
+  },'🗑','DELETE');
 }
 
 // ── REPORTS TAB ──
@@ -3236,7 +3387,7 @@ function repQuick(q){
 
 function repTab(t){
   repActiveTab=t;
-  ['daily','financial','log'].forEach(k=>{
+  ['daily','financial'].forEach(k=>{
     const b=document.getElementById('rtab-'+k);
     if(b)b.classList.toggle('active',k===t);
   });
@@ -3631,12 +3782,15 @@ function renderReports(){
 
   // ═══ TAB 3: FUEL LOG (viewable + editable) ═══
   } else if(repActiveTab==='log'){
-    // Combine all entries (disbs + pumpFills) with source tag
+    // Fuel Log shows ALL entries regardless of date filter
+    // Owner needs to see everything to find and edit/delete
+    const logDisbs=[...disbs].sort((a,b)=>b.ts-a.ts);
+    const logPF=[...(pumpFills||[])].sort((a,b)=>b.ts-a.ts);
     const entries=[];
-    allDisbs.forEach(d=>{
+    logDisbs.forEach(d=>{
       entries.push({...d,_type:'disb',_ts:d.ts||new Date(d.date).getTime()});
     });
-    allPF.forEach(p=>{
+    logPF.forEach(p=>{
       entries.push({...p,_type:'pf',_ts:p.ts||new Date(p.date).getTime()});
     });
     entries.sort((a,b)=>b._ts-a._ts);
@@ -3645,7 +3799,7 @@ function renderReports(){
     <div style="margin:10px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center">
       <div>
         <div style="font-family:var(--fh);font-size:14px;color:var(--white)">FUEL LOG</div>
-        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">${entries.length} entries · ${fmtD(range.from)} – ${fmtD(range.to)}</div>
+        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">${entries.length} total entries · most recent first</div>
       </div>
       ${isOwner()?`<div style="font-size:10px;color:var(--amber);font-weight:700;text-align:right">OWNER<br>CAN EDIT</div>`:''}
     </div>
@@ -5456,8 +5610,13 @@ function doOwnerReset(){
 let editCtx={type:null,id:null};
 
 function closeEditModal(){
-  document.getElementById('edit-modal').classList.remove('show');
+  const modal=document.getElementById('edit-modal');
+  const returnTo=modal.dataset.returnTo;
+  modal.classList.remove('show');
+  modal.dataset.returnTo='';
   editCtx={type:null,id:null};
+  // Refresh fuel log if that's where we came from
+  if(returnTo==='fuel-log') renderFuelLog();
 }
 
 function openEditModal(type,id){
