@@ -3762,7 +3762,7 @@ function exportRepPDF(){
     return{dt,L};
   }).filter(x=>x.L>0);
 
-  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  let html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
   <title>FuelLog Report — ${repFmtRange(range)}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
