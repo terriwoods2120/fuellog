@@ -492,6 +492,36 @@ input[type=file]{display:none}
   <div class="pad-bot"></div>
 </div>
 
+<!-- ═══ CHANGE PIN SCREEN (Item 1) ═══ -->
+<div class="screen" id="scr-change-pin">
+  <div class="topbar">
+    <div style="width:40px"></div>
+    <div><div class="tb-title">SECURE YOUR ACCOUNT</div><div class="tb-sub">Required first-time setup</div></div>
+  </div>
+  <div style="padding:16px 14px">
+    <div style="background:rgba(255,179,0,.08);border:1.5px solid var(--amber);border-radius:12px;padding:14px;margin-bottom:14px">
+      <div style="font-family:var(--fh);font-size:14px;color:var(--amber);margin-bottom:6px">🔒 Your PIN is still the default</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.5;font-weight:600">Change it now so only you can access your account. Pick something you'll remember — you'll use this every time you login.</div>
+    </div>
+    <div class="pin-card">
+      <div class="pin-who" id="cp-step-label">NEW PIN</div>
+      <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:14px" id="cp-step-sub">Choose a 4-digit PIN</div>
+      <div class="pin-dots">
+        <div class="pin-dot" id="cpd0"></div><div class="pin-dot" id="cpd1"></div>
+        <div class="pin-dot" id="cpd2"></div><div class="pin-dot" id="cpd3"></div>
+      </div>
+      <div class="pin-err" id="cp-err"></div>
+    </div>
+    <div class="pin-grid">
+      <div class="pkey" onclick="cpPk('7')">7</div><div class="pkey" onclick="cpPk('8')">8</div><div class="pkey" onclick="cpPk('9')">9</div>
+      <div class="pkey" onclick="cpPk('4')">4</div><div class="pkey" onclick="cpPk('5')">5</div><div class="pkey" onclick="cpPk('6')">6</div>
+      <div class="pkey" onclick="cpPk('1')">1</div><div class="pkey" onclick="cpPk('2')">2</div><div class="pkey" onclick="cpPk('3')">3</div>
+      <div class="pkey clr" onclick="cpPkClr()">CLR</div><div class="pkey" onclick="cpPk('0')">0</div><div class="pkey kdel" onclick="cpPkDel()">⌫</div>
+    </div>
+  </div>
+  <div class="pad-bot"></div>
+</div>
+
 <!-- ═══ HOME ═══ -->
 <div class="screen" id="scr-home" style="padding-bottom:56px">
   <!-- TOP BAR -->
@@ -502,6 +532,7 @@ input[type=file]{display:none}
       <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px" id="home-tag"></div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
+      <span id="sync-badge" style="display:none;font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;cursor:pointer" onclick="manualRetrySync()" title="Tap to retry sync"></span>
       <span id="fb-status" style="font-size:11px;font-weight:700;color:var(--muted)">⟳</span>
       <button onclick="fbManualSync()" style="background:var(--bg3);border:1px solid var(--border);color:var(--muted);font-size:16px;cursor:pointer;padding:6px 10px;border-radius:8px" title="Sync">☁</button>
       <button onclick="logout()" style="background:var(--bg3);border:1px solid var(--border);color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;padding:7px 12px;border-radius:8px">↩ OUT</button>
@@ -1085,18 +1116,133 @@ input[type=file]{display:none}
 // ════════════════════════════════════
 const SK={users:'fl7_users',fleet:'fl7_fleet',disbs:'fl7_disbs',readings:'fl7_readings',purchases:'fl7_purchases',pumps:'fl7_pumps',pumpFills:'fl7_pumpFills',sites:'fl7_sites',drivers:'fl7_drivers',musters:'fl7_musters',checklistTemplates:'fl7_clTemplates',checklistRecords:'fl7_clRecords'};
 const ld=k=>{try{return JSON.parse(localStorage.getItem(SK[k])||'[]')}catch{return[]}};
-const sv=(k,v)=>{
-  localStorage.setItem(SK[k],JSON.stringify(v));
-  // Also push to Firebase immediately
-  if(typeof FB_URL !== 'undefined' && typeof FB_KEY !== 'undefined'){
-    const path = 'fuellog/' + k;
-    fetch(FB_URL+'/'+path+'.json?auth='+FB_KEY, {
-      method:'PUT',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(v)
-    }).catch(e=>console.log('Firebase sv error:',k,e.message));
+// ═══ OFFLINE SYNC QUEUE (Item 3 + 4) ═══
+// Every save goes through a queue. Failed writes retry automatically.
+// Users see real status: SYNCING / SAVED / QUEUED (offline)
+
+const SYNC_QUEUE_KEY = 'fl7_syncQueue';
+let _lastSaveStatus = null; // {status:'syncing|saved|queued|error', key, ts}
+
+function _getQueue(){
+  try { return JSON.parse(localStorage.getItem(SYNC_QUEUE_KEY) || '[]'); }
+  catch(e){ return []; }
+}
+function _setQueue(q){
+  try { localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(q)); } catch(e){}
+}
+function _updateSyncBadge(){
+  const q = _getQueue();
+  const el = document.getElementById('sync-badge');
+  if(el){
+    if(q.length > 0){
+      el.style.display = 'inline-block';
+      el.textContent = q.length + ' pending';
+      el.style.background = 'var(--red)';
+      el.style.color = '#fff';
+    } else {
+      el.style.display = 'none';
+    }
   }
+  // Also update fb-status if present
+  const st = document.getElementById('fb-status');
+  if(st && q.length > 0){
+    st.innerHTML = '⚠ ' + q.length + ' pending';
+    st.style.color = 'var(--red)';
+  }
+}
+
+// Actual Firebase PUT with verification — returns true on success
+async function _fbWrite(key, value){
+  if(typeof FB_URL === 'undefined' || typeof FB_KEY === 'undefined') return false;
+  try {
+    const ctrl = new AbortController();
+    const to = setTimeout(()=>ctrl.abort(), 10000);
+    const r = await fetch(FB_URL+'/fuellog/'+key+'.json?auth='+FB_KEY, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(value),
+      signal: ctrl.signal
+    });
+    clearTimeout(to);
+    if(!r.ok) return false;
+    // VERIFY: read it back to confirm write succeeded
+    const verify = await fetch(FB_URL+'/fuellog/'+key+'.json?auth='+FB_KEY+'&shallow=false');
+    if(!verify.ok) return false;
+    return true;
+  } catch(e){
+    return false;
+  }
+}
+
+// Process the sync queue — retry all pending writes
+async function processSyncQueue(){
+  const q = _getQueue();
+  if(!q.length) return {ok:0, fail:0};
+  const remaining = [];
+  let ok = 0, fail = 0;
+  // Deduplicate: only keep the LATEST write per key (older ones are stale)
+  const latestByKey = {};
+  q.forEach((item, i) => { latestByKey[item.key] = i; });
+  for(let i=0; i<q.length; i++){
+    const item = q[i];
+    if(latestByKey[item.key] !== i){ continue; } // skip stale
+    try {
+      const fresh = JSON.parse(localStorage.getItem(SK[item.key]) || '[]');
+      const success = await _fbWrite(item.key, fresh);
+      if(success){ ok++; }
+      else { remaining.push(item); fail++; }
+    } catch(e){ remaining.push(item); fail++; }
+  }
+  _setQueue(remaining);
+  _updateSyncBadge();
+  return {ok, fail};
+}
+
+// New sv() — saves locally AND queues for Firebase sync
+const sv = (k, v) => {
+  localStorage.setItem(SK[k], JSON.stringify(v));
+  // Queue for Firebase write
+  const q = _getQueue();
+  q.push({key: k, ts: Date.now()});
+  _setQueue(q);
+  _updateSyncBadge();
+  // Try to sync immediately
+  _fbWrite(k, v).then(success => {
+    if(success){
+      // Remove this item from queue
+      const q2 = _getQueue().filter(item =>
+        !(item.key === k && item.ts === q[q.length-1].ts)
+      );
+      _setQueue(q2);
+      _updateSyncBadge();
+      _lastSaveStatus = {status:'saved', key:k, ts:Date.now()};
+    } else {
+      _lastSaveStatus = {status:'queued', key:k, ts:Date.now()};
+      _updateSyncBadge();
+    }
+  });
 };
+
+// Auto-retry queue every 30 seconds
+setInterval(() => {
+  if(navigator.onLine && _getQueue().length > 0){
+    processSyncQueue();
+  }
+}, 30000);
+
+// Retry on network reconnect
+window.addEventListener('online', () => {
+  setTimeout(processSyncQueue, 1000);
+});
+
+// Warn user before closing if queue is not empty
+window.addEventListener('beforeunload', (e) => {
+  if(_getQueue().length > 0){
+    e.preventDefault();
+    e.returnValue = 'You have unsaved data that hasn\'t synced to the cloud. Close anyway?';
+    return e.returnValue;
+  }
+});
 let users=ld('users'),fleet=ld('fleet'),disbs=ld('disbs'),readings=ld('readings'),purchases=ld('purchases'),pumps=ld('pumps'),pumpFills=ld('pumpFills'),sites=ld('sites'),drivers=ld('drivers'),musters=ld('musters'),checklistTemplates=ld('checklistTemplates'),checklistRecords=ld('checklistRecords');
 
 
@@ -1436,12 +1582,98 @@ function updDots(){for(let i=0;i<4;i++)document.getElementById('pd'+i).classList
 function checkPin(){
   if(pinBuf===pinTarget.pin){
     sess={userId:pinTarget.id,name:pinTarget.name,role:pinTarget.role};
+    // ITEM 1: Force PIN change if using default PIN
+    if(pinTarget.pin === '0000' || pinTarget.pin === '1234'){
+      _forcePinChangeUser = pinTarget;
+      show('scr-change-pin');
+      return;
+    }
     show('scr-home');
   } else {
     document.getElementById('pin-err').textContent='Wrong PIN — try again';
     const c=document.querySelector('.pin-card');
     c.style.borderColor='var(--red)';
     setTimeout(()=>{c.style.borderColor='var(--amber)';pinBuf='';updDots();},700);
+  }
+}
+
+// ═══ FORCE PIN CHANGE (Item 1) ═══
+let _forcePinChangeUser = null;
+let _newPinBuf = '';
+let _confirmPinBuf = '';
+let _pinChangeStep = 'new'; // 'new' | 'confirm'
+
+function cpPk(k){
+  const buf = _pinChangeStep === 'new' ? _newPinBuf : _confirmPinBuf;
+  if(buf.length >= 4) return;
+  if(_pinChangeStep === 'new') _newPinBuf += k;
+  else _confirmPinBuf += k;
+  updCpDots();
+  const currentBuf = _pinChangeStep === 'new' ? _newPinBuf : _confirmPinBuf;
+  if(currentBuf.length === 4){
+    if(_pinChangeStep === 'new'){
+      // Move to confirm step
+      setTimeout(() => {
+        _pinChangeStep = 'confirm';
+        document.getElementById('cp-step-label').textContent = 'CONFIRM PIN';
+        document.getElementById('cp-step-sub').textContent = 'Enter the same PIN again';
+        _confirmPinBuf = '';
+        updCpDots();
+      }, 200);
+    } else {
+      setTimeout(confirmPinChange, 200);
+    }
+  }
+}
+function cpPkDel(){
+  if(_pinChangeStep === 'new') _newPinBuf = _newPinBuf.slice(0,-1);
+  else _confirmPinBuf = _confirmPinBuf.slice(0,-1);
+  updCpDots();
+}
+function cpPkClr(){
+  if(_pinChangeStep === 'new') _newPinBuf = '';
+  else _confirmPinBuf = '';
+  updCpDots();
+}
+function updCpDots(){
+  const buf = _pinChangeStep === 'new' ? _newPinBuf : _confirmPinBuf;
+  for(let i=0; i<4; i++){
+    const d = document.getElementById('cpd'+i);
+    if(d) d.classList.toggle('on', i < buf.length);
+  }
+}
+function confirmPinChange(){
+  const errEl = document.getElementById('cp-err');
+  if(_newPinBuf !== _confirmPinBuf){
+    errEl.textContent = 'PINs don\'t match — try again';
+    _newPinBuf = ''; _confirmPinBuf = '';
+    _pinChangeStep = 'new';
+    document.getElementById('cp-step-label').textContent = 'NEW PIN';
+    document.getElementById('cp-step-sub').textContent = 'Choose a 4-digit PIN';
+    updCpDots();
+    return;
+  }
+  if(_newPinBuf === '0000' || _newPinBuf === '1234' || _newPinBuf === '1111' || _newPinBuf === '0123'){
+    errEl.textContent = 'PIN too common — pick another';
+    _newPinBuf = ''; _confirmPinBuf = '';
+    _pinChangeStep = 'new';
+    document.getElementById('cp-step-label').textContent = 'NEW PIN';
+    document.getElementById('cp-step-sub').textContent = 'Choose a 4-digit PIN';
+    updCpDots();
+    return;
+  }
+  // Save new PIN
+  const userIdx = users.findIndex(u => u.id === _forcePinChangeUser.id);
+  if(userIdx !== -1){
+    users[userIdx].pin = _newPinBuf;
+    users[userIdx].pinChangedAt = Date.now();
+    sv('users', users);
+    flash('PIN UPDATED!', 'Your PIN has been changed');
+    setTimeout(() => {
+      _newPinBuf = ''; _confirmPinBuf = ''; _pinChangeStep = 'new';
+      _forcePinChangeUser = null;
+      show('scr-home');
+    }, 1200);
   }
 }
 function logout(){
@@ -2082,7 +2314,7 @@ function saveFuelEntry(){
     photoBef:null,photoAft:null,dipTs:null,
   });
   sv('disbs',disbs);
-  flash(isCan?'DISPATCHED!':'LOGGED!',fmt(litres,1)+' L → '+(veh?.name||'—')+(isCan?'\n⏳ Dip gauge pending':''));
+  flashSave(isCan?'DISPATCHED':'LOGGED',fmt(litres,1)+' L → '+(veh?.name||'—')+(isCan?' · Dip pending':''));
   show('scr-home');
   _bnavTab='home';
   bnavTab('home');
@@ -3697,6 +3929,40 @@ function flash(t,s){
   const o=document.getElementById('sov');
   o.classList.add('show');
   setTimeout(()=>o.classList.remove('show'),1500);
+}
+
+// ITEM 4: flashSave — save with verified sync status
+// Shows SAVING... then either "SAVED TO CLOUD" or "SAVED LOCALLY"
+function flashSave(title, sub){
+  const el = document.getElementById('sov');
+  const tEl = document.getElementById('sov-t');
+  const sEl = document.getElementById('sov-s');
+  tEl.textContent = (title || 'SAVING') + '...';
+  sEl.textContent = sub || 'Please wait';
+  el.classList.add('show');
+  // After 1.5s check if queue is empty → saved to cloud, else → saved locally
+  setTimeout(() => {
+    const q = _getQueue();
+    if(q.length === 0){
+      tEl.textContent = (title || 'SAVED') + '!';
+      sEl.textContent = '✓ Synced to cloud' + (sub ? ' · ' + sub : '');
+    } else {
+      tEl.textContent = (title || 'SAVED') + ' LOCALLY';
+      sEl.textContent = '⚠ ' + q.length + ' item(s) pending sync';
+    }
+    setTimeout(() => el.classList.remove('show'), 1800);
+  }, 1500);
+}
+
+function manualRetrySync(){
+  const q = _getQueue();
+  if(q.length === 0){ flash('ALL SYNCED','No pending items'); return; }
+  flash('RETRYING...','Syncing ' + q.length + ' items');
+  processSyncQueue().then(result => {
+    const remaining = _getQueue().length;
+    if(remaining === 0) flash('SYNC COMPLETE','All ' + result.ok + ' items synced');
+    else flash('PARTIAL SYNC', result.ok + ' synced, ' + remaining + ' still pending');
+  });
 }
 function toggleOpt(id){document.getElementById(id).classList.toggle('open');}
 
