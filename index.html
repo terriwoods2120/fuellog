@@ -1042,6 +1042,7 @@ input[type=file]{display:none}
     <div style="display:flex;gap:5px;margin-top:8px;overflow-x:auto">
       <button class="rep-tab active" id="rtab-daily" onclick="repTab('daily')">📋 Daily Ops</button>
       <button class="rep-tab" id="rtab-financial" onclick="repTab('financial')">💰 Financial</button>
+      <button class="rep-tab" id="rtab-muster" onclick="repTab('muster')">👷 Muster</button>
     </div>
   </div>
   <div id="attendance-report"></div>
@@ -3894,7 +3895,7 @@ function repQuick(q){
 
 function repTab(t){
   repActiveTab=t;
-  ['daily','financial'].forEach(k=>{
+  ['daily','financial','muster'].forEach(k=>{
     const b=document.getElementById('rtab-'+k);
     if(b)b.classList.toggle('active',k===t);
   });
@@ -4345,6 +4346,125 @@ function renderReports(){
       </div>`;
     }).join('')}
     `;
+  // ═══ TAB: MUSTER REPORT ═══
+  } else if(repActiveTab==='muster'){
+    const days=[];
+    let d=new Date(range.from);const endD=new Date(range.to);
+    while(d<=endD){days.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}
+    const isMultiDay=days.length>1;
+
+    const vehRows=fleet.map(v=>{
+      let presentDays=0,absentDays=0,unmarkedDays=0;
+      days.forEach(dt=>{
+        const m=(musters||[]).find(x=>x.vehicleId===v.id&&x.date===dt);
+        if(!m)unmarkedDays++;
+        else if(m.status==='absent')absentDays++;
+        else presentDays++;
+      });
+      const latestM=[...(musters||[])].filter(x=>x.vehicleId===v.id&&days.includes(x.date)).sort((a,b)=>b.date.localeCompare(a.date))[0];
+      const drvId=latestM?.driverId||v.driverId;
+      const drv=(drivers||[]).find(d=>d.id===drvId);
+      return{v,presentDays,absentDays,unmarkedDays,drvName:drv?.name||v.driverName||'—'};
+    });
+
+    if(!isMultiDay){
+      const td=range.from;
+      const getMuster=vid=>(musters||[]).find(m=>m.vehicleId===vid&&m.date===td);
+      const present=vehRows.filter(({v})=>{const m=getMuster(v.id);return m&&m.status!=='absent';});
+      const absent=vehRows.filter(({v})=>{const m=getMuster(v.id);return m&&m.status==='absent';});
+      const unmarked=vehRows.filter(({v})=>!getMuster(v.id));
+
+      html=`
+      <div style="margin:10px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;gap:0">
+        <div style="flex:1;text-align:center">
+          <div style="font-family:var(--fh);font-size:24px;color:var(--green)">${present.length}</div>
+          <div style="font-size:10px;color:var(--green);font-weight:700;letter-spacing:.5px">PRESENT</div>
+        </div>
+        <div style="flex:1;text-align:center;border-left:1px solid var(--border);border-right:1px solid var(--border)">
+          <div style="font-family:var(--fh);font-size:24px;color:var(--red)">${absent.length}</div>
+          <div style="font-size:10px;color:var(--red);font-weight:700;letter-spacing:.5px">ABSENT</div>
+        </div>
+        <div style="flex:1;text-align:center">
+          <div style="font-family:var(--fh);font-size:24px;color:var(--muted)">${unmarked.length}</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px">UNMARKED</div>
+        </div>
+      </div>
+
+      ${present.length?`<div class="rep-card" style="margin-top:10px">
+        <div class="rep-hd" style="color:var(--green)">✅ PRESENT (${present.length})</div>
+        ${present.map(({v,drvName})=>{const m=getMuster(v.id);return`
+          <div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px">
+            <span style="font-size:18px">${vIco(v.type)}</span>
+            <div style="flex:1">
+              <div style="font-family:var(--fh);font-size:13px;color:var(--white)">${v.name}</div>
+              <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:1px">👤 ${m?.driverName||drvName}${m?.swap?' · 🔄 Swapped':''}</div>
+            </div>
+            ${m?.swap?`<span style="font-size:10px;color:var(--blue);font-weight:700;background:rgba(41,121,255,.1);padding:3px 8px;border-radius:6px">SWAP</span>`:''}
+          </div>`;}).join('')}
+      </div>`:''}
+
+      ${absent.length?`<div class="rep-card">
+        <div class="rep-hd" style="color:var(--red)">❌ ABSENT (${absent.length})</div>
+        ${absent.map(({v,drvName})=>`
+          <div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px">
+            <span style="font-size:18px">${vIco(v.type)}</span>
+            <div style="flex:1">
+              <div style="font-family:var(--fh);font-size:13px;color:var(--white)">${v.name}</div>
+              <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:1px">👤 ${drvName}</div>
+            </div>
+          </div>`).join('')}
+      </div>`:''}
+
+      ${unmarked.length?`<div class="rep-card">
+        <div class="rep-hd">— UNMARKED (${unmarked.length})</div>
+        ${unmarked.map(({v,drvName})=>`
+          <div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px">
+            <span style="font-size:18px">${vIco(v.type)}</span>
+            <div style="flex:1">
+              <div style="font-family:var(--fh);font-size:13px;color:var(--muted)">${v.name}</div>
+              <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:1px">👤 ${drvName}</div>
+            </div>
+          </div>`).join('')}
+      </div>`:''}`;
+
+    } else {
+      // Multi-day: cumulative attendance table
+      html=`
+      <div style="margin:10px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 14px">
+        <div style="font-family:var(--fh);font-size:12px;color:var(--amber);letter-spacing:1px;margin-bottom:4px">CUMULATIVE ATTENDANCE</div>
+        <div style="font-size:11px;color:var(--muted);font-weight:600">${days.length} days · ${fmtD(range.from)} – ${fmtD(range.to)}</div>
+      </div>
+      <div class="rep-card" style="margin-top:10px">
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead>
+              <tr style="background:var(--bg3);color:var(--muted)">
+                <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.5px">VEHICLE</th>
+                <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">DRIVER</th>
+                <th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700;color:var(--green)">✅</th>
+                <th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700;color:var(--red)">❌</th>
+                <th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700">—</th>
+                <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">%</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${vehRows.filter(x=>x.presentDays>0||x.absentDays>0).sort((a,b)=>b.presentDays-a.presentDays).map(({v,presentDays,absentDays,unmarkedDays,drvName})=>{
+                const pct=days.length>0?Math.round(presentDays/days.length*100):0;
+                const col=pct>=80?'var(--green)':pct>=50?'var(--amber)':'var(--red)';
+                return`<tr style="border-top:1px solid var(--border)">
+                  <td style="padding:9px 10px;color:var(--white);font-weight:600">${vIco(v.type)} ${v.name}</td>
+                  <td style="padding:9px 10px;color:var(--muted);font-size:11px">${drvName}</td>
+                  <td style="padding:9px 6px;text-align:center;color:var(--green);font-weight:700">${presentDays}</td>
+                  <td style="padding:9px 6px;text-align:center;color:var(--red);font-weight:700">${absentDays||'—'}</td>
+                  <td style="padding:9px 6px;text-align:center;color:var(--muted)">${unmarkedDays||'—'}</td>
+                  <td style="padding:9px 10px;text-align:right;font-family:var(--fh);color:${col}">${pct}%</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+    }
   }
 
   el.innerHTML=html+'<div class="pad-bot"></div>';
@@ -4369,28 +4489,115 @@ function deleteEntry(type,id){
 
 // ── WhatsApp Export ──
 function exportReportWhatsApp(){
-  const range=repGetRange();
+  const td=today();
   const fuelRate=getFuelRate();
   const fmtINR=n=>'₹'+Number(Math.round(n)).toLocaleString('en-IN');
-  const allDisbs=disbs.filter(d=>d.date>=range.from&&d.date<=range.to);
-  const allPF=(pumpFills||[]).filter(d=>d.date>=range.from&&d.date<=range.to);
-  const totalL=allDisbs.reduce((a,d)=>a+d.litres,0)+allPF.reduce((a,d)=>a+d.litres,0);
-  let txt='⛽ *FUELLOG REPORT*\n';
-  txt+=`📍 Chiddarwar Construction Co.\n`;
-  txt+=`📅 ${repFmtRange(range)}\n\n`;
-  txt+=`🛢 *Summary*\n`;
-  txt+=`Total Dispensed: *${fmt(totalL,1)} L*\n`;
-  txt+=`Total Cost: *${fmtINR(totalL*fuelRate)}*\n`;
-  txt+=`Stock: ${fmt(getBowserStock(),0)} L\n`;
-  txt+=`Rate: ₹${fmt(fuelRate,1)}/L\n\n`;
-  txt+='🚚 *Vehicle-wise*\n';
-  const vehRows=fleet.map(v=>{
-    const L=allDisbs.filter(d=>d.vehicleId===v.id).reduce((a,d)=>a+d.litres,0)
-            +allPF.filter(d=>d.vehicleId===v.id).reduce((a,d)=>a+d.litres,0);
-    return{name:v.name,L};
-  }).filter(x=>x.L>0).sort((a,b)=>b.L-a.L);
-  vehRows.forEach(({name,L})=>txt+=`• ${name}: ${fmt(L,1)} L = ${fmtINR(L*fuelRate)}\n`);
-  txt+='\n_Sent from FuelLog — Chiddarwar Construction_';
+
+  // Always use TODAY for daily summary regardless of selected date range
+  const todayDisbs=disbs.filter(d=>d.date===td);
+  const todayPF=(pumpFills||[]).filter(d=>d.date===td);
+  const todayPurchases=purchases.filter(p=>p.date===td);
+
+  const bowserL=todayDisbs.filter(d=>d.source==='bowser'||d.source==='can').reduce((a,d)=>a+d.litres,0);
+  const pumpL=todayPF.reduce((a,d)=>a+d.litres,0);
+  const totalL=bowserL+pumpL;
+  const totalCost=totalL*fuelRate;
+  const stock=getBowserStock();
+  const dateStr=new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+
+  // Dip deviation helper — returns {deviationL, icon, label}
+  // Compares fuel issued (L) vs dip measurement via calibration
+  function dipStatus(disbId){
+    const disb=disbs.find(x=>x.id===disbId);
+    if(!disb) return null;
+    // Only for can dispatches that have dip readings
+    if(disb.source!=='can'&&disb.destType!=='can') return null;
+    if(disb.dipStatus==='pending'||!disb.dipStatus) return{icon:'⬜',label:'Not verified',deviationL:null};
+    // Find matching reading for this vehicle on this date
+    const veh=gV(disb.vehicleId);
+    const calib=veh?.calibration||null; // L per cm
+    if(!calib) return null;
+    const reading=(readings||[]).find(r=>r.vehicleId===disb.vehicleId&&r.date===disb.date&&r.type==='dip');
+    if(!reading) return{icon:'⬜',label:'No dip reading',deviationL:null};
+    const consumed=(reading.openingLtr||0)-(reading.closingLtr||0);
+    const deviationL=Math.abs(disb.litres-consumed);
+    if(deviationL<=5) return{icon:'✅',label:`±${fmt(deviationL,1)}L`,deviationL};
+    if(deviationL<=10) return{icon:'⚠️',label:`±${fmt(deviationL,1)}L off`,deviationL};
+    return{icon:'🔴',label:`±${fmt(deviationL,1)}L — VERIFY`,deviationL};
+  }
+
+  let txt='';
+  txt+=`⛽ *FUELLOG DAILY SUMMARY*\n`;
+  txt+=`Chiddarwar Construction Co.\n`;
+  txt+=`📅 ${dateStr}\n`;
+  txt+=`━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+  // Stock + totals
+  txt+=`🛢 *BOWSER STOCK:* ${fmt(stock,0)} L\n`;
+  txt+=`⛽ *TODAY ISSUED:* ${fmt(totalL,1)} L — ${fmtINR(totalCost)}\n`;
+  txt+=`📊 Rate: ₹${fmt(fuelRate,2)}/L\n\n`;
+
+  // Bowser issues
+  if(todayDisbs.length){
+    txt+=`🚚 *BOWSER ISSUES (${todayDisbs.length}):*\n`;
+    todayDisbs.forEach(d=>{
+      const veh=gV(d.vehicleId);
+      const dip=dipStatus(d.id);
+      const dipTxt=dip?` ${dip.icon} ${dip.label}`:'';
+      const isCan=d.source==='can'||d.destType==='can';
+      txt+=`• ${veh?.name||'?'} — ${fmt(d.litres,1)}L${isCan?' (Can)':''}${dipTxt}`;
+      if(d.operator||d.loggedByName) txt+=` — ${d.operator||d.loggedByName}`;
+      txt+='\n';
+    });
+    txt+='\n';
+  }
+
+  // Direct pump fills
+  if(todayPF.length){
+    txt+=`🏪 *DIRECT PUMP FILLS (${todayPF.length}):*\n`;
+    todayPF.forEach(p=>{
+      const veh=gV(p.vehicleId);
+      const pump=(pumps||[]).find(x=>x.id===p.pumpId);
+      txt+=`• ${veh?.name||'?'} — ${fmt(p.litres,1)}L`;
+      if(pump) txt+=` — ${pump.name}`;
+      txt+=` — ${fmtINR(p.amount||p.litres*fuelRate)}\n`;
+    });
+    txt+='\n';
+  }
+
+  // Fuel purchased today
+  if(todayPurchases.length){
+    txt+=`🛒 *FUEL PURCHASED TODAY (${todayPurchases.length}):*\n`;
+    todayPurchases.forEach(p=>{
+      txt+=`• ${p.vendor||'?'} — ${fmt(p.litres,0)}L — ${fmtINR(p.amount||0)}`;
+      if(p.bill) txt+=` — Bill #${p.bill}`;
+      const due=(p.amount||0)-(p.paid||0);
+      if(due>0) txt+=` — Due: ${fmtINR(due)}`;
+      txt+='\n';
+    });
+    txt+='\n';
+  }
+
+  // Pending dips
+  const pendingDips=todayDisbs.filter(d=>(d.source==='can'||d.destType==='can')&&d.dipStatus==='pending');
+  if(pendingDips.length){
+    txt+=`⏳ *PENDING DIP GAUGES (${pendingDips.length}):*\n`;
+    pendingDips.forEach(d=>{
+      const veh=gV(d.vehicleId);
+      txt+=`• ${veh?.name||'?'} — ${fmt(d.litres,1)}L not yet verified\n`;
+    });
+    txt+='\n';
+  }
+
+  // Legend (only if any dip data shown)
+  const hasDips=todayDisbs.some(d=>d.source==='can'||d.destType==='can');
+  if(hasDips){
+    txt+=`📌 *LEGEND:*\n`;
+    txt+=`✅ Matched (≤5L) · ⚠️ Slightly off (5-10L) · 🔴 Verify (>10L) · ⬜ Not verified\n\n`;
+  }
+
+  txt+=`— _Sent from FuelLog App_`;
+
   window.open('https://api.whatsapp.com/send?text='+encodeURIComponent(txt),'_blank');
 }
 
