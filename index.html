@@ -986,11 +986,9 @@ input[type=file]{display:none}
     </div>
     <!-- VIEW TABS -->
     <div style="display:flex;gap:5px;margin-top:8px;overflow-x:auto">
-      <button class="rep-tab active" id="rtab-summary" onclick="repTab('summary')">Summary</button>
-      <button class="rep-tab" id="rtab-daywise" onclick="repTab('daywise')">Day-wise</button>
-      <button class="rep-tab" id="rtab-vehicle" onclick="repTab('vehicle')">Vehicle</button>
-      <button class="rep-tab" id="rtab-driver" onclick="repTab('driver')">Driver</button>
-      <button class="rep-tab" id="rtab-site" onclick="repTab('site')">Site</button>
+      <button class="rep-tab active" id="rtab-daily" onclick="repTab('daily')">📋 Daily Ops</button>
+      <button class="rep-tab" id="rtab-financial" onclick="repTab('financial')">💰 Financial</button>
+      <button class="rep-tab" id="rtab-log" onclick="repTab('log')">📝 Fuel Log</button>
     </div>
   </div>
   <div id="attendance-report"></div>
@@ -1266,7 +1264,7 @@ const isSup=    ()=>isManager();
 const canAdd=   ()=>isManager()||isSiteSup();
 const canEdit=  ()=>isManager()||isAdmin();
 const canDelete=()=>isOwner();
-const canEditEntry=e=>canEdit()&&(isAdmin()||e.loggedBy===sess?.userId&&e.date===today());
+const canEditEntry=e=>canEdit()&&(isOwner()||isAdmin()||e.loggedBy===sess?.userId&&e.date===today());
 const canDelEntry= ()=>canDelete();
 const canSettings= ()=>isAdmin();
 
@@ -1582,8 +1580,10 @@ function updDots(){for(let i=0;i<4;i++)document.getElementById('pd'+i).classList
 function checkPin(){
   if(pinBuf===pinTarget.pin){
     sess={userId:pinTarget.id,name:pinTarget.name,role:pinTarget.role};
-    // ITEM 1: Force PIN change if using default PIN
-    if(pinTarget.pin === '0000' || pinTarget.pin === '1234'){
+    // ITEM 1: Force PIN change ONLY if user has never changed it
+    // Check pinChangedAt flag — reliable across sessions
+    const needsChange = !pinTarget.pinChangedAt && (pinTarget.pin === '0000' || pinTarget.pin === '1234' || pinTarget.pin === '1111');
+    if(needsChange){
       _forcePinChangeUser = pinTarget;
       show('scr-change-pin');
       return;
@@ -3202,7 +3202,7 @@ function renderAuditTrail(){
 
 // ════════════════════════════════════
 // ── REPORT STATE ──
-let repActiveTab='summary';
+let repActiveTab='daily';
 let repActiveQuick='today';
 
 function repGetRange(){
@@ -3236,7 +3236,7 @@ function repQuick(q){
 
 function repTab(t){
   repActiveTab=t;
-  ['summary','daywise','vehicle','driver','site'].forEach(k=>{
+  ['daily','financial','log'].forEach(k=>{
     const b=document.getElementById('rtab-'+k);
     if(b)b.classList.toggle('active',k===t);
   });
@@ -3264,266 +3264,447 @@ function renderReports(){
   const fmtINR=n=>'₹'+Number(Math.round(n)).toLocaleString('en-IN');
   const allDisbs=disbs.filter(d=>d.date>=range.from&&d.date<=range.to);
   const allPF=(pumpFills||[]).filter(d=>d.date>=range.from&&d.date<=range.to);
-  const totalL=allDisbs.reduce((a,d)=>a+d.litres,0)+allPF.reduce((a,d)=>a+d.litres,0);
-  const totalCost=totalL*fuelRate;
-  const stock=getBowserStock();
-  const totalPurchased=purchases.filter(p=>p.date>=range.from&&p.date<=range.to).reduce((a,p)=>a+p.litres,0);
+  const allPurchases=purchases.filter(p=>p.date>=range.from&&p.date<=range.to);
 
-  // Avg efficiency
-  let totalKm=0,totalConsumedForEff=0;
-  fleet.forEach(veh=>{const eff=getRoadEfficiency(veh);if(eff&&eff.km&&eff.consumed){totalKm+=eff.km;totalConsumedForEff+=eff.consumed;}});
-  const avgEff=totalConsumedForEff>0?totalKm/totalConsumedForEff:0;
+  let html='';
 
-  // ── Header KPI strip — always visible ──
-  let html=`
-  <div style="margin:10px 14px 0;font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.5px">
-    📅 ${repFmtRange(range)} &nbsp;·&nbsp; ₹${fmt(fuelRate,1)}/L
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1px;background:var(--border);
-    margin:8px 14px 12px;border-radius:12px;overflow:hidden;border:1px solid var(--border)">
-    <div style="background:var(--bg2);padding:10px 8px;text-align:center">
-      <div style="font-family:var(--fh);font-size:18px;color:var(--amber);line-height:1">${fmt(totalL,0)}</div>
-      <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:3px;text-transform:uppercase">Litres</div>
-    </div>
-    <div style="background:var(--bg2);padding:10px 8px;text-align:center">
-      <div style="font-family:var(--fh);font-size:15px;color:var(--amber);line-height:1">${fmtINR(totalCost)}</div>
-      <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:3px;text-transform:uppercase">Cost</div>
-    </div>
-    <div style="background:var(--bg2);padding:10px 8px;text-align:center">
-      <div style="font-family:var(--fh);font-size:18px;color:${stock<500?'var(--red)':'var(--green)'};line-height:1">${fmt(stock,0)}</div>
-      <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:3px;text-transform:uppercase">Stock L</div>
-    </div>
-    <div style="background:var(--bg2);padding:10px 8px;text-align:center">
-      <div style="font-family:var(--fh);font-size:16px;color:${avgEff>0?(avgEff>=3?'var(--green)':'var(--red)'):'var(--muted)'};line-height:1">${avgEff>0?fmt(avgEff,1):'—'}</div>
-      <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:3px;text-transform:uppercase">km/L</div>
-    </div>
-  </div>`;
+  // ═══ TAB 1: DAILY OPERATIONS SHEET ═══
+  if(repActiveTab==='daily'){
+    // Stock movement
+    const openingStock=(()=>{
+      const before=purchases.filter(p=>p.date<range.from).reduce((a,p)=>a+p.litres,0);
+      const beforeDisbs=disbs.filter(d=>d.date<range.from&&(d.source==='bowser'||d.source==='can')).reduce((a,d)=>a+d.litres,0);
+      return before-beforeDisbs;
+    })();
+    const receiptsL=allPurchases.reduce((a,p)=>a+p.litres,0);
+    const bowserIssues=allDisbs.filter(d=>d.source==='bowser'||d.source==='can').reduce((a,d)=>a+d.litres,0);
+    const pumpIssues=allPF.reduce((a,d)=>a+d.litres,0);
+    const closingStock=openingStock+receiptsL-bowserIssues;
+    const totalIssued=bowserIssues+pumpIssues;
+    const totalCost=totalIssued*fuelRate;
 
-  // ── SUMMARY TAB ──
-  if(repActiveTab==='summary'){
-    const vehData=fleet.map(v=>{
-      const L=allDisbs.filter(d=>d.vehicleId===v.id).reduce((a,d)=>a+d.litres,0)
-              +allPF.filter(d=>d.vehicleId===v.id).reduce((a,d)=>a+d.litres,0);
-      return{name:v.name,type:v.type,L};
-    }).filter(x=>x.L>0).sort((a,b)=>b.L-a.L);
-
-    if(vehData.length){
-      // Top consumer highlight
-      const top=vehData[0];
-      html+=`<div style="margin:0 14px 10px;background:linear-gradient(135deg,rgba(255,179,0,.15),rgba(255,179,0,.05));
-        border:1.5px solid var(--amber);border-radius:14px;padding:16px">
-        <div style="font-size:10px;color:var(--amber);font-weight:700;letter-spacing:1px;margin-bottom:4px">TOP CONSUMER</div>
-        <div style="font-family:var(--fh);font-size:20px;color:var(--white)">${top.name}</div>
-        <div style="display:flex;justify-content:space-between;margin-top:8px">
-          <div><div style="font-family:var(--fh);font-size:24px;color:var(--amber)">${fmt(top.L,1)} L</div>
-          <div style="font-size:10px;color:var(--muted);font-weight:700">LITRES</div></div>
-          <div style="text-align:right"><div style="font-family:var(--fh);font-size:24px;color:var(--amber)">${fmtINR(top.L*fuelRate)}</div>
-          <div style="font-size:10px;color:var(--muted);font-weight:700">COST</div></div>
-        </div>
-      </div>`;
-      // Rest as bars
-      html+=`<div class="rep-card"><div class="rep-hd">All Vehicles — ${vehData.length} active</div>`;
-      vehData.forEach(({name,L},i)=>{
-        const pct=totalL>0?Math.round(L/totalL*100):0;
-        const barW=Math.max(4,pct);
-        html+=`<div style="padding:10px 14px;border-top:1px solid var(--border)">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-            <div style="font-family:var(--fh);font-size:13px;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%">${i===0?'🥇 ':''}${name}</div>
-            <div style="text-align:right;flex-shrink:0">
-              <span style="font-family:var(--fh);font-size:13px;color:var(--amber)">${fmtINR(L*fuelRate)}</span>
-              <span style="font-size:10px;color:var(--muted);font-weight:700;margin-left:6px">${fmt(L,1)}L</span>
-            </div>
-          </div>
-          <div style="background:var(--border);border-radius:3px;height:5px;overflow:hidden">
-            <div style="width:${barW}%;background:${i===0?'var(--amber)':'var(--muted2)'};height:100%;border-radius:3px;transition:width .6s ease"></div>
-          </div>
-        </div>`;
-      });
-      html+='</div>';
-    } else {
-      html+='<div class="muted-txt" style="padding:40px;text-align:center">No fuel entries in this period</div>';
-    }
-
-  // ── DAY-WISE TAB ──
-  } else if(repActiveTab==='daywise'){
-    const days=[];
-    let d=new Date(range.from);const endD=new Date(range.to);
-    while(d<=endD){days.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}
-    
-    const dayData=days.map(dt=>{
-      const dL=allDisbs.filter(x=>x.date===dt).reduce((a,x)=>a+x.litres,0);
-      const pL=allPF.filter(x=>x.date===dt).reduce((a,x)=>a+x.litres,0);
-      return{dt,L:dL+pL,entries:allDisbs.filter(x=>x.date===dt).length+allPF.filter(x=>x.date===dt).length};
-    }).filter(x=>x.L>0);
-
-    if(dayData.length){
-      const maxL=Math.max(...dayData.map(x=>x.L),1);
-      // Bar chart
-      html+=`<div class="rep-card"><div class="rep-hd">📊 Daily Fuel Chart</div>
-        <div style="padding:14px;overflow-x:auto">
-          <div style="display:flex;align-items:flex-end;gap:4px;height:80px;min-width:${dayData.length*32}px">
-            ${dayData.map(({dt,L})=>{
-              const h=Math.max(4,Math.round(L/maxL*64));
-              const lbl=dt.slice(8);
-              return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:28px;gap:2px">
-                <div style="font-size:8px;color:var(--amber);font-weight:700">${fmt(L,0)}</div>
-                <div style="width:100%;max-width:24px;height:${h}px;background:var(--amber);border-radius:3px 3px 0 0"></div>
-                <div style="font-size:8px;color:var(--muted);font-weight:700">${lbl}</div>
-              </div>`;
-            }).join('')}
-          </div>
-        </div>
-      </div>`;
-      // Detail rows
-      html+=`<div class="rep-card" style="margin-top:8px"><div class="rep-hd">📅 Daily Breakdown</div>`;
-      dayData.forEach(({dt,L,entries})=>{
-        const dow=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(dt).getDay()];
-        html+=`<div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px">
-          <div style="background:var(--bg3);border-radius:8px;padding:6px 10px;text-align:center;min-width:44px">
-            <div style="font-family:var(--fh);font-size:16px;color:var(--white)">${dt.slice(8)}</div>
-            <div style="font-size:9px;color:var(--muted);font-weight:700">${dow}</div>
-          </div>
-          <div style="flex:1">
-            <div style="font-family:var(--fh);font-size:15px;color:var(--amber)">${fmt(L,1)} L</div>
-            <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:2px">${entries} entries · ${fmtINR(L*fuelRate)}</div>
-          </div>
-          <div style="background:var(--border);border-radius:4px;height:6px;width:60px;overflow:hidden">
-            <div style="width:${Math.round(L/maxL*100)}%;background:var(--amber);height:100%;border-radius:4px"></div>
-          </div>
-        </div>`;
-      });
-      html+='</div>';
-    } else {
-      html+='<div class="muted-txt" style="padding:40px;text-align:center">No entries in this period</div>';
-    }
-
-  // ── VEHICLE TAB ──
-  } else if(repActiveTab==='vehicle'){
-    const vehData=fleet.map(v=>{
-      const vDisbs=allDisbs.filter(d=>d.vehicleId===v.id);
-      const vPF=allPF.filter(d=>d.vehicleId===v.id);
-      const L=vDisbs.reduce((a,d)=>a+d.litres,0)+vPF.reduce((a,d)=>a+d.litres,0);
-      if(!L)return null;
-      const eff=getRoadEfficiency(v);
-      const effOk=eff&&v.expected?eff.kpl>=v.expected*0.9:null;
-      return{v,L,entries:vDisbs.length+vPF.length,eff,effOk};
-    }).filter(Boolean).sort((a,b)=>b.L-a.L);
-
-    if(vehData.length){
-      vehData.forEach(({v,L,entries,eff,effOk})=>{
-        const effStr=eff&&eff.kpl?fmt(eff.kpl,2)+' km/L':'No data';
-        const effCol=effOk===null?'var(--muted)':effOk?'var(--green)':'var(--red)';
-        const pct=totalL>0?Math.round(L/totalL*100):0;
-        html+=`<div style="margin:0 14px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden">
-          <div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
-            <div>
-              <div style="font-family:var(--fh);font-size:14px;color:var(--white)">${vIco(v.type)} ${v.name}</div>
-              <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:2px">${entries} entries · ${v.siteName||'Mobile'}</div>
-            </div>
-            <div style="text-align:right">
-              <div style="font-family:var(--fh);font-size:16px;color:var(--amber)">${fmtINR(L*fuelRate)}</div>
-              <div style="font-size:10px;color:var(--muted);font-weight:700">${fmt(L,1)} L · ${pct}%</div>
-            </div>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border)">
-            <div style="background:var(--bg2);padding:8px 12px">
-              <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Efficiency</div>
-              <div style="font-family:var(--fh);font-size:15px;color:${effCol};margin-top:2px">${effStr}</div>
-            </div>
-            <div style="background:var(--bg2);padding:8px 12px">
-              <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Target</div>
-              <div style="font-family:var(--fh);font-size:15px;color:var(--muted);margin-top:2px">${v.expected?v.expected+' km/L':'Not set'}</div>
-            </div>
-          </div>
-          <div style="padding:8px 14px;background:var(--bg2)">
-            <div style="background:var(--border);border-radius:3px;height:5px;overflow:hidden">
-              <div style="width:${pct}%;background:var(--amber);height:100%;border-radius:3px"></div>
-            </div>
-          </div>
-        </div>`;
-      });
-    } else {
-      html+='<div class="muted-txt" style="padding:40px;text-align:center">No entries in this period</div>';
-    }
-
-  // ── DRIVER TAB ──
-  } else if(repActiveTab==='driver'){
-    const driverMap={};
-    allDisbs.forEach(d=>{
-      const key=d.operator||'Unknown';
-      if(!driverMap[key])driverMap[key]={L:0,entries:0,dates:new Set()};
-      driverMap[key].L+=d.litres;driverMap[key].entries++;driverMap[key].dates.add(d.date);
+    // Vehicle-wise consumption
+    const vehMap={};
+    [...allDisbs,...allPF].forEach(d=>{
+      if(!vehMap[d.vehicleId])vehMap[d.vehicleId]={L:0,entries:0};
+      vehMap[d.vehicleId].L+=d.litres;
+      vehMap[d.vehicleId].entries++;
     });
-    const driverList=Object.entries(driverMap).sort((a,b)=>b[1].L-a[1].L);
-    
-    if(driverList.length){
-      html+=`<div style="margin:0 14px 10px;font-size:11px;color:var(--muted);font-weight:700">${driverList.length} receivers in this period</div>`;
-      driverList.forEach(([name,{L,entries,dates}],i)=>{
-        const pct=totalL>0?Math.round(L/totalL*100):0;
-        html+=`<div style="margin:0 14px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px">
-          <div style="width:40px;height:40px;border-radius:50%;background:rgba(255,179,0,.15);
-            display:flex;align-items:center;justify-content:center;font-family:var(--fh);
-            font-size:18px;color:var(--amber);flex-shrink:0">${i+1}</div>
-          <div style="flex:1;min-width:0">
-            <div style="font-family:var(--fh);font-size:14px;color:var(--white)">${name}</div>
-            <div style="background:var(--border);border-radius:3px;height:4px;margin:5px 0;overflow:hidden">
-              <div style="width:${pct}%;background:var(--amber);height:100%;border-radius:3px"></div>
-            </div>
-            <div style="font-size:10px;color:var(--muted);font-weight:700">${entries} fills · ${dates.size} days · ${pct}% of total</div>
-          </div>
-          <div style="text-align:right;flex-shrink:0">
-            <div style="font-family:var(--fh);font-size:14px;color:var(--amber)">${fmtINR(L*fuelRate)}</div>
-            <div style="font-size:10px;color:var(--muted);font-weight:700">${fmt(L,1)} L</div>
-          </div>
-        </div>`;
-      });
-    } else {
-      html+='<div class="muted-txt" style="padding:40px;text-align:center">No can dispatches in this period</div>';
-    }
+    const vehList=Object.entries(vehMap).map(([id,v])=>{
+      const veh=gV(id);
+      return{veh,L:v.L,entries:v.entries};
+    }).filter(x=>x.veh).sort((a,b)=>b.L-a.L);
 
-  // ── SITE TAB ──
-  } else if(repActiveTab==='site'){
+    // Pending dips
+    const pendingDips=disbs.filter(d=>(d.source==='can'||d.destType==='can')&&d.dipStatus==='pending');
+
+    // Alerts
+    const alerts=[];
+    if(closingStock<500)alerts.push({c:'red',t:'Low bowser stock',s:fmt(closingStock,0)+' L remaining'});
+    if(pendingDips.length>0)alerts.push({c:'amber',t:pendingDips.length+' dip gauge(s) pending',s:'Verify to close discrepancies'});
+    const mismatches=allDisbs.filter(d=>d.meterMismatch).length;
+    if(mismatches>0)alerts.push({c:'red',t:mismatches+' meter mismatch(es)',s:'Check bowser readings'});
+
+    html=`
+    <!-- Header -->
+    <div style="margin:10px 14px 0;background:linear-gradient(135deg,rgba(255,179,0,.15),rgba(255,179,0,.03));
+                border:2px solid var(--amber);border-radius:14px;padding:14px 16px">
+      <div style="font-family:var(--fh);font-size:11px;color:var(--amber);letter-spacing:1.5px;margin-bottom:4px">DAILY OPERATIONS SHEET</div>
+      <div style="font-family:var(--fh);font-size:18px;color:var(--white)">${repFmtRange(range)}</div>
+      <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:3px">Fuel Rate: ₹${fmt(fuelRate,2)}/L · Chiddarwar Construction Co.</div>
+    </div>
+
+    <!-- Alerts -->
+    ${alerts.length?`<div style="margin:10px 14px 0">${alerts.map(a=>`
+      <div style="background:${a.c==='red'?'rgba(255,61,61,.1)':'rgba(255,179,0,.1)'};
+                  border:1px solid var(${a.c==='red'?'--red':'--amber'});border-radius:10px;
+                  padding:10px 14px;margin-bottom:6px;display:flex;align-items:center;gap:10px">
+        <span style="font-size:16px">${a.c==='red'?'⚠️':'⏳'}</span>
+        <div style="flex:1">
+          <div style="font-family:var(--fh);font-size:13px;color:var(${a.c==='red'?'--red':'--amber'})">${a.t}</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:1px">${a.s}</div>
+        </div>
+      </div>`).join('')}</div>`:''}
+
+    <!-- Stock Movement -->
+    <div class="rep-card" style="margin-top:10px">
+      <div class="rep-hd">🛢 BOWSER STOCK MOVEMENT</div>
+      <div style="padding:14px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div style="background:var(--bg3);border-radius:8px;padding:10px">
+            <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Opening Stock</div>
+            <div style="font-family:var(--fh);font-size:18px;color:var(--white);margin-top:4px">${fmt(openingStock,0)} L</div>
+          </div>
+          <div style="background:rgba(0,200,83,.1);border:1px solid var(--green);border-radius:8px;padding:10px">
+            <div style="font-size:10px;color:var(--green);font-weight:700;text-transform:uppercase;letter-spacing:.5px">+ Receipts</div>
+            <div style="font-family:var(--fh);font-size:18px;color:var(--green);margin-top:4px">${fmt(receiptsL,0)} L</div>
+          </div>
+          <div style="background:rgba(255,61,61,.1);border:1px solid var(--red);border-radius:8px;padding:10px">
+            <div style="font-size:10px;color:var(--red);font-weight:700;text-transform:uppercase;letter-spacing:.5px">– Issues</div>
+            <div style="font-family:var(--fh);font-size:18px;color:var(--red);margin-top:4px">${fmt(bowserIssues,0)} L</div>
+          </div>
+          <div style="background:var(--bg3);border-radius:8px;padding:10px;border:2px solid var(--amber)">
+            <div style="font-size:10px;color:var(--amber);font-weight:700;text-transform:uppercase;letter-spacing:.5px">= Closing Stock</div>
+            <div style="font-family:var(--fh);font-size:18px;color:var(--amber);margin-top:4px">${fmt(closingStock,0)} L</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Today's Issues Summary -->
+    <div class="rep-card">
+      <div class="rep-hd">⛽ FUEL ISSUED</div>
+      <div style="padding:14px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+          <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+            <div style="font-family:var(--fh);font-size:18px;color:var(--white)">${fmt(bowserIssues,0)}</div>
+            <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:2px">BOWSER L</div>
+          </div>
+          <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+            <div style="font-family:var(--fh);font-size:18px;color:var(--white)">${fmt(pumpIssues,0)}</div>
+            <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:2px">PUMP L</div>
+          </div>
+          <div style="background:rgba(255,179,0,.15);border:1px solid var(--amber);border-radius:8px;padding:10px;text-align:center">
+            <div style="font-family:var(--fh);font-size:18px;color:var(--amber)">${fmt(totalIssued,0)}</div>
+            <div style="font-size:9px;color:var(--amber);font-weight:700;margin-top:2px">TOTAL L</div>
+          </div>
+        </div>
+        <div style="margin-top:10px;padding:10px;background:var(--bg3);border-radius:8px;text-align:center">
+          <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px">TOTAL FUEL COST</div>
+          <div style="font-family:var(--fh);font-size:22px;color:var(--amber);margin-top:2px">${fmtINR(totalCost)}</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:2px">${allDisbs.length+allPF.length} entries · ${vehList.length} vehicles fuelled</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vehicle-wise Consumption -->
+    ${vehList.length?`
+    <div class="rep-card">
+      <div class="rep-hd">🚚 VEHICLE-WISE CONSUMPTION</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead>
+            <tr style="background:var(--bg3);color:var(--muted)">
+              <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.5px">VEHICLE</th>
+              <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700;letter-spacing:.5px">LITRES</th>
+              <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700;letter-spacing:.5px">ENTRIES</th>
+              <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700;letter-spacing:.5px">COST</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${vehList.map(({veh,L,entries},i)=>`
+              <tr style="border-top:1px solid var(--border)">
+                <td style="padding:10px;color:var(--white);font-weight:600">${vIco(veh.type)} ${veh.name}</td>
+                <td style="padding:10px;text-align:right;font-family:var(--fh);color:var(--white)">${fmt(L,1)}</td>
+                <td style="padding:10px;text-align:right;color:var(--muted);font-weight:600">${entries}</td>
+                <td style="padding:10px;text-align:right;font-family:var(--fh);color:var(--amber)">${fmtINR(L*fuelRate)}</td>
+              </tr>`).join('')}
+            <tr style="border-top:2px solid var(--amber);background:rgba(255,179,0,.05)">
+              <td style="padding:10px;color:var(--amber);font-family:var(--fh)">TOTAL</td>
+              <td style="padding:10px;text-align:right;font-family:var(--fh);color:var(--amber)">${fmt(totalIssued,1)} L</td>
+              <td style="padding:10px;text-align:right;color:var(--amber);font-weight:700">${allDisbs.length+allPF.length}</td>
+              <td style="padding:10px;text-align:right;font-family:var(--fh);color:var(--amber)">${fmtINR(totalCost)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>`:`<div class="muted-txt" style="padding:40px;text-align:center">No fuel entries in this period</div>`}
+
+    <!-- Pending Dip Gauges -->
+    ${pendingDips.length?`
+    <div class="rep-card">
+      <div class="rep-hd" style="color:var(--red)">⏳ PENDING DIP GAUGES (${pendingDips.length})</div>
+      ${pendingDips.map(d=>{
+        const veh=gV(d.vehicleId);
+        return `<div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-family:var(--fh);font-size:13px;color:var(--white)">${veh?.name||'—'}</div>
+            <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">${fmtD(d.date)} · ${fmt(d.litres,1)} L dispatched</div>
+          </div>
+          <div style="color:var(--red);font-size:11px;font-weight:700">PENDING</div>
+        </div>`;
+      }).join('')}
+    </div>`:''}
+    `;
+
+  // ═══ TAB 2: FINANCIAL SUMMARY ═══
+  } else if(repActiveTab==='financial'){
+    // Purchases
+    const purchasesL=allPurchases.reduce((a,p)=>a+p.litres,0);
+    const purchasesAmt=allPurchases.reduce((a,p)=>a+(p.amount||0),0);
+    const purchasesPaid=allPurchases.reduce((a,p)=>a+(p.paid||0),0);
+    const purchasesDue=purchasesAmt-purchasesPaid;
+    // All time dues (not just this period)
+    const totalDue=purchases.reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0);
+
+    // Issues cost
+    const bowserL=allDisbs.filter(d=>d.source==='bowser'||d.source==='can').reduce((a,d)=>a+d.litres,0);
+    const pumpL=allPF.reduce((a,d)=>a+d.litres,0);
+    const totalL=bowserL+pumpL;
+    const totalCost=totalL*fuelRate;
+    const bowserCost=bowserL*fuelRate;
+    const pumpCost=pumpL*fuelRate;
+
+    // Per-site breakdown
     const siteMap={};
     [...allDisbs,...allPF].forEach(d=>{
       const v=gV(d.vehicleId);
       const key=v?.siteName||'Mobile/Unassigned';
-      if(!siteMap[key])siteMap[key]={L:0,entries:0,vehicles:new Set()};
-      siteMap[key].L+=d.litres;siteMap[key].entries++;
+      if(!siteMap[key])siteMap[key]={L:0,count:0,vehicles:new Set()};
+      siteMap[key].L+=d.litres;
+      siteMap[key].count++;
       if(v)siteMap[key].vehicles.add(v.name);
     });
     const siteList=Object.entries(siteMap).sort((a,b)=>b[1].L-a[1].L);
-    
-    if(siteList.length){
-      siteList.forEach(([name,{L,entries,vehicles}])=>{
-        const pct=totalL>0?Math.round(L/totalL*100):0;
-        const ico=name==='Mobile/Unassigned'?'🚛':'🏗';
-        html+=`<div style="margin:0 14px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden">
-          <div style="background:var(--bg3);padding:10px 14px;display:flex;align-items:center;justify-content:space-between">
-            <div>
-              <div style="font-family:var(--fh);font-size:15px;color:var(--white)">${ico} ${name}</div>
-              <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:2px">${vehicles.size} vehicles · ${entries} entries</div>
+
+    // Vendor-wise purchases
+    const vendorMap={};
+    allPurchases.forEach(p=>{
+      const key=p.vendor||'Unknown';
+      if(!vendorMap[key])vendorMap[key]={L:0,amount:0,paid:0,count:0};
+      vendorMap[key].L+=p.litres;
+      vendorMap[key].amount+=(p.amount||0);
+      vendorMap[key].paid+=(p.paid||0);
+      vendorMap[key].count++;
+    });
+    const vendorList=Object.entries(vendorMap).sort((a,b)=>b[1].amount-a[1].amount);
+
+    // Reconciliation
+    const reconciliation=purchasesL-bowserL;
+
+    html=`
+    <!-- Header -->
+    <div style="margin:10px 14px 0;background:linear-gradient(135deg,rgba(41,121,255,.15),rgba(41,121,255,.03));
+                border:2px solid var(--blue);border-radius:14px;padding:14px 16px">
+      <div style="font-family:var(--fh);font-size:11px;color:var(--blue);letter-spacing:1.5px;margin-bottom:4px">FINANCIAL SUMMARY</div>
+      <div style="font-family:var(--fh);font-size:18px;color:var(--white)">${repFmtRange(range)}</div>
+      <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:3px">Fuel Rate: ₹${fmt(fuelRate,2)}/L · Chiddarwar Construction Co.</div>
+    </div>
+
+    <!-- Headline numbers -->
+    <div style="margin:10px 14px 0;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px">
+        <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px;text-transform:uppercase">Fuel Purchased</div>
+        <div style="font-family:var(--fh);font-size:20px;color:var(--green);margin-top:4px">${fmtINR(purchasesAmt)}</div>
+        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">${fmt(purchasesL,0)} L from ${allPurchases.length} purchase${allPurchases.length===1?'':'s'}</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px">
+        <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px;text-transform:uppercase">Fuel Consumed</div>
+        <div style="font-family:var(--fh);font-size:20px;color:var(--amber);margin-top:4px">${fmtINR(totalCost)}</div>
+        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">${fmt(totalL,0)} L in ${allDisbs.length+allPF.length} entries</div>
+      </div>
+    </div>
+
+    <!-- Payment status -->
+    <div class="rep-card" style="margin-top:10px">
+      <div class="rep-hd">💳 PAYMENT STATUS</div>
+      <div style="padding:14px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+          <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:10px;color:var(--muted);font-weight:700">INVOICED</div>
+            <div style="font-family:var(--fh);font-size:15px;color:var(--white);margin-top:3px">${fmtINR(purchasesAmt)}</div>
+          </div>
+          <div style="background:rgba(0,200,83,.1);border:1px solid var(--green);border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:10px;color:var(--green);font-weight:700">PAID</div>
+            <div style="font-family:var(--fh);font-size:15px;color:var(--green);margin-top:3px">${fmtINR(purchasesPaid)}</div>
+          </div>
+          <div style="background:${purchasesDue>0?'rgba(255,61,61,.1)':'var(--bg3)'};border:1px solid var(${purchasesDue>0?'--red':'--border'});border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:10px;color:var(${purchasesDue>0?'--red':'--muted'});font-weight:700">DUE (Period)</div>
+            <div style="font-family:var(--fh);font-size:15px;color:var(${purchasesDue>0?'--red':'--muted'});margin-top:3px">${fmtINR(purchasesDue)}</div>
+          </div>
+        </div>
+        ${totalDue>0?`<div style="margin-top:12px;background:rgba(255,61,61,.08);border:1.5px solid var(--red);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:20px">⚠️</span>
+          <div style="flex:1">
+            <div style="font-family:var(--fh);font-size:13px;color:var(--red)">TOTAL OUTSTANDING (ALL TIME)</div>
+            <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:1px">Across all purchases to date</div>
+          </div>
+          <div style="font-family:var(--fh);font-size:18px;color:var(--red)">${fmtINR(totalDue)}</div>
+        </div>`:''}
+      </div>
+    </div>
+
+    <!-- Reconciliation -->
+    <div class="rep-card">
+      <div class="rep-hd">⚖️ PURCHASE vs ISSUE RECONCILIATION</div>
+      <div style="padding:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:12px;color:var(--muted);font-weight:600">Purchased into Bowser (period)</span>
+          <span style="font-family:var(--fh);color:var(--green)">+${fmt(purchasesL,1)} L</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:12px;color:var(--muted);font-weight:600">Issued from Bowser (period)</span>
+          <span style="font-family:var(--fh);color:var(--red)">−${fmt(bowserL,1)} L</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:2px solid var(--amber);margin-top:4px">
+          <span style="font-family:var(--fh);font-size:13px;color:var(--amber)">NET CHANGE (Period)</span>
+          <span style="font-family:var(--fh);font-size:15px;color:${reconciliation>=0?'var(--green)':'var(--red)'}">${reconciliation>=0?'+':''}${fmt(reconciliation,1)} L</span>
+        </div>
+        <div style="margin-top:8px;font-size:10px;color:var(--muted);line-height:1.5">
+          ℹ️ If net change doesn't match your physical dip gauge difference, investigate for losses, theft, or unrecorded entries.
+        </div>
+      </div>
+    </div>
+
+    <!-- Bowser vs Pump split -->
+    <div class="rep-card">
+      <div class="rep-hd">📊 BOWSER vs DIRECT PUMP</div>
+      <div style="padding:14px">
+        <div style="display:flex;gap:10px;margin-bottom:10px">
+          <div style="flex:1;background:var(--bg3);border-radius:8px;padding:10px">
+            <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px">BOWSER</div>
+            <div style="font-family:var(--fh);font-size:16px;color:var(--white);margin-top:3px">${fmt(bowserL,1)} L</div>
+            <div style="font-family:var(--fh);font-size:13px;color:var(--amber);margin-top:1px">${fmtINR(bowserCost)}</div>
+          </div>
+          <div style="flex:1;background:var(--bg3);border-radius:8px;padding:10px">
+            <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px">DIRECT PUMP</div>
+            <div style="font-family:var(--fh);font-size:16px;color:var(--white);margin-top:3px">${fmt(pumpL,1)} L</div>
+            <div style="font-family:var(--fh);font-size:13px;color:var(--amber);margin-top:1px">${fmtINR(pumpCost)}</div>
+          </div>
+        </div>
+        ${totalL>0?`<div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden;display:flex">
+          <div style="width:${Math.round(bowserL/totalL*100)}%;background:var(--amber);height:100%"></div>
+          <div style="width:${Math.round(pumpL/totalL*100)}%;background:var(--blue);height:100%"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--muted);font-weight:700">
+          <span>${Math.round(bowserL/totalL*100)}% Bowser</span>
+          <span>${Math.round(pumpL/totalL*100)}% Pump</span>
+        </div>`:''}
+      </div>
+    </div>
+
+    <!-- Per-site cost -->
+    ${siteList.length?`
+    <div class="rep-card">
+      <div class="rep-hd">🏗 SITE-WISE COST ALLOCATION</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead>
+            <tr style="background:var(--bg3);color:var(--muted)">
+              <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.5px">SITE</th>
+              <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">VEH</th>
+              <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">LITRES</th>
+              <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">COST</th>
+              <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">%</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${siteList.map(([name,{L,count,vehicles}])=>{
+              const pct=totalL>0?Math.round(L/totalL*100):0;
+              return `<tr style="border-top:1px solid var(--border)">
+                <td style="padding:10px;color:var(--white);font-weight:600">${name}</td>
+                <td style="padding:10px;text-align:right;color:var(--muted)">${vehicles.size}</td>
+                <td style="padding:10px;text-align:right;font-family:var(--fh);color:var(--white)">${fmt(L,0)}</td>
+                <td style="padding:10px;text-align:right;font-family:var(--fh);color:var(--amber)">${fmtINR(L*fuelRate)}</td>
+                <td style="padding:10px;text-align:right;color:var(--muted);font-weight:700">${pct}%</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`:''}
+
+    <!-- Vendor breakdown -->
+    ${vendorList.length?`
+    <div class="rep-card">
+      <div class="rep-hd">🏪 VENDOR-WISE PURCHASES</div>
+      ${vendorList.map(([name,{L,amount,paid,count}])=>{
+        const due=amount-paid;
+        return `<div style="padding:12px 14px;border-top:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px">
+            <div style="flex:1">
+              <div style="font-family:var(--fh);font-size:13px;color:var(--white)">${name}</div>
+              <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:1px">${count} purchase${count===1?'':'s'} · ${fmt(L,0)} L</div>
             </div>
             <div style="text-align:right">
-              <div style="font-family:var(--fh);font-size:17px;color:var(--amber)">${fmtINR(L*fuelRate)}</div>
-              <div style="font-size:10px;color:var(--muted);font-weight:700">${fmt(L,1)} L · ${pct}%</div>
+              <div style="font-family:var(--fh);font-size:14px;color:var(--white)">${fmtINR(amount)}</div>
             </div>
           </div>
-          <div style="padding:8px 14px">
-            <div style="background:var(--border);border-radius:3px;height:6px;overflow:hidden">
-              <div style="width:${pct}%;background:var(--amber);height:100%;border-radius:3px"></div>
-            </div>
+          <div style="display:flex;gap:10px;font-size:11px;font-weight:700">
+            <span style="color:var(--green)">Paid: ${fmtINR(paid)}</span>
+            ${due>0?`<span style="color:var(--red);margin-left:auto">Due: ${fmtINR(due)}</span>`:`<span style="color:var(--green);margin-left:auto">✓ Cleared</span>`}
           </div>
         </div>`;
-      });
-    } else {
-      html+='<div class="muted-txt" style="padding:40px;text-align:center">No entries in this period</div>';
-    }
+      }).join('')}
+    </div>`:''}
+    `;
+
+  // ═══ TAB 3: FUEL LOG (viewable + editable) ═══
+  } else if(repActiveTab==='log'){
+    // Combine all entries (disbs + pumpFills) with source tag
+    const entries=[];
+    allDisbs.forEach(d=>{
+      entries.push({...d,_type:'disb',_ts:d.ts||new Date(d.date).getTime()});
+    });
+    allPF.forEach(p=>{
+      entries.push({...p,_type:'pf',_ts:p.ts||new Date(p.date).getTime()});
+    });
+    entries.sort((a,b)=>b._ts-a._ts);
+
+    html=`
+    <div style="margin:10px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-family:var(--fh);font-size:14px;color:var(--white)">FUEL LOG</div>
+        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">${entries.length} entries · ${fmtD(range.from)} – ${fmtD(range.to)}</div>
+      </div>
+      ${isOwner()?`<div style="font-size:10px;color:var(--amber);font-weight:700;text-align:right">OWNER<br>CAN EDIT</div>`:''}
+    </div>
+
+    ${!entries.length?`<div class="muted-txt" style="padding:40px;text-align:center">No entries in this period</div>`:entries.map(e=>{
+      const veh=gV(e.vehicleId);
+      const isCan=e.source==='can'||e.destType==='can';
+      const srcLabel=e._type==='pf'?'🏪 Pump':isCan?'🪣 Can':'🛢 Bowser';
+      const srcCol=e._type==='pf'?'var(--blue)':isCan?'var(--amber)':'var(--green)';
+      return `<div style="margin:8px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+        <div style="padding:10px 14px;background:var(--bg3);display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)">
+          <span style="font-size:11px;font-weight:700;color:${srcCol};letter-spacing:.5px">${srcLabel}</span>
+          <span style="font-size:11px;color:var(--muted);font-weight:600;margin-left:auto">${fmtD(e.date)} · ${e._ts?new Date(e._ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}):''}</span>
+        </div>
+        <div style="padding:10px 14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <div style="flex:1;min-width:0">
+              <div style="font-family:var(--fh);font-size:14px;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${vIco(veh?.type||'other')} ${veh?.name||'—'}</div>
+              <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">
+                ${e.operator?'Operator: '+e.operator+' · ':''}By ${e.loggedByName||'—'}
+                ${e.meterMismatch?' · <span style="color:var(--red)">⚠ mismatch</span>':''}
+                ${e.dipStatus==='pending'?' · <span style="color:var(--red)">⏳ dip pending</span>':''}
+              </div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-family:var(--fh);font-size:16px;color:var(--amber)">${fmt(e.litres,1)} L</div>
+              <div style="font-family:var(--fh);font-size:12px;color:var(--muted)">${fmtINR(e.litres*fuelRate)}</div>
+            </div>
+          </div>
+          ${e.remarks?`<div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:4px;padding:6px 8px;background:var(--bg3);border-radius:6px">📝 ${e.remarks}</div>`:''}
+          ${isOwner()?`<div style="margin-top:10px;display:flex;gap:6px;justify-content:flex-end">
+            <button onclick="openEditModal('${e._type==='pf'?'pumpFill':'disb'}','${e.id}')" style="background:var(--bg3);border:1px solid var(--border);color:var(--amber);font-size:12px;font-weight:700;padding:6px 12px;border-radius:8px;cursor:pointer">✏️ EDIT</button>
+            <button onclick="deleteEntry('${e._type==='pf'?'pumpFill':'disb'}','${e.id}')" style="background:var(--bg3);border:1px solid var(--border);color:var(--red);font-size:12px;font-weight:700;padding:6px 12px;border-radius:8px;cursor:pointer">🗑 DELETE</button>
+          </div>`:''}
+        </div>
+      </div>`;
+    }).join('')}
+    `;
   }
 
   el.innerHTML=html+'<div class="pad-bot"></div>';
   renderAttendanceReport();
 }
 
+// Delete fuel entry (Owner only)
+function deleteEntry(type,id){
+  if(!isOwner()){alert('Only Owner can delete entries');return;}
+  showConfirm('Delete this entry? This cannot be undone.',function(){
+    if(type==='disb'){
+      disbs=disbs.filter(x=>x.id!==id);
+      sv('disbs',disbs);
+    } else if(type==='pumpFill'){
+      pumpFills=pumpFills.filter(x=>x.id!==id);
+      sv('pumpFills',pumpFills);
+    }
+    renderReports();
+    flash('DELETED','Entry removed');
+  },'🗑','DELETE');
+}
 
 // ── WhatsApp Export ──
 function exportReportWhatsApp(){
@@ -3818,6 +3999,7 @@ function saveEditMain(){
     const mb=parseFloat(document.getElementById('ed-mb').value)||orig.meterBefore;
     const ma=parseFloat(document.getElementById('ed-ma').value)||orig.meterAfter;
     const L=parseFloat(document.getElementById('ed-L').value)||orig.litres;
+    const dateV=document.getElementById('ed-date')?.value||orig.date;
     const op=document.getElementById('ed-op').value;
     const rem=document.getElementById('ed-rem').value;
     const mDiff=ma-mb;
@@ -3825,13 +4007,41 @@ function saveEditMain(){
     if(mb!==orig.meterBefore)changes.push({field:'Meter Before',oldVal:orig.meterBefore,newVal:mb});
     if(ma!==orig.meterAfter)changes.push({field:'Meter After',oldVal:orig.meterAfter,newVal:ma});
     if(L!==orig.litres)changes.push({field:'Litres',oldVal:orig.litres,newVal:L});
+    if(dateV!==orig.date)changes.push({field:'Date',oldVal:orig.date,newVal:dateV});
     if(op!==orig.operator)changes.push({field:'Operator',oldVal:orig.operator||'',newVal:op});
     if(rem!==orig.remarks)changes.push({field:'Remarks',oldVal:orig.remarks||'',newVal:rem});
-    disbs[idx]={...orig,meterBefore:mb,meterAfter:ma,meterDiff:mDiff,litres:L,
+    disbs[idx]={...orig,meterBefore:mb,meterAfter:ma,meterDiff:mDiff,litres:L,date:dateV,
       meterMismatch:mDiff<0||Math.abs(mDiff-L)>1,operator:op,remarks:rem,
       editedBy:sess.userId,editedByName:sess.name,editedAt:Date.now()};
     if(changes.length)saveAudit(buildAuditEntry('disb',disbId,changes));
     sv('disbs',disbs);flash('UPDATED!','Disbursement updated');closeEditModal();
+    if(typeof renderReports==='function')renderReports();
+  } else if(editType==='pumpFill'){
+    const pfId=modal.dataset.pumpFillId;
+    const idx=(pumpFills||[]).findIndex(p=>p.id===pfId);if(idx===-1)return;
+    const orig=pumpFills[idx];
+    const L=parseFloat(document.getElementById('ed-pfL').value)||orig.litres;
+    const rate=parseFloat(document.getElementById('ed-pfr').value)||orig.rate;
+    const amt=parseFloat(document.getElementById('ed-pfamt').value)||orig.amount;
+    const paid=parseFloat(document.getElementById('ed-pfpaid').value)||orig.paid;
+    const bill=document.getElementById('ed-pfbill').value;
+    const dateV=document.getElementById('ed-pfdate').value||orig.date;
+    const op=document.getElementById('ed-pfop').value;
+    const rem=document.getElementById('ed-pfrem').value;
+    const changes=[];
+    if(L!==orig.litres)changes.push({field:'Litres',oldVal:orig.litres,newVal:L});
+    if(rate!==orig.rate)changes.push({field:'Rate',oldVal:orig.rate,newVal:rate});
+    if(amt!==orig.amount)changes.push({field:'Amount',oldVal:orig.amount,newVal:amt});
+    if(paid!==orig.paid)changes.push({field:'Paid',oldVal:orig.paid,newVal:paid});
+    if(bill!==orig.bill)changes.push({field:'Bill No',oldVal:orig.bill||'',newVal:bill});
+    if(dateV!==orig.date)changes.push({field:'Date',oldVal:orig.date,newVal:dateV});
+    if(op!==orig.operator)changes.push({field:'Operator',oldVal:orig.operator||'',newVal:op});
+    if(rem!==orig.remarks)changes.push({field:'Remarks',oldVal:orig.remarks||'',newVal:rem});
+    pumpFills[idx]={...orig,litres:L,rate,amount:amt,paid,bill,date:dateV,operator:op,remarks:rem,
+      editedBy:sess.userId,editedByName:sess.name,editedAt:Date.now()};
+    if(changes.length)saveAudit(buildAuditEntry('pumpFill',pfId,changes));
+    sv('pumpFills',pumpFills);flash('UPDATED!','Pump fill updated');closeEditModal();
+    if(typeof renderReports==='function')renderReports();
   } else {
     closeEditModal();
   }
@@ -5304,9 +5514,30 @@ function openEditModal(type,id){
         <div class="f-field"><label class="f-lbl">Meter After (L)</label><input class="f-inp" id="ed-ma" value="${d.meterAfter||''}" type="number" inputmode="decimal"></div>
       </div>
       <div class="f-field"><label class="f-lbl">Litres</label><input class="f-inp" id="ed-L" value="${d.litres||''}" type="number" inputmode="decimal"></div>
+      <div class="f-field"><label class="f-lbl">Date</label><input class="f-inp" id="ed-date" value="${d.date||''}" type="date"></div>
       <div class="f-field"><label class="f-lbl">Operator</label><input class="f-inp" id="ed-op" value="${d.operator||''}" type="text"></div>
       <div class="f-field"><label class="f-lbl">Remarks</label><input class="f-inp" id="ed-rem" value="${d.remarks||''}" type="text"></div>`;
     modal.dataset.editType='disb';modal.dataset.disbId=id;
+  } else if(type==='pumpFill'){
+    const p=(pumpFills||[]).find(x=>x.id===id);if(!p)return;
+    if(!canEditEntry(p)){alert('You can only edit your own same-day entries');return;}
+    const veh=gV(p.vehicleId);
+    document.getElementById('edit-modal-title').textContent='EDIT PUMP FILL';
+    body.innerHTML=`
+      <div class="f-field"><label class="f-lbl">Vehicle</label><input class="f-inp ro" value="${veh?.name||'—'}" readonly></div>
+      <div class="f-r2">
+        <div class="f-field"><label class="f-lbl">Litres</label><input class="f-inp" id="ed-pfL" value="${p.litres||''}" type="number" inputmode="decimal"></div>
+        <div class="f-field"><label class="f-lbl">Rate ₹/L</label><input class="f-inp" id="ed-pfr" value="${p.rate||''}" type="number" inputmode="decimal"></div>
+      </div>
+      <div class="f-r2">
+        <div class="f-field"><label class="f-lbl">Amount ₹</label><input class="f-inp" id="ed-pfamt" value="${p.amount||''}" type="number" inputmode="decimal"></div>
+        <div class="f-field"><label class="f-lbl">Paid ₹</label><input class="f-inp" id="ed-pfpaid" value="${p.paid||''}" type="number" inputmode="decimal"></div>
+      </div>
+      <div class="f-field"><label class="f-lbl">Bill No.</label><input class="f-inp" id="ed-pfbill" value="${p.bill||''}" type="text"></div>
+      <div class="f-field"><label class="f-lbl">Date</label><input class="f-inp" id="ed-pfdate" value="${p.date||''}" type="date"></div>
+      <div class="f-field"><label class="f-lbl">Operator</label><input class="f-inp" id="ed-pfop" value="${p.operator||''}" type="text"></div>
+      <div class="f-field"><label class="f-lbl">Remarks</label><input class="f-inp" id="ed-pfrem" value="${p.remarks||''}" type="text"></div>`;
+    modal.dataset.editType='pumpFill';modal.dataset.pumpFillId=id;
   }
   modal.classList.add('show');
 }
