@@ -522,6 +522,33 @@ input[type=file]{display:none}
   <div class="pad-bot"></div>
 </div>
 
+<!-- ═══ DRIVER HOME (minimal view) ═══ -->
+<div class="screen" id="scr-driver-home" style="padding-bottom:0;background:var(--bg)">
+  <div style="background:var(--bg2);border-bottom:2px solid var(--green);padding:12px 14px;
+    padding-top:calc(12px + var(--sit));display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+    <div>
+      <div style="font-family:var(--fh);font-size:18px;color:var(--green);line-height:1">🚚 FUELLOG</div>
+      <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px" id="drv-name-tag"></div>
+    </div>
+    <button onclick="logout()" style="background:var(--bg3);border:1px solid var(--border);color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;padding:8px 14px;border-radius:8px">↩ OUT</button>
+  </div>
+  <div id="drv-home-content" style="flex:1;overflow-y:auto;padding:0 0 20px"></div>
+</div>
+
+<!-- ═══ DRIVER CHECKLIST (runtime) ═══ -->
+<div class="screen" id="scr-driver-checklist" style="background:var(--bg)">
+  <div class="topbar">
+    <button class="tb-back" onclick="show('scr-driver-home');renderDriverHome()">‹</button>
+    <div><div class="tb-title" id="dchk-title">CHECKLIST</div><div class="tb-sub" id="dchk-sub"></div></div>
+  </div>
+  <div id="dchk-content" style="flex:1;overflow-y:auto;padding:10px 14px 80px"></div>
+  <div style="position:fixed;bottom:0;left:0;right:0;padding:10px 14px;background:var(--bg2);border-top:1px solid var(--border);z-index:10">
+    <button class="big-btn bb-go bb-full" style="height:56px;font-size:17px" onclick="submitDriverChecklist()">
+      ✓ SUBMIT CHECKLIST
+    </button>
+  </div>
+</div>
+
 <!-- ═══ HOME ═══ -->
 <div class="screen" id="scr-home" style="padding-bottom:56px">
   <!-- TOP BAR -->
@@ -1179,9 +1206,11 @@ function _updateSyncBadge(){
 async function _fbWrite(key, value){
   if(typeof FB_URL === 'undefined' || typeof FB_KEY === 'undefined') return false;
   try {
+    const token = (typeof fbGetAuth === 'function') ? await fbGetAuth() : null;
+    const authParam = token ? 'auth='+token : 'auth='+FB_KEY;
     const ctrl = new AbortController();
     const to = setTimeout(()=>ctrl.abort(), 10000);
-    const r = await fetch(FB_URL+'/fuellog/'+key+'.json?auth='+FB_KEY, {
+    const r = await fetch(FB_URL+'/fuellog/'+key+'.json?'+authParam, {
       method: 'PUT',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify(value),
@@ -1190,7 +1219,7 @@ async function _fbWrite(key, value){
     clearTimeout(to);
     if(!r.ok) return false;
     // VERIFY: read it back to confirm write succeeded
-    const verify = await fetch(FB_URL+'/fuellog/'+key+'.json?auth='+FB_KEY+'&shallow=false');
+    const verify = await fetch(FB_URL+'/fuellog/'+key+'.json?'+authParam+'&shallow=false');
     if(!verify.ok) return false;
     return true;
   } catch(e){
@@ -1559,7 +1588,20 @@ function filterLoginBand(key, rolesStr){
   const q = document.getElementById('band-inp-'+key)?.value||'';
   const el = document.getElementById('band-list-'+key);
   if(!el) return;
-  const filtered = users.filter(u=>roles.includes(u.role)&&(!q||u.name.toLowerCase().includes(q.toLowerCase())));
+  // For driver band, show drivers from `drivers` array (not users)
+  let filtered;
+  if(key === 'driver'){
+    filtered = (drivers||[]).filter(d=>!q||d.name.toLowerCase().includes(q.toLowerCase())).map(d=>({
+      id: 'drv_'+d.id,  // prefix to distinguish from users
+      name: d.name,
+      role: 'driver',
+      _isDriver: true,
+      _driverType: d.type,
+      _origId: d.id
+    }));
+  } else {
+    filtered = users.filter(u=>roles.includes(u.role)&&(!q||u.name.toLowerCase().includes(q.toLowerCase())));
+  }
   if(!filtered.length){
     el.innerHTML='<div style="padding:8px 4px;color:var(--muted);font-size:13px">No match found</div>';
     return;
@@ -1574,7 +1616,7 @@ function filterLoginBand(key, rolesStr){
                   font-family:var(--fh);font-size:16px;flex-shrink:0">${u.name[0].toUpperCase()}</div>
       <div style="flex:1">
         <div style="font-family:var(--fh);font-size:15px;color:var(--white)">${u.name}</div>
-        <div style="font-size:11px;color:${rCol(u.role)};font-weight:700;margin-top:1px">${rLbl(u.role)}</div>
+        <div style="font-size:11px;color:${rCol(u.role)};font-weight:700;margin-top:1px">${u._driverType?(u._driverType+'').toUpperCase():rLbl(u.role)}</div>
       </div>
       <div style="color:var(--muted);font-size:18px">›</div>
     </div>`).join('');
@@ -1593,6 +1635,29 @@ function driverPk(){}
 function checkDriverPin(){}
 let pinTarget=null,pinBuf='';
 function startLogin(uid_){
+  // Driver login — drivers are prefixed 'drv_'
+  if(uid_.startsWith('drv_')){
+    const driverId = uid_.substring(4);
+    const drv = (drivers||[]).find(d=>d.id===driverId);
+    if(!drv) return;
+    // Default PIN for drivers is '0000' if not set
+    const pin = drv.pin || '0000';
+    pinTarget = {
+      id: 'drv_'+drv.id,
+      name: drv.name,
+      pin: pin,
+      pinChangedAt: drv.pinChangedAt || null,
+      role: 'driver',
+      _origId: drv.id,
+      _isDriver: true
+    };
+    pinBuf='';
+    document.getElementById('pin-who').textContent=drv.name;
+    document.getElementById('pin-err').textContent='';
+    updDots();show('scr-pin');
+    return;
+  }
+  // Regular user login
   const u=gU(uid_);if(!u)return;
   pinTarget=u;pinBuf='';
   document.getElementById('pin-who').textContent=u.name;
@@ -1606,15 +1671,21 @@ function updDots(){for(let i=0;i<4;i++)document.getElementById('pd'+i).classList
 function checkPin(){
   if(pinBuf===pinTarget.pin){
     sess={userId:pinTarget.id,name:pinTarget.name,role:pinTarget.role};
+    if(pinTarget._isDriver) sess.driverId = pinTarget._origId;
     // ITEM 1: Force PIN change ONLY if user has never changed it
-    // Check pinChangedAt flag — reliable across sessions
     const needsChange = !pinTarget.pinChangedAt && (pinTarget.pin === '0000' || pinTarget.pin === '1234' || pinTarget.pin === '1111');
     if(needsChange){
       _forcePinChangeUser = pinTarget;
       show('scr-change-pin');
       return;
     }
-    show('scr-home');
+    // Route drivers to driver home, others to regular home
+    if(pinTarget._isDriver){
+      show('scr-driver-home');
+      if(typeof renderDriverHome==='function') renderDriverHome();
+    } else {
+      show('scr-home');
+    }
   } else {
     document.getElementById('pin-err').textContent='Wrong PIN — try again';
     const c=document.querySelector('.pin-card');
@@ -1689,6 +1760,24 @@ function confirmPinChange(){
     return;
   }
   // Save new PIN
+  if(_forcePinChangeUser._isDriver){
+    // Driver PIN change
+    const dIdx = drivers.findIndex(d => d.id === _forcePinChangeUser._origId);
+    if(dIdx !== -1){
+      drivers[dIdx].pin = _newPinBuf;
+      drivers[dIdx].pinChangedAt = Date.now();
+      sv('drivers', drivers);
+      flash('PIN UPDATED!', 'Your PIN has been changed');
+      setTimeout(() => {
+        _newPinBuf = ''; _confirmPinBuf = ''; _pinChangeStep = 'new';
+        _forcePinChangeUser = null;
+        show('scr-driver-home');
+        if(typeof renderDriverHome==='function') renderDriverHome();
+      }, 1200);
+    }
+    return;
+  }
+  // Regular user PIN change
   const userIdx = users.findIndex(u => u.id === _forcePinChangeUser.id);
   if(userIdx !== -1){
     users[userIdx].pin = _newPinBuf;
@@ -1710,6 +1799,418 @@ function logout(){
 
 
 // --- fl-home.js ---
+// ════════════════════════════════════
+// DRIVER HOME (minimal — shows assigned vehicle + today's checklist)
+// ════════════════════════════════════
+function renderDriverHome(){
+  if(!sess || sess.role !== 'driver'){ show('scr-login'); return; }
+  const drvId = sess.driverId;
+  const drv = (drivers||[]).find(d=>d.id===drvId);
+  if(!drv){ show('scr-login'); return; }
+
+  // Update name tag
+  const nameTag = document.getElementById('drv-name-tag');
+  if(nameTag) nameTag.textContent = drv.name + ' · ' + (drv.type||'driver').toUpperCase();
+
+  // Find assigned vehicle: muster first, then permanent
+  const td = today();
+  const muster = (musters||[]).find(m => m.date===td && m.driverId===drvId);
+  let vehicle = null;
+  let assignSource = '';
+  if(muster && muster.vehicleId){
+    vehicle = fleet.find(v=>v.id===muster.vehicleId);
+    assignSource = 'Today\'s muster';
+  } else {
+    vehicle = fleet.find(v=>v.driverId===drvId);
+    if(vehicle) assignSource = 'Permanent assignment';
+  }
+
+  const el = document.getElementById('drv-home-content');
+  if(!vehicle){
+    el.innerHTML = `
+      <div style="padding:40px 20px;text-align:center">
+        <div style="font-size:64px;margin-bottom:16px">🚫</div>
+        <div style="font-family:var(--fh);font-size:20px;color:var(--white);margin-bottom:10px">NO VEHICLE ASSIGNED</div>
+        <div style="font-size:13px;color:var(--muted);font-weight:600;line-height:1.6">
+          Contact your supervisor or manager<br>to get a vehicle assigned for today.
+        </div>
+      </div>`;
+    return;
+  }
+
+  // Determine which checklists are due today
+  const dow = new Date().getDay(); // 0=Sun, 3=Wed
+  const dom = new Date().getDate();
+  const isWed = dow === 3;
+  // First Wednesday of month: isWed AND date between 1-7
+  const isFirstWed = isWed && dom <= 7;
+
+  // Get today's submissions for this vehicle
+  const todayRecords = (checklistRecords||[]).filter(r =>
+    r.vehicleId===vehicle.id && r.date===td
+  );
+  const doneDaily = todayRecords.some(r => r.schedule==='daily');
+  const doneWeekly = todayRecords.some(r => r.schedule==='weekly');
+  const doneMonthly = todayRecords.some(r => r.schedule==='monthly');
+
+  el.innerHTML = `
+    <!-- Assigned Vehicle Card -->
+    <div style="margin:12px 14px 0;background:linear-gradient(135deg,rgba(0,200,83,.15),rgba(0,200,83,.03));
+         border:2px solid var(--green);border-radius:14px;padding:16px 18px">
+      <div style="font-size:10px;color:var(--green);font-weight:700;letter-spacing:1.5px;margin-bottom:4px">YOUR VEHICLE TODAY</div>
+      <div style="font-family:var(--fh);font-size:22px;color:var(--white);line-height:1.1">${vIco(vehicle.type)} ${vehicle.name}</div>
+      <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:4px">${assignSource}${vehicle.siteName?' · '+vehicle.siteName:''}</div>
+    </div>
+
+    <!-- Today's Date -->
+    <div style="margin:14px 14px 0;font-size:12px;color:var(--muted);font-weight:600">
+      📅 ${new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}
+    </div>
+
+    <!-- Checklist Cards -->
+    <div style="margin:8px 14px 0">
+      <div style="font-family:var(--fh);font-size:13px;color:var(--muted);letter-spacing:1px;padding:10px 0 6px">TODAY'S MAINTENANCE CHECKS</div>
+
+      <!-- Daily -->
+      <div onclick="${doneDaily?'':'startDriverChecklist(\''+vehicle.id+'\',\'daily\')'}"
+        style="background:${doneDaily?'rgba(0,200,83,.08)':'var(--bg2)'};border:2px solid ${doneDaily?'var(--green)':'var(--amber)'};
+               border-radius:12px;padding:14px 16px;margin-bottom:8px;cursor:${doneDaily?'default':'pointer'};
+               display:flex;align-items:center;gap:12px">
+        <div style="font-size:32px">${doneDaily?'✅':'📋'}</div>
+        <div style="flex:1">
+          <div style="font-family:var(--fh);font-size:15px;color:var(--white)">DAILY PRE-START</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">
+            ${doneDaily?'✓ Completed today':'Engine, tyres, fluids, lights — quick daily check'}
+          </div>
+        </div>
+        ${!doneDaily?'<div style="color:var(--amber);font-size:20px">›</div>':''}
+      </div>
+
+      ${isWed?`
+      <!-- Weekly (Wednesday only) -->
+      <div onclick="${doneWeekly?'':'startDriverChecklist(\''+vehicle.id+'\',\'weekly\')'}"
+        style="background:${doneWeekly?'rgba(0,200,83,.08)':'var(--bg2)'};border:2px solid ${doneWeekly?'var(--green)':'var(--blue)'};
+               border-radius:12px;padding:14px 16px;margin-bottom:8px;cursor:${doneWeekly?'default':'pointer'};
+               display:flex;align-items:center;gap:12px">
+        <div style="font-size:32px">${doneWeekly?'✅':'🔧'}</div>
+        <div style="flex:1">
+          <div style="font-family:var(--fh);font-size:15px;color:var(--white)">WEEKLY MAINTENANCE</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">
+            ${doneWeekly?'✓ Completed today':'Battery, belts, filters, lubrication — every Wednesday'}
+          </div>
+        </div>
+        ${!doneWeekly?'<div style="color:var(--blue);font-size:20px">›</div>':''}
+      </div>`:''}
+
+      ${isFirstWed?`
+      <!-- Monthly (1st Wednesday only) -->
+      <div onclick="${doneMonthly?'':'startDriverChecklist(\''+vehicle.id+'\',\'monthly\')'}"
+        style="background:${doneMonthly?'rgba(0,200,83,.08)':'var(--bg2)'};border:2px solid ${doneMonthly?'var(--green)':'var(--purple)'};
+               border-radius:12px;padding:14px 16px;margin-bottom:8px;cursor:${doneMonthly?'default':'pointer'};
+               display:flex;align-items:center;gap:12px">
+        <div style="font-size:32px">${doneMonthly?'✅':'🛠'}</div>
+        <div style="flex:1">
+          <div style="font-family:var(--fh);font-size:15px;color:var(--white)">MONTHLY SERVICE</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">
+            ${doneMonthly?'✓ Completed today':'Air cleaner, greasing, radiator — first Wednesday'}
+          </div>
+        </div>
+        ${!doneMonthly?'<div style="color:var(--purple);font-size:20px">›</div>':''}
+      </div>`:''}
+
+    </div>
+
+    ${doneDaily && (!isWed||doneWeekly) && (!isFirstWed||doneMonthly) ? `
+    <div style="margin:16px 14px 0;background:rgba(0,200,83,.08);border:1.5px solid var(--green);
+         border-radius:12px;padding:14px;text-align:center">
+      <div style="font-size:36px">🎉</div>
+      <div style="font-family:var(--fh);font-size:14px;color:var(--green);margin-top:6px">ALL DONE FOR TODAY</div>
+      <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:3px">Thank you for your diligence!</div>
+    </div>`:''}
+
+    <!-- History peek -->
+    ${todayRecords.length ? `
+    <div style="margin:16px 14px 0">
+      <div style="font-family:var(--fh);font-size:11px;color:var(--muted);letter-spacing:1px;padding:8px 0">TODAY'S SUBMISSIONS</div>
+      ${todayRecords.map(r=>`
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-family:var(--fh);font-size:13px;color:var(--white)">${r.schedule.toUpperCase()}</div>
+              <div style="font-size:10px;color:var(--muted);font-weight:600">${new Date(r.ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</div>
+            </div>
+            <div style="text-align:right">
+              ${(r.issues||0)>0?`<span style="color:var(--red);font-size:11px;font-weight:700">${r.issues} ISSUE${r.issues>1?'S':''}</span>`:`<span style="color:var(--green);font-size:11px;font-weight:700">ALL OK</span>`}
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>`:''}
+  `;
+}
+
+// ────────────────────────────────────
+// DRIVER CHECKLIST TEMPLATES
+// ────────────────────────────────────
+// Built-in templates — used if no custom template exists for vehicle type
+const _DEFAULT_CHECKLISTS = {
+  daily: [
+    {id:'d1', label:'Engine oil level'},
+    {id:'d2', label:'Coolant level'},
+    {id:'d3', label:'Brake oil level'},
+    {id:'d4', label:'Tyre condition (all 4/6/10)'},
+    {id:'d5', label:'Tyre pressure'},
+    {id:'d6', label:'Headlights / taillights / indicators'},
+    {id:'d7', label:'Horn working'},
+    {id:'d8', label:'Wiper & washer'},
+    {id:'d9', label:'Brakes — service & parking'},
+    {id:'d10', label:'Fuel level / leak check'},
+    {id:'d11', label:'Mirrors clean & adjusted'},
+    {id:'d12', label:'Overall body / any new damage'},
+  ],
+  weekly: [
+    {id:'w1', label:'Battery terminals clean & tight'},
+    {id:'w2', label:'Fan belt / alternator belt condition'},
+    {id:'w3', label:'Air filter — blow clean if needed'},
+    {id:'w4', label:'Fuel filter condition'},
+    {id:'w5', label:'Nut-bolt tightness (wheel, chassis)'},
+    {id:'w6', label:'All grease points lubricated'},
+    {id:'w7', label:'Hydraulic hoses — no leaks'},
+    {id:'w8', label:'Clutch play & adjustment'},
+    {id:'w9', label:'Steering play'},
+    {id:'w10', label:'Exhaust smoke — normal color'},
+  ],
+  monthly: [
+    {id:'m1', label:'Engine oil — change or top up'},
+    {id:'m2', label:'All filters — air, fuel, oil'},
+    {id:'m3', label:'Radiator — flush and refill coolant'},
+    {id:'m4', label:'Battery water level (top up distilled water)'},
+    {id:'m5', label:'All grease nipples serviced'},
+    {id:'m6', label:'Gear oil level'},
+    {id:'m7', label:'Differential oil check'},
+    {id:'m8', label:'Wheel alignment visual check'},
+    {id:'m9', label:'All warning lights tested'},
+    {id:'m10', label:'Fire extinguisher (if fitted)'},
+    {id:'m11', label:'First aid box in cabin'},
+    {id:'m12', label:'Documents — RC, insurance, PUC validity'},
+  ]
+};
+
+// Driver checklist state
+let _dchkState = null; // {vehicleId, schedule, items: {itemId: {status, photo, voiceText}}}
+
+function startDriverChecklist(vehicleId, schedule){
+  const veh = fleet.find(v=>v.id===vehicleId);
+  if(!veh){ alert('Vehicle not found'); return; }
+  const items = _DEFAULT_CHECKLISTS[schedule] || _DEFAULT_CHECKLISTS.daily;
+  _dchkState = {
+    vehicleId, schedule,
+    items: Object.fromEntries(items.map(it => [it.id, {status:null, photo:null, voiceText:''}]))
+  };
+  document.getElementById('dchk-title').textContent = schedule.toUpperCase()+' CHECK — '+veh.name;
+  document.getElementById('dchk-sub').textContent = items.length + ' items · Mark each as OK or issue';
+  renderDriverChecklistItems();
+  show('scr-driver-checklist');
+}
+
+function renderDriverChecklistItems(){
+  if(!_dchkState) return;
+  const items = _DEFAULT_CHECKLISTS[_dchkState.schedule] || _DEFAULT_CHECKLISTS.daily;
+  const el = document.getElementById('dchk-content');
+  el.innerHTML = items.map((it,idx)=>{
+    const st = _dchkState.items[it.id] || {};
+    const colors = {
+      ok: 'var(--green)',
+      attention: 'var(--amber)',
+      broken: 'var(--red)'
+    };
+    const activeColor = colors[st.status] || 'var(--border)';
+    const showExtras = st.status==='attention' || st.status==='broken';
+    return `<div style="background:var(--bg2);border:2px solid ${activeColor};border-radius:12px;padding:12px 14px;margin-bottom:8px">
+      <div style="font-family:var(--fh);font-size:14px;color:var(--white);margin-bottom:10px">${idx+1}. ${it.label}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+        <button onclick="setDchkStatus('${it.id}','ok')"
+          style="background:${st.status==='ok'?'var(--green)':'var(--bg3)'};color:${st.status==='ok'?'#111':'var(--muted)'};
+                 border:1.5px solid ${st.status==='ok'?'var(--green)':'var(--border)'};padding:10px 4px;border-radius:8px;
+                 font-family:var(--fh);font-size:12px;font-weight:900;cursor:pointer">✅ OK</button>
+        <button onclick="setDchkStatus('${it.id}','attention')"
+          style="background:${st.status==='attention'?'var(--amber)':'var(--bg3)'};color:${st.status==='attention'?'#111':'var(--muted)'};
+                 border:1.5px solid ${st.status==='attention'?'var(--amber)':'var(--border)'};padding:10px 4px;border-radius:8px;
+                 font-family:var(--fh);font-size:11px;font-weight:900;cursor:pointer">⚠️ ATTN</button>
+        <button onclick="setDchkStatus('${it.id}','broken')"
+          style="background:${st.status==='broken'?'var(--red)':'var(--bg3)'};color:${st.status==='broken'?'#fff':'var(--muted)'};
+                 border:1.5px solid ${st.status==='broken'?'var(--red)':'var(--border)'};padding:10px 4px;border-radius:8px;
+                 font-family:var(--fh);font-size:11px;font-weight:900;cursor:pointer">❌ BROKEN</button>
+      </div>
+      ${showExtras?`
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <button onclick="dchkTakePhoto('${it.id}')"
+              style="flex:1;background:var(--bg3);border:1.5px solid var(--blue);color:var(--blue);
+                     padding:10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">
+              ${st.photo?'📷 Photo ✓':'📷 ADD PHOTO'}
+            </button>
+            <button onclick="dchkStartVoice('${it.id}')" id="voice-btn-${it.id}"
+              style="flex:1;background:var(--bg3);border:1.5px solid var(--purple);color:var(--purple);
+                     padding:10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">
+              ${st.voiceText?'🎤 Voice ✓':'🎤 VOICE NOTE'}
+            </button>
+          </div>
+          ${st.photo?`<img src="${st.photo}" style="width:100%;max-height:140px;object-fit:cover;border-radius:8px;margin-top:6px">`:''}
+          ${st.voiceText?`<div style="background:var(--bg3);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--muted);font-style:italic;margin-top:6px">💬 "${st.voiceText}"</div>`:''}
+          <input type="text" id="text-${it.id}" placeholder="Or type remark..." value="${st.voiceText||''}"
+            oninput="_dchkState.items['${it.id}'].voiceText=this.value"
+            style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--white);
+                   padding:8px 10px;border-radius:6px;font-size:12px;margin-top:6px;box-sizing:border-box">
+          <input type="file" id="photo-${it.id}" accept="image/*" capture="environment" style="display:none">
+        </div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function setDchkStatus(itemId, status){
+  if(!_dchkState) return;
+  if(!_dchkState.items[itemId]) _dchkState.items[itemId] = {status:null, photo:null, voiceText:''};
+  _dchkState.items[itemId].status = status;
+  renderDriverChecklistItems();
+}
+
+function dchkTakePhoto(itemId){
+  const inp = document.getElementById('photo-'+itemId);
+  if(!inp){
+    // Create input on the fly
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment';
+    input.onchange = e => handleDchkPhoto(itemId, e);
+    input.click();
+    return;
+  }
+  inp.onchange = e => handleDchkPhoto(itemId, e);
+  inp.click();
+}
+
+function handleDchkPhoto(itemId, e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    // Resize to save storage
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const MAX_W = 800;
+      const ratio = MAX_W / img.width;
+      canvas.width = Math.min(MAX_W, img.width);
+      canvas.height = img.height * Math.min(1, ratio);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      _dchkState.items[itemId].photo = dataUrl;
+      renderDriverChecklistItems();
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// Web Speech API for voice-to-text
+let _voiceRec = null;
+function dchkStartVoice(itemId){
+  if(!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)){
+    alert('Voice input not supported on this device. Please type the remark.');
+    return;
+  }
+  if(_voiceRec){
+    // Already listening — stop
+    try{_voiceRec.stop();}catch(e){}
+    _voiceRec = null;
+    return;
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const rec = new SR();
+  rec.lang = 'en-IN'; // could also try 'hi-IN' or 'mr-IN'
+  rec.interimResults = false;
+  rec.continuous = false;
+  const btn = document.getElementById('voice-btn-'+itemId);
+  if(btn){ btn.textContent = '🔴 LISTENING...'; btn.style.background = 'var(--red)'; btn.style.color = '#fff'; }
+  rec.onresult = e => {
+    const text = e.results[0][0].transcript;
+    if(_dchkState.items[itemId]){
+      _dchkState.items[itemId].voiceText = text;
+    }
+    renderDriverChecklistItems();
+  };
+  rec.onerror = e => {
+    if(btn){ btn.textContent = '🎤 VOICE NOTE'; btn.style.background = 'var(--bg3)'; btn.style.color = 'var(--purple)'; }
+    if(e.error !== 'no-speech' && e.error !== 'aborted'){
+      alert('Voice error: ' + e.error + '. You can type instead.');
+    }
+    _voiceRec = null;
+  };
+  rec.onend = () => {
+    if(btn){ btn.textContent = '🎤 VOICE NOTE'; btn.style.background = 'var(--bg3)'; btn.style.color = 'var(--purple)'; }
+    _voiceRec = null;
+  };
+  _voiceRec = rec;
+  try { rec.start(); }
+  catch(e){ alert('Could not start voice: ' + e.message); _voiceRec = null; }
+}
+
+function submitDriverChecklist(){
+  if(!_dchkState){ alert('No checklist loaded'); return; }
+  const items = _DEFAULT_CHECKLISTS[_dchkState.schedule] || _DEFAULT_CHECKLISTS.daily;
+  // Validate: every item must have a status
+  const missing = items.filter(it => !_dchkState.items[it.id] || !_dchkState.items[it.id].status);
+  if(missing.length){
+    alert('Please mark all '+items.length+' items. '+missing.length+' still pending.');
+    return;
+  }
+  // Validate: issues need photo or remark
+  const issuesNoEvidence = items.filter(it => {
+    const st = _dchkState.items[it.id];
+    return (st.status==='attention' || st.status==='broken') && !st.photo && !st.voiceText;
+  });
+  if(issuesNoEvidence.length){
+    const proceed = confirm(issuesNoEvidence.length + ' issue(s) have no photo or remark. Submit anyway?');
+    if(!proceed) return;
+  }
+  // Build record
+  const issueCount = items.filter(it=>{
+    const s = _dchkState.items[it.id].status;
+    return s==='attention' || s==='broken';
+  }).length;
+  const veh = fleet.find(v=>v.id===_dchkState.vehicleId);
+  const record = {
+    id: uid(),
+    ts: Date.now(),
+    date: today(),
+    vehicleId: _dchkState.vehicleId,
+    vehicleName: veh?.name || '',
+    schedule: _dchkState.schedule,
+    driverId: sess.driverId,
+    driverName: sess.name,
+    issues: issueCount,
+    items: items.map(it=>({
+      id: it.id,
+      label: it.label,
+      status: _dchkState.items[it.id].status,
+      photo: _dchkState.items[it.id].photo || null,
+      remark: _dchkState.items[it.id].voiceText || ''
+    }))
+  };
+  checklistRecords = checklistRecords || [];
+  checklistRecords.push(record);
+  sv('checklistRecords', checklistRecords);
+  _dchkState = null;
+  flash(issueCount>0 ? '⚠ SUBMITTED WITH ISSUES' : '✓ SUBMITTED',
+        issueCount>0 ? issueCount+' issue(s) flagged — supervisor will review' : 'All '+items.length+' items OK');
+  setTimeout(()=>{
+    show('scr-driver-home');
+    renderDriverHome();
+  }, 1000);
+}
+
 // ════════════════════════════════════
 // HOME
 // ════════════════════════════════════
@@ -2061,13 +2562,15 @@ function renderReportsTab(el){
   el.innerHTML=`
     <div class="sec-lbl">Reports & Analytics</div>
     <div class="act prim" onclick="show('scr-reports')">
-      <div class="act-ico">📊</div><div class="act-txt"><div class="act-title">FUEL REPORTS</div><div class="act-desc">Day-wise · Vehicle · Driver · Site</div></div><div class="act-arr">›</div>
+      <div class="act-ico">📊</div><div class="act-txt"><div class="act-title">OPEN REPORTS</div><div class="act-desc">Daily Ops · Financial Summary</div></div><div class="act-arr">›</div>
     </div>
-    <div class="act" onclick="show('scr-reports');setTimeout(()=>repTab('vehicle'),100)">
-      <div class="act-ico">🚚</div><div class="act-txt"><div class="act-title">VEHICLE EFFICIENCY</div><div class="act-desc">km/L · Cost per vehicle</div></div><div class="act-arr">›</div>
+    <div style="margin:12px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px">
+      <div style="font-family:var(--fh);font-size:12px;color:var(--amber);letter-spacing:1px;margin-bottom:8px">📋 DAILY OPS</div>
+      <div style="font-size:12px;color:var(--muted);font-weight:600;line-height:1.5">Stock movement · Vehicle-wise consumption · Pending dip gauges · Meter mismatches · Alerts</div>
     </div>
-    <div class="act" onclick="show('scr-reports');setTimeout(()=>repTab('daywise'),100)">
-      <div class="act-ico">📅</div><div class="act-txt"><div class="act-title">DAY-WISE SUMMARY</div><div class="act-desc">Daily fuel and cost breakdown</div></div><div class="act-arr">›</div>
+    <div style="margin:8px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px">
+      <div style="font-family:var(--fh);font-size:12px;color:var(--blue);letter-spacing:1px;margin-bottom:8px">💰 FINANCIAL</div>
+      <div style="font-size:12px;color:var(--muted);font-weight:600;line-height:1.5">Purchased vs consumed · Pump-wise dues · Site cost allocation · Purchase-issue reconciliation · Outstanding balances</div>
     </div>
     <div class="pad-bot"></div>`;
 }
@@ -4010,6 +4513,40 @@ function delEntry(id,type){
 // ════════════════════════════════════
 // AUDIT TRAIL
 // ════════════════════════════════════
+// ══════════════════════════════════════
+// CONCURRENT EDIT PROTECTION
+// ══════════════════════════════════════
+// Returns true if OK to save, false if user chose to cancel.
+// Warns user if Firebase has a newer version than what they started editing.
+async function checkConcurrentEdit(type, id, startedEditedAt){
+  if(!fbOnline) return true; // offline, can't check
+  try {
+    let fbKey = type==='disb' ? 'disbs' : type==='pumpFill' ? 'pumpFills' : type==='purchase' ? 'purchases' : type==='reading' ? 'readings' : type==='fleet' ? 'fleet' : null;
+    if(!fbKey) return true;
+    const fresh = await fbGet('fuellog/'+fbKey);
+    if(!fresh) return true;
+    const freshArr = Array.isArray(fresh) ? fresh : Object.values(fresh);
+    const freshRecord = freshArr.find(x => x && x.id === id);
+    if(!freshRecord) return true;
+    const freshEditedAt = freshRecord.editedAt || freshRecord.ts || 0;
+    // If Firebase has a newer version than what user started with, warn
+    if(freshEditedAt > startedEditedAt + 1000){
+      const who = freshRecord.editedByName || freshRecord.loggedByName || 'someone';
+      const when = new Date(freshEditedAt).toLocaleString('en-IN');
+      const proceed = confirm(
+        '⚠ CONCURRENT EDIT DETECTED\n\n' +
+        'This record was modified by ' + who + '\n' +
+        'at ' + when + '\n\n' +
+        'Saving will OVERWRITE their changes.\n\n' +
+        'Click OK to proceed and overwrite,\n' +
+        'or Cancel to abandon your edit.'
+      );
+      return proceed;
+    }
+    return true;
+  } catch(e){ return true; }
+}
+
 function buildAuditEntry(entryType,entryId,changes){
   return {id:uid(),ts:Date.now(),date:today(),entryType,entryId,
     changedBy:sess.userId,changedByName:sess.name,changes};
@@ -4023,7 +4560,7 @@ function saveAudit(entry){
 }
 function getAudits(){return JSON.parse(localStorage.getItem('fl7_audits')||'[]');}
 
-function saveEditMain(){
+async function saveEditMain(){
   const modal=document.getElementById('edit-modal');
   const editType=modal.dataset.editType;
 
@@ -4150,6 +4687,10 @@ function saveEditMain(){
     const disbId=modal.dataset.disbId;
     const idx=disbs.findIndex(d=>d.id===disbId);if(idx===-1)return;
     const orig=disbs[idx];
+    const startedAt=parseInt(modal.dataset.recordEditedAt||'0');
+    // Concurrent edit check
+    const proceed=await checkConcurrentEdit('disb',disbId,startedAt);
+    if(!proceed){return;}
     const mb=parseFloat(document.getElementById('ed-mb').value)||orig.meterBefore;
     const ma=parseFloat(document.getElementById('ed-ma').value)||orig.meterAfter;
     const L=parseFloat(document.getElementById('ed-L').value)||orig.litres;
@@ -4174,6 +4715,9 @@ function saveEditMain(){
     const pfId=modal.dataset.pumpFillId;
     const idx=(pumpFills||[]).findIndex(p=>p.id===pfId);if(idx===-1)return;
     const orig=pumpFills[idx];
+    const startedAt=parseInt(modal.dataset.recordEditedAt||'0');
+    const proceed=await checkConcurrentEdit('pumpFill',pfId,startedAt);
+    if(!proceed){return;}
     const L=parseFloat(document.getElementById('ed-pfL').value)||orig.litres;
     const rate=parseFloat(document.getElementById('ed-pfr').value)||orig.rate;
     const amt=parseFloat(document.getElementById('ed-pfamt').value)||orig.amount;
@@ -5191,11 +5735,73 @@ const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFil
 
 let fbOnline = false;
 let fbSyncing = false;
+let fbAuthToken = null;
+let fbAuthExpires = 0;
+let fbAuthUid = null;
+
+// ── Firebase Anonymous Auth ──
+async function fbAuth(){
+  try {
+    const cached = JSON.parse(localStorage.getItem('fb_auth') || 'null');
+    if(cached && cached.expires > Date.now() + 60000){
+      fbAuthToken = cached.token;
+      fbAuthExpires = cached.expires;
+      fbAuthUid = cached.uid;
+      return cached.token;
+    }
+  } catch(e){}
+  // Try refresh
+  const refreshToken = localStorage.getItem('fb_refresh');
+  if(refreshToken){
+    try {
+      const r = await fetch('https://securetoken.googleapis.com/v1/token?key='+FB_KEY, {
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:'grant_type=refresh_token&refresh_token='+encodeURIComponent(refreshToken)
+      });
+      if(r.ok){
+        const d = await r.json();
+        fbAuthToken = d.id_token || d.access_token;
+        fbAuthUid = d.user_id;
+        fbAuthExpires = Date.now() + (parseInt(d.expires_in)*1000);
+        localStorage.setItem('fb_auth', JSON.stringify({token:fbAuthToken, expires:fbAuthExpires, uid:fbAuthUid}));
+        localStorage.setItem('fb_refresh', d.refresh_token);
+        return fbAuthToken;
+      }
+    } catch(e){}
+  }
+  // Fresh anonymous signup
+  try {
+    const r = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signUp?key='+FB_KEY, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({returnSecureToken:true})
+    });
+    if(r.ok){
+      const d = await r.json();
+      fbAuthToken = d.idToken;
+      fbAuthUid = d.localId;
+      fbAuthExpires = Date.now() + (parseInt(d.expiresIn)*1000);
+      localStorage.setItem('fb_auth', JSON.stringify({token:fbAuthToken, expires:fbAuthExpires, uid:fbAuthUid}));
+      localStorage.setItem('fb_refresh', d.refreshToken);
+      console.log('Firebase anonymous auth OK');
+      return fbAuthToken;
+    }
+  } catch(e){}
+  return null;
+}
+
+async function fbGetAuth(){
+  if(fbAuthToken && fbAuthExpires > Date.now() + 60000) return fbAuthToken;
+  return await fbAuth();
+}
 
 // ── REST API helpers ──
 async function fbGet(path){
   try {
-    const r = await fetch(`${FB_URL}/${path}.json?auth=${FB_KEY}`);
+    const token = await fbGetAuth();
+    const authParam = token ? 'auth='+token : 'auth='+FB_KEY;
+    const r = await fetch(`${FB_URL}/${path}.json?${authParam}`);
     if(!r.ok) return null;
     return await r.json();
   } catch(e){ return null; }
@@ -5203,7 +5809,9 @@ async function fbGet(path){
 
 async function fbSet(path, data){
   try {
-    const r = await fetch(`${FB_URL}/${path}.json?auth=${FB_KEY}`, {
+    const token = await fbGetAuth();
+    const authParam = token ? 'auth='+token : 'auth='+FB_KEY;
+    const r = await fetch(`${FB_URL}/${path}.json?${authParam}`, {
       method: 'PUT',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify(data)
@@ -5214,7 +5822,9 @@ async function fbSet(path, data){
 
 async function fbPatch(path, data){
   try {
-    const r = await fetch(`${FB_URL}/${path}.json?auth=${FB_KEY}`, {
+    const token = await fbGetAuth();
+    const authParam = token ? 'auth='+token : 'auth='+FB_KEY;
+    const r = await fetch(`${FB_URL}/${path}.json?${authParam}`, {
       method: 'PATCH',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify(data)
@@ -5336,12 +5946,17 @@ async function fbInit(){
 
   fbSetStatus('syncing');
 
+  // Get Firebase auth token first (anonymous auth)
+  await fbAuth();
+
   // Try Firebase with 8 second timeout
   let data = null;
   try {
+    const token = await fbGetAuth();
+    const authParam = token ? 'auth='+token : 'auth='+FB_KEY;
     const controller = new AbortController();
     const timeout = setTimeout(()=>controller.abort(), 8000);
-    const r = await fetch(`${FB_URL}/fuellog.json?auth=${FB_KEY}`, {signal: controller.signal});
+    const r = await fetch(`${FB_URL}/fuellog.json?${authParam}`, {signal: controller.signal});
     clearTimeout(timeout);
     if(r.ok) data = await r.json();
   } catch(e){ data = null; }
@@ -5623,6 +6238,16 @@ function openEditModal(type,id){
   editCtx={type,id};
   const modal=document.getElementById('edit-modal');
   const body=document.getElementById('edit-modal-body');
+  // Concurrent edit protection: record when editing started
+  // and the last-known editedAt of this record
+  modal.dataset.editStartedAt = Date.now();
+  let recordEditedAt = 0;
+  if(type==='disb'){const r=disbs.find(x=>x.id===id);if(r)recordEditedAt=r.editedAt||r.ts||0;}
+  else if(type==='pumpFill'){const r=(pumpFills||[]).find(x=>x.id===id);if(r)recordEditedAt=r.editedAt||r.ts||0;}
+  else if(type==='purchase'){const r=purchases.find(x=>x.id===id);if(r)recordEditedAt=r.editedAt||r.ts||0;}
+  else if(type==='reading'){const r=readings.find(x=>x.id===id);if(r)recordEditedAt=r.editedAt||r.ts||0;}
+  else if(type==='fleet'){const r=fleet.find(x=>x.id===id);if(r)recordEditedAt=r.editedAt||r.ts||0;}
+  modal.dataset.recordEditedAt = recordEditedAt;
   if(type==='fleet'){
     const f=fleet.find(x=>x.id===id);if(!f)return;
     if(!isOwner()&&!isAdmin()){alert('Only Owner or Admin can edit fleet');return;}
