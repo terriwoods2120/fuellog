@@ -1537,7 +1537,11 @@ function renderUnifiedLogin(){
     {key:'driver',   roles:['driver'],          label:'DRIVER / OPERATOR', color:'var(--green)',  bg:'rgba(0,200,83,.1)'},
   ];
 
-  const visible = bands.filter(b => users.some(u => b.roles.includes(u.role)));
+  // Show band if: there's a matching user in users[], OR for driver band, drivers[] is non-empty
+  const visible = bands.filter(b => {
+    if(b.key === 'driver') return (drivers||[]).length > 0;
+    return users.some(u => b.roles.includes(u.role));
+  });
 
   el.innerHTML = visible.map(b => `
     <div style="margin-bottom:4px;border-radius:12px;overflow:hidden;border:1.5px solid var(--border)">
@@ -4397,91 +4401,212 @@ function exportRepPDF(){
   const fmtINR=n=>'₹'+Number(Math.round(n)).toLocaleString('en-IN');
   const allDisbs=disbs.filter(d=>d.date>=range.from&&d.date<=range.to);
   const allPF=(pumpFills||[]).filter(d=>d.date>=range.from&&d.date<=range.to);
+  const allPurchases=purchases.filter(p=>p.date>=range.from&&p.date<=range.to);
   const totalL=allDisbs.reduce((a,d)=>a+d.litres,0)+allPF.reduce((a,d)=>a+d.litres,0);
+  const bowserL=allDisbs.filter(d=>d.source==='bowser'||d.source==='can').reduce((a,d)=>a+d.litres,0);
+  const pumpL=allPF.reduce((a,d)=>a+d.litres,0);
   const totalCost=totalL*fuelRate;
   const stock=getBowserStock();
 
-  // Vehicle rows
-  const vehRows=fleet.map(v=>{
-    const L=allDisbs.filter(d=>d.vehicleId===v.id).reduce((a,d)=>a+d.litres,0)
-            +allPF.filter(d=>d.vehicleId===v.id).reduce((a,d)=>a+d.litres,0);
-    const eff=getRoadEfficiency(v);
-    return{name:v.name,L,eff:eff?.kpl||0};
-  }).filter(x=>x.L>0).sort((a,b)=>b.L-a.L);
-
-  // Day rows
-  const days=[];
-  let d=new Date(range.from);const endD=new Date(range.to);
-  while(d<=endD){days.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}
-  const dayRows=days.map(dt=>{
-    const L=allDisbs.filter(x=>x.date===dt).reduce((a,x)=>a+x.litres,0)
-            +allPF.filter(x=>x.date===dt).reduce((a,x)=>a+x.litres,0);
-    return{dt,L};
-  }).filter(x=>x.L>0);
-
-  let html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
-  <title>FuelLog Report — ${repFmtRange(range)}</title>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
+  const CSS=`*{box-sizing:border-box;margin:0;padding:0}
     body{font-family:Arial,sans-serif;padding:24px;color:#111;font-size:12px}
-    .header{border-bottom:3px solid #e65100;padding-bottom:12px;margin-bottom:16px}
-    .header h1{font-size:22px;color:#e65100}
-    .header .sub{color:#666;font-size:11px;margin-top:4px}
-    .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid #ddd;border-radius:6px;overflow:hidden;margin-bottom:20px}
-    .sum-cell{padding:12px 14px;border-right:1px solid #ddd;background:#fff8e1}
-    .sum-cell:last-child{border-right:none}
-    .sum-val{font-size:18px;font-weight:700;color:#e65100}
-    .sum-lbl{font-size:9px;color:#999;text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
-    h2{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
-       color:#e65100;border-bottom:1px solid #eee;padding-bottom:6px;margin:16px 0 8px}
-    table{width:100%;border-collapse:collapse;font-size:12px}
-    th{background:#f5f5f5;padding:7px 10px;text-align:left;font-size:10px;
-       text-transform:uppercase;letter-spacing:.4px;border-bottom:2px solid #ddd}
-    td{padding:7px 10px;border-bottom:1px solid #eee}
+    .header{border-bottom:3px solid #e65100;padding-bottom:12px;margin-bottom:20px}
+    .header h1{font-size:22px;color:#e65100}.header .sub{color:#666;font-size:11px;margin-top:4px}
+    h2{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#e65100;
+       border-bottom:1px solid #eee;padding-bottom:6px;margin:20px 0 10px}
+    .grid4{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #ddd;border-radius:6px;
+           overflow:hidden;margin-bottom:20px}
+    .grid2{display:grid;grid-template-columns:repeat(2,1fr);border:1px solid #ddd;border-radius:6px;
+           overflow:hidden;margin-bottom:20px}
+    .grid3{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid #ddd;border-radius:6px;
+           overflow:hidden;margin-bottom:20px}
+    .cell{padding:12px 14px;border-right:1px solid #ddd;background:#fff8e1}
+    .cell:last-child{border-right:none}.cell.green{background:#e8f5e9}.cell.red{background:#ffebee}
+    .val{font-size:18px;font-weight:700;color:#e65100}.lbl{font-size:9px;color:#999;text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+    table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px}
+    th{background:#f5f5f5;padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.4px;border-bottom:2px solid #ddd}
+    td{padding:8px 10px;border-bottom:1px solid #eee}
     tr:last-child td{border-bottom:none}
     .tfoot td{font-weight:700;background:#fff8e1;border-top:2px solid #ddd}
-    .right{text-align:right}
+    .right{text-align:right}.muted{color:#999}
+    .alert{background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:10px 14px;margin-bottom:12px;font-size:11px}
     .footer{margin-top:24px;font-size:10px;color:#999;border-top:1px solid #eee;padding-top:10px;text-align:center}
-    @media print{body{padding:12px}}
-  </style></head><body>
-  <div class="header">
-    <h1>⛽ FUELLOG REPORT</h1>
-    <div class="sub">Chiddarwar Construction Co. Pvt. Ltd. &nbsp;|&nbsp; Period: ${repFmtRange(range)} &nbsp;|&nbsp; Generated: ${new Date().toLocaleString('en-IN')} &nbsp;|&nbsp; Rate: ₹${fmt(fuelRate,1)}/L</div>
-  </div>
-  <div class="summary">
-    <div class="sum-cell"><div class="sum-val">${fmt(totalL,1)} L</div><div class="sum-lbl">Total Dispensed</div></div>
-    <div class="sum-cell"><div class="sum-val">${fmtINR(totalCost)}</div><div class="sum-lbl">Total Cost</div></div>
-    <div class="sum-cell"><div class="sum-val">${fmt(stock,0)} L</div><div class="sum-lbl">Stock Remaining</div></div>
-    <div class="sum-cell"><div class="sum-val">${vehRows.length} vehicles</div><div class="sum-lbl">Active This Period</div></div>
-  </div>
-  <h2>Vehicle-wise Breakdown</h2>
-  <table>
-    <thead><tr><th>#</th><th>Vehicle</th><th class="right">Litres</th><th class="right">Cost (₹)</th><th class="right">Efficiency</th></tr></thead>
-    <tbody>
-      ${vehRows.map((v,i)=>`<tr><td>${i+1}</td><td>${v.name}</td><td class="right">${fmt(v.L,1)}</td><td class="right">${fmtINR(v.L*fuelRate)}</td><td class="right">${v.eff?fmt(v.eff,2)+' km/L':'—'}</td></tr>`).join('')}
-    </tbody>
-    <tfoot><tr class="tfoot"><td colspan="2">TOTAL</td><td class="right">${fmt(totalL,1)} L</td><td class="right">${fmtINR(totalCost)}</td><td></td></tr></tfoot>
-  </table>
-  <h2>Day-wise Summary</h2>
-  <table>
-    <thead><tr><th>Date</th><th class="right">Litres</th><th class="right">Cost (₹)</th></tr></thead>
-    <tbody>${dayRows.map(({dt,L})=>`<tr><td>${fmtD(dt)}</td><td class="right">${fmt(L,1)}</td><td class="right">${fmtINR(L*fuelRate)}</td></tr>`).join('')}</tbody>
-  </table>
-  <div class="footer">Total Entries: ${allDisbs.length+allPF.length} &nbsp;|&nbsp; Generated from FuelLog App &nbsp;|&nbsp; Chiddarwar Construction Co. Pvt. Ltd.</div>
-  </body></html>`;
+    @media print{body{padding:12px}}`;
 
-  // Add back/close button and print button to PDF
-  const printBar = `<div style="background:#111;padding:10px 20px;display:flex;gap:10px;align-items:center;
-    border-bottom:3px solid #ffb300;position:sticky;top:0;z-index:100" class="no-print">
-    <button onclick="window.close()" style="background:#333;color:#ffb300;border:none;padding:10px 18px;
-      font-size:14px;font-weight:700;border-radius:8px;cursor:pointer">‹ BACK TO APP</button>
-    <button onclick="window.print()" style="background:#ffb300;color:#111;border:none;padding:10px 18px;
-      font-size:14px;font-weight:700;border-radius:8px;cursor:pointer">🖨 PRINT / SAVE PDF</button>
-    <span style="color:#777;font-size:12px;margin-left:auto">FuelLog — Chiddarwar Construction</span>
+  const header=(title)=>`<div class="header">
+    <h1>⛽ FUELLOG — ${title}</h1>
+    <div class="sub">Chiddarwar Construction Co. Pvt. Ltd. &nbsp;·&nbsp; Period: ${repFmtRange(range)} &nbsp;·&nbsp; Generated: ${new Date().toLocaleString('en-IN')} &nbsp;·&nbsp; Rate: ₹${fmt(fuelRate,1)}/L</div>
   </div>`;
-  html = html.replace('<body>', '<body>' + printBar);
-  // Add no-print style
-  html = html.replace('</style>', '.no-print{display:flex!important;}@media print{.no-print{display:none!important;}}</style>');
+
+  let body='';
+
+  // ── DAILY OPS PDF ──
+  if(repActiveTab==='daily'){
+    // Stock movement
+    const openingStock=(()=>{
+      const b=purchases.filter(p=>p.date<range.from).reduce((a,p)=>a+p.litres,0);
+      const bd=disbs.filter(d=>d.date<range.from&&(d.source==='bowser'||d.source==='can')).reduce((a,d)=>a+d.litres,0);
+      return b-bd;
+    })();
+    const receiptsL=allPurchases.reduce((a,p)=>a+p.litres,0);
+    const closingStock=openingStock+receiptsL-bowserL;
+
+    // Vehicle rows
+    const vehMap={};
+    [...allDisbs,...allPF].forEach(d=>{
+      if(!vehMap[d.vehicleId])vehMap[d.vehicleId]={L:0,entries:0};
+      vehMap[d.vehicleId].L+=d.litres;
+      vehMap[d.vehicleId].entries++;
+    });
+    const vehRows=Object.entries(vehMap).map(([id,v])=>{
+      const veh=gV(id); return{name:veh?.name||id,type:veh?.type||'',L:v.L,entries:v.entries};
+    }).sort((a,b)=>b.L-a.L);
+
+    // Pending dips
+    const pendingDips=disbs.filter(d=>(d.source==='can'||d.destType==='can')&&d.dipStatus==='pending');
+    const mismatches=allDisbs.filter(d=>d.meterMismatch).length;
+
+    body=`
+    ${header('DAILY OPERATIONS SHEET')}
+    ${mismatches>0?`<div class="alert">⚠️ ${mismatches} meter mismatch(es) detected — verify bowser readings</div>`:''}
+    ${pendingDips.length>0?`<div class="alert">⏳ ${pendingDips.length} dip gauge(s) pending verification</div>`:''}
+    ${closingStock<500?`<div class="alert" style="background:#ffebee;border-color:#f44336">🔴 LOW STOCK: ${fmt(closingStock,0)} L remaining</div>`:''}
+
+    <h2>Bowser Stock Movement</h2>
+    <div class="grid4">
+      <div class="cell"><div class="val">${fmt(openingStock,0)} L</div><div class="lbl">Opening Stock</div></div>
+      <div class="cell green"><div class="val" style="color:green">+${fmt(receiptsL,0)} L</div><div class="lbl">Receipts</div></div>
+      <div class="cell red"><div class="val" style="color:#c62828">−${fmt(bowserL,0)} L</div><div class="lbl">Issued</div></div>
+      <div class="cell"><div class="val">${fmt(closingStock,0)} L</div><div class="lbl">Closing Stock</div></div>
+    </div>
+
+    <h2>Fuel Issued Summary</h2>
+    <div class="grid3">
+      <div class="cell"><div class="val">${fmt(bowserL,0)} L</div><div class="lbl">From Bowser</div></div>
+      <div class="cell"><div class="val">${fmt(pumpL,0)} L</div><div class="lbl">Direct Pump</div></div>
+      <div class="cell"><div class="val">${fmt(totalL,0)} L · ${fmtINR(totalCost)}</div><div class="lbl">Total Issued · Total Cost</div></div>
+    </div>
+
+    <h2>Vehicle-wise Consumption</h2>
+    <table>
+      <thead><tr><th>#</th><th>Vehicle</th><th class="right">Litres</th><th class="right">Entries</th><th class="right">Cost (₹)</th></tr></thead>
+      <tbody>
+        ${vehRows.map((v,i)=>`<tr><td>${i+1}</td><td>${vIco(v.type)} ${v.name}</td><td class="right">${fmt(v.L,1)}</td><td class="right">${v.entries}</td><td class="right">${fmtINR(v.L*fuelRate)}</td></tr>`).join('')}
+      </tbody>
+      <tfoot><tr class="tfoot"><td colspan="2">TOTAL</td><td class="right">${fmt(totalL,1)} L</td><td class="right">${allDisbs.length+allPF.length}</td><td class="right">${fmtINR(totalCost)}</td></tr></tfoot>
+    </table>
+
+    ${pendingDips.length?`
+    <h2>Pending Dip Gauges (${pendingDips.length})</h2>
+    <table>
+      <thead><tr><th>Vehicle</th><th>Date</th><th class="right">Dispatched (L)</th><th>Logged By</th></tr></thead>
+      <tbody>${pendingDips.map(d=>{const v=gV(d.vehicleId);return`<tr><td>${v?.name||'—'}</td><td>${fmtD(d.date)}</td><td class="right">${fmt(d.litres,1)}</td><td>${d.loggedByName||'—'}</td></tr>`;}).join('')}</tbody>
+    </table>`:''}
+
+    <div class="footer">Generated from FuelLog App · Chiddarwar Construction Co. Pvt. Ltd. · ${allDisbs.length+allPF.length} total entries</div>`;
+
+  // ── FINANCIAL PDF ──
+  } else if(repActiveTab==='financial'){
+    const purchasesAmt=allPurchases.reduce((a,p)=>a+(p.amount||0),0);
+    const purchasesPaid=allPurchases.reduce((a,p)=>a+(p.paid||0),0);
+    const purchasesDue=purchasesAmt-purchasesPaid;
+    const totalDue=purchases.reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0);
+    const purchasesL=allPurchases.reduce((a,p)=>a+p.litres,0);
+    const reconciliation=purchasesL-bowserL;
+
+    // Vendor/pump-wise
+    const vendorMap={};
+    allPurchases.forEach(p=>{
+      const key=p.vendor||'Unknown';
+      if(!vendorMap[key])vendorMap[key]={L:0,amount:0,paid:0,count:0};
+      vendorMap[key].L+=p.litres;
+      vendorMap[key].amount+=(p.amount||0);
+      vendorMap[key].paid+=(p.paid||0);
+      vendorMap[key].count++;
+    });
+    const vendorList=Object.entries(vendorMap).sort((a,b)=>b[1].amount-a[1].amount);
+
+    // Site-wise
+    const siteMap={};
+    [...allDisbs,...allPF].forEach(d=>{
+      const v=gV(d.vehicleId);
+      const key=v?.siteName||'Mobile/Unassigned';
+      if(!siteMap[key])siteMap[key]={L:0,vehicles:new Set()};
+      siteMap[key].L+=d.litres;
+      if(v)siteMap[key].vehicles.add(v.name);
+    });
+    const siteList=Object.entries(siteMap).sort((a,b)=>b[1].L-a[1].L);
+
+    body=`
+    ${header('FINANCIAL SUMMARY')}
+    ${totalDue>0?`<div class="alert" style="background:#ffebee;border-color:#f44336">⚠️ TOTAL OUTSTANDING (ALL TIME): ${fmtINR(totalDue)} — across all purchases to date</div>`:''}
+
+    <h2>Headline Figures</h2>
+    <div class="grid4">
+      <div class="cell"><div class="val">${fmtINR(purchasesAmt)}</div><div class="lbl">Fuel Purchased (₹)</div></div>
+      <div class="cell green"><div class="val" style="color:green">${fmtINR(purchasesPaid)}</div><div class="lbl">Paid</div></div>
+      <div class="cell red"><div class="val" style="color:#c62828">${fmtINR(purchasesDue)}</div><div class="lbl">Due (This Period)</div></div>
+      <div class="cell"><div class="val">${fmtINR(totalCost)}</div><div class="lbl">Fuel Consumed (Est.)</div></div>
+    </div>
+
+    <h2>Purchase vs Issue Reconciliation</h2>
+    <table>
+      <thead><tr><th>Item</th><th class="right">Litres</th><th>Note</th></tr></thead>
+      <tbody>
+        <tr><td>Purchased into Bowser</td><td class="right">+${fmt(purchasesL,1)} L</td><td class="muted">All purchases this period</td></tr>
+        <tr><td>Issued from Bowser</td><td class="right">−${fmt(bowserL,1)} L</td><td class="muted">Disbursements this period</td></tr>
+        <tr style="font-weight:700"><td>Net Change</td><td class="right" style="color:${reconciliation>=0?'green':'#c62828'}">${reconciliation>=0?'+':''}${fmt(reconciliation,1)} L</td><td class="muted">${Math.abs(reconciliation)>50?'⚠ Verify against physical dip':'✓ Within tolerance'}</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Pump Station / Vendor-wise Dues</h2>
+    <table>
+      <thead><tr><th>Pump / Vendor</th><th class="right">Purchases</th><th class="right">Litres</th><th class="right">Invoiced</th><th class="right">Paid</th><th class="right">Due / (Overpaid)</th></tr></thead>
+      <tbody>
+        ${vendorList.map(([name,v])=>{
+          const due=v.amount-v.paid;
+          return`<tr>
+            <td>${name}</td>
+            <td class="right">${v.count}</td>
+            <td class="right">${fmt(v.L,0)} L</td>
+            <td class="right">${fmtINR(v.amount)}</td>
+            <td class="right">${fmtINR(v.paid)}</td>
+            <td class="right" style="color:${due>0?'#c62828':due<0?'green':'inherit'};font-weight:700">${due<0?'('+fmtINR(-due)+')':fmtINR(due)}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+      <tfoot><tr class="tfoot"><td>TOTAL</td><td></td><td class="right">${fmt(purchasesL,0)} L</td><td class="right">${fmtINR(purchasesAmt)}</td><td class="right">${fmtINR(purchasesPaid)}</td><td class="right" style="color:${purchasesDue>0?'#c62828':'inherit'};font-weight:700">${fmtINR(purchasesDue)}</td></tr></tfoot>
+    </table>
+
+    <h2>Site-wise Fuel Cost Allocation</h2>
+    <table>
+      <thead><tr><th>Site</th><th class="right">Vehicles</th><th class="right">Litres</th><th class="right">Cost (₹)</th><th class="right">% Share</th></tr></thead>
+      <tbody>
+        ${siteList.map(([name,{L,vehicles}])=>{
+          const pct=totalL>0?Math.round(L/totalL*100):0;
+          return`<tr><td>${name}</td><td class="right">${vehicles.size}</td><td class="right">${fmt(L,0)}</td><td class="right">${fmtINR(L*fuelRate)}</td><td class="right">${pct}%</td></tr>`;
+        }).join('')}
+      </tbody>
+      <tfoot><tr class="tfoot"><td>TOTAL</td><td></td><td class="right">${fmt(totalL,0)} L</td><td class="right">${fmtINR(totalCost)}</td><td class="right">100%</td></tr></tfoot>
+    </table>
+
+    <div class="footer">Generated from FuelLog App · Chiddarwar Construction Co. Pvt. Ltd. · Period: ${repFmtRange(range)}</div>`;
+  } else {
+    body=`${header('FUEL LOG')}
+    <div style="padding:40px;text-align:center;color:#999">Switch to Daily Ops or Financial tab and tap 📄 to export that report.</div>`;
+  }
+
+  const printBar=`<div style="background:#111;padding:10px 20px;display:flex;gap:10px;align-items:center;border-bottom:3px solid #ffb300;position:sticky;top:0;z-index:100" class="no-print">
+    <button onclick="window.close()" style="background:#333;color:#ffb300;border:none;padding:10px 18px;font-size:14px;font-weight:700;border-radius:8px;cursor:pointer">‹ BACK TO APP</button>
+    <button onclick="window.print()" style="background:#ffb300;color:#111;border:none;padding:10px 18px;font-size:14px;font-weight:700;border-radius:8px;cursor:pointer">🖨 PRINT / SAVE PDF</button>
+    <span style="color:#777;font-size:13px;font-weight:700;margin-left:auto">${repActiveTab==='daily'?'📋 Daily Operations':'💰 Financial Summary'} · ${repFmtRange(range)}</span>
+  </div>`;
+
+  let html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <title>FuelLog ${repActiveTab==='daily'?'Daily Ops':'Financial'} — ${repFmtRange(range)}</title>
+  <style>${CSS}.no-print{display:flex!important;}@media print{.no-print{display:none!important;}}</style>
+  </head><body>${printBar}${body}</body></html>`;
+
   const w=window.open('','_blank');
   w.document.write(html);
   w.document.close();
