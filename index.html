@@ -561,7 +561,9 @@ input[type=file]{display:none}
     <div style="display:flex;align-items:center;gap:8px">
       <span id="sync-badge" style="display:none;font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;cursor:pointer" onclick="manualRetrySync()" title="Tap to retry sync"></span>
       <span id="fb-status" style="font-size:11px;font-weight:700;color:var(--muted)">⟳</span>
-      <button onclick="fbManualSync()" style="background:var(--bg3);border:1px solid var(--border);color:var(--muted);font-size:16px;cursor:pointer;padding:6px 10px;border-radius:8px" title="Sync">☁</button>
+      <button onclick="refreshData()" id="refresh-btn"
+        style="background:var(--bg3);border:1px solid var(--border);color:var(--amber);font-size:16px;cursor:pointer;padding:6px 10px;border-radius:8px"
+        title="Refresh data from Firebase">⟳</button>
       <button onclick="logout()" style="background:var(--bg3);border:1px solid var(--border);color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;padding:7px 12px;border-radius:8px">↩ OUT</button>
     </div>
   </div>
@@ -908,11 +910,20 @@ input[type=file]{display:none}
   <div class="topbar">
     <button class="tb-back" onclick="show('scr-home')">‹</button>
     <div><div class="tb-title">MORNING MUSTER</div><div class="tb-sub" id="muster-date"></div></div>
+    <div style="margin-left:auto;font-family:var(--fh);font-size:11px;color:var(--muted)" id="muster-count"></div>
   </div>
-  <div style="margin:10px 14px;background:rgba(255,179,0,.07);border:1px solid var(--amber);border-radius:10px;padding:12px;font-size:12px;color:var(--muted);font-weight:600">
+  <!-- Search bar -->
+  <div style="padding:8px 14px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0">
+    <input id="muster-search" type="text" placeholder="🔍  Search vehicle or driver..." autocomplete="off"
+      oninput="renderMuster()"
+      style="width:100%;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);
+             padding:10px 14px;border-radius:10px;font-size:14px;font-family:var(--fb);
+             box-sizing:border-box;outline:none">
+  </div>
+  <div style="padding:8px 14px 4px;font-size:11px;color:var(--muted);font-weight:600;flex-shrink:0">
     Mark attendance for today. Swaps are temporary — only for today.
   </div>
-  <div class="log-list" id="muster-list"></div>
+  <div class="log-list" id="muster-list" style="flex:1;overflow-y:auto"></div>
   <div class="pad-bot"></div>
 </div>
 
@@ -1045,7 +1056,6 @@ input[type=file]{display:none}
       <button class="rep-tab" id="rtab-muster" onclick="repTab('muster')">👷 Muster</button>
     </div>
   </div>
-  <div id="attendance-report"></div>
   <div id="rep-content"></div>
   <div class="pad-bot"></div>
 </div>
@@ -1311,6 +1321,16 @@ function getBowserStock(){
 // SESSION
 // ════════════════════════════════════
 let sess=null;
+
+// Persist session across page refreshes
+function saveSession(s){
+  if(s) localStorage.setItem('fl7_sess', JSON.stringify(s));
+  else localStorage.removeItem('fl7_sess');
+}
+function restoreSession(){
+  try{ return JSON.parse(localStorage.getItem('fl7_sess')||'null'); }
+  catch(e){ return null; }
+}
 const isOwner=  ()=>sess?.role==='owner';
 const isAdmin=  ()=>sess?.role==='admin'||isOwner();
 const isManager=()=>sess?.role==='supervisor'||isAdmin();
@@ -1677,6 +1697,7 @@ function checkPin(){
   if(pinBuf===pinTarget.pin){
     sess={userId:pinTarget.id,name:pinTarget.name,role:pinTarget.role};
     if(pinTarget._isDriver) sess.driverId = pinTarget._origId;
+    saveSession(sess);  // persist across refreshes
     // ITEM 1: Force PIN change ONLY if user has never changed it
     const needsChange = !pinTarget.pinChangedAt && (pinTarget.pin === '0000' || pinTarget.pin === '1234' || pinTarget.pin === '1111');
     if(needsChange){
@@ -1798,6 +1819,7 @@ function confirmPinChange(){
 }
 function logout(){
   sess=null;pinBuf='';
+  saveSession(null);
   show('scr-login');initLogin();
 }
 
@@ -3929,7 +3951,7 @@ function getFuelRate(){
 function renderReports(){
   const el=document.getElementById('rep-content');
   if(!el)return;
-  if(!fleet.length){el.innerHTML='<div class="muted-txt" style="padding:40px;text-align:center">Add fleet first</div>';renderAttendanceReport();return;}
+  if(!fleet.length){el.innerHTML='<div class="muted-txt" style="padding:40px;text-align:center">Add fleet first</div>';return;}
   const range=repGetRange();
   const fuelRate=getFuelRate();
   const fmtINR=n=>'₹'+Number(Math.round(n)).toLocaleString('en-IN');
@@ -4538,7 +4560,6 @@ function renderReports(){
   }
 
   el.innerHTML=html+'<div class="pad-bot"></div>';
-  renderAttendanceReport();
 }
 
 // Delete fuel entry (Owner only)
@@ -5254,64 +5275,6 @@ async function saveEditMain(){
 // ════════════════════════════════════
 // ATTENDANCE REPORT
 // ════════════════════════════════════
-function renderAttendanceReport(){
-  const el=document.getElementById('attendance-report');if(!el)return;
-  const td=today();
-  if(!fleet.length){el.innerHTML='';return;}
-
-  const present=[];const absent=[];const unmarked=[];
-  fleet.forEach(f=>{
-    const m=musters?.find(x=>x.vehicleId===f.id&&x.date===td);
-    const drvId=m?.driverId||f.driverId;
-    const drv=drivers?.find(d=>d.id===drvId);
-    const site=f.siteName||'Mobile';
-    const entry={f,m,drv,site};
-    if(!m)unmarked.push(entry);
-    else if(m.status==='present')present.push(entry);
-    else absent.push(entry);
-  });
-
-  const total=fleet.length;
-  if(!total){el.innerHTML='';return;}
-
-  const rowHtml=(entries,ico,col)=>entries.map(({f,m,drv,site})=>`
-    <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--border)">
-      <div style="font-size:18px">${vIco(f.type)}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-family:var(--fh);font-size:14px;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.name}</div>
-        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:1px">
-          👤 ${drv?.name||'<span style="color:var(--amber)">Unassigned</span>'} · 📍 ${site}
-          ${m?.swap?'<span style="color:var(--amber)"> · 🔄 Swap</span>':''}
-        </div>
-      </div>
-      <div style="font-size:12px;color:${col};font-weight:700;flex-shrink:0">${ico}</div>
-    </div>`).join('');
-
-  el.innerHTML=`<div class="rep-card" style="margin-top:10px">
-    <div class="rep-hd" style="justify-content:space-between">
-      <span>📋 Today's Attendance</span>
-      <span style="font-size:11px;color:var(--muted)">${new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})}</span>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;background:var(--border);gap:1px;border-bottom:1px solid var(--border)">
-      <div style="background:var(--bg2);padding:10px;text-align:center">
-        <div style="font-family:var(--fh);font-size:22px;color:var(--green)">${present.length}</div>
-        <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-top:2px">Present</div>
-      </div>
-      <div style="background:var(--bg2);padding:10px;text-align:center">
-        <div style="font-family:var(--fh);font-size:22px;color:var(--red)">${absent.length}</div>
-        <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-top:2px">Absent</div>
-      </div>
-      <div style="background:var(--bg2);padding:10px;text-align:center">
-        <div style="font-family:var(--fh);font-size:22px;color:var(--muted)">${unmarked.length}</div>
-        <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-top:2px">Unmarked</div>
-      </div>
-    </div>
-    ${present.length?rowHtml(present,'✅ PRESENT','var(--green)'):''}
-    ${absent.length?rowHtml(absent,'❌ ABSENT','var(--red)'):''}
-    ${unmarked.length?rowHtml(unmarked,'⏳ —','var(--muted)'):''}
-  </div>`;
-}
-
 // ════════════════════════════════════
 // CONFIRM DIALOG
 // ════════════════════════════════════
@@ -5522,7 +5485,33 @@ function renderMuster(){
   const el=document.getElementById('muster-list');if(!el)return;
   const td=today();
   if(!fleet.length){el.innerHTML='<div class="muted-txt">No fleet added yet</div>';return;}
-  el.innerHTML=fleet.map(f=>{
+
+  // Search filter
+  const q=(document.getElementById('muster-search')?.value||'').toLowerCase().trim();
+
+  let filteredFleet=fleet;
+  if(q){
+    filteredFleet=fleet.filter(f=>{
+      const m=musters.find(x=>x.vehicleId===f.id&&x.date===td);
+      const drvId=m?.driverId||f.driverId;
+      const drv=drivers.find(d=>d.id===drvId);
+      return f.name.toLowerCase().includes(q)||
+             (drv?.name||'').toLowerCase().includes(q)||
+             (f.siteName||'').toLowerCase().includes(q);
+    });
+  }
+
+  // Update count badge
+  const countEl=document.getElementById('muster-count');
+  const markedToday=musters.filter(m=>m.date===td).length;
+  if(countEl) countEl.textContent=markedToday+'/'+fleet.length+' marked';
+
+  if(!filteredFleet.length){
+    el.innerHTML=`<div class="muted-txt" style="padding:30px;text-align:center">No vehicles match "${q}"</div>`;
+    return;
+  }
+
+  el.innerHTML=filteredFleet.map(f=>{
     const m=musters.find(x=>x.vehicleId===f.id&&x.date===td)||null;
     const assignedDriver=drivers.find(d=>d.id===f.driverId);
     const todayDriverId=m?.driverId||f.driverId;
@@ -5542,7 +5531,7 @@ function renderMuster(){
           <input type="checkbox" id="drv-perm-${f.id}" style="width:15px;height:15px"> Set permanent
         </label>
       </div>`:!hasDriver?`<div style="font-size:10px;color:var(--muted);margin-top:6px">No drivers in system yet</div>`:'';
-    return `<div class="log-item" style="flex-direction:column;gap:8px;align-items:stretch">
+    return `<div class="log-item" style="flex-direction:column;gap:8px;align-items:stretch;${status==='present'?'border-left:3px solid var(--green)':status==='absent'?'border-left:3px solid var(--red)':''}">
       <div style="display:flex;gap:10px;align-items:flex-start">
         <div class="li-ico" style="margin-top:2px;flex-shrink:0">${vIco(f.type)}</div>
         <div class="li-main" style="flex:1;min-width:0">
@@ -6493,10 +6482,53 @@ async function fbInit(){
       else if(k==='checklistRecords') checklistRecords=val;
     });
     console.log('Loaded from Firebase — disbs:',disbs.length,'fleet:',fleet.length,'users:',users.length);
+  } else {
+    // Firebase unavailable — load from localStorage so session restore works
+    FB_KEYS.forEach(k=>{
+      const localKey=SK[k]||('fl7_'+k);
+      try{
+        const val=JSON.parse(localStorage.getItem(localKey)||'[]');
+        if(k==='users') users=val;
+        else if(k==='fleet') fleet=val;
+        else if(k==='drivers') drivers=val;
+        else if(k==='disbs') disbs=val;
+        else if(k==='readings') readings=val;
+        else if(k==='purchases') purchases=val;
+        else if(k==='pumps') pumps=val;
+        else if(k==='pumpFills') pumpFills=val;
+        else if(k==='sites') sites=val;
+        else if(k==='musters') musters=val;
+        else if(k==='checklistTemplates') checklistTemplates=val;
+        else if(k==='checklistRecords') checklistRecords=val;
+      }catch(e){}
+    });
   }
 
-  // Remove loading overlay and show login
+  // Remove loading overlay
   overlay.remove();
+
+  // Restore session if user was previously logged in
+  // This runs AFTER data is loaded (Firebase or localStorage) so validity check works
+  const savedSess = restoreSession();
+  if(savedSess){
+    const stillValid = savedSess.role === 'driver'
+      ? (drivers||[]).some(d=>d.id===savedSess.driverId)
+      : (users||[]).some(u=>u.id===savedSess.userId);
+    if(stillValid){
+      sess = savedSess;
+      if(sess.role === 'driver'){
+        show('scr-driver-home');
+        if(typeof renderDriverHome==='function') renderDriverHome();
+      } else {
+        show('scr-home');
+      }
+      return;
+    } else {
+      saveSession(null); // stale — clear it
+    }
+  }
+
+  // No valid session — show login
   initLogin();
   show('scr-login');
 }
@@ -6586,6 +6618,46 @@ async function fbManualSync(){
     flash('✅ SYNCED!', 'All data uploaded to cloud');
   } else {
     flash('❌ SYNC FAILED', 'Check internet connection');
+  }
+}
+
+// Pull fresh data from Firebase without logging out
+async function refreshData(){
+  const btn=document.getElementById('refresh-btn');
+  if(btn){btn.style.transform='rotate(360deg)';btn.style.transition='transform 0.6s';btn.disabled=true;}
+  flash('REFRESHING...','Pulling latest data from cloud');
+  try {
+    const data = await fbGet('fuellog');
+    if(data){
+      FB_KEYS.forEach(k=>{
+        let val=data[k];
+        if(val===null||val===undefined) return;
+        if(typeof val==='object'&&!Array.isArray(val)) val=Object.values(val).filter(Boolean);
+        const localKey=SK[k]||('fl7_'+k);
+        localStorage.setItem(localKey, JSON.stringify(val));
+        if(k==='users') users=val;
+        else if(k==='fleet') fleet=val;
+        else if(k==='disbs') disbs=val;
+        else if(k==='readings') readings=val;
+        else if(k==='purchases') purchases=val;
+        else if(k==='pumps') pumps=val;
+        else if(k==='pumpFills') pumpFills=val;
+        else if(k==='sites') sites=val;
+        else if(k==='drivers') drivers=val;
+        else if(k==='musters') musters=val;
+        else if(k==='checklistTemplates') checklistTemplates=val;
+        else if(k==='checklistRecords') checklistRecords=val;
+      });
+      // Re-render current screen
+      renderHome();
+      flash('✅ REFRESHED!', 'Data updated from Firebase');
+    } else {
+      flash('⚠ NO DATA','Could not reach Firebase — check connection');
+    }
+  } catch(e){
+    flash('❌ FAILED','Could not refresh — '+e.message);
+  } finally {
+    if(btn){setTimeout(()=>{btn.style.transform='';btn.style.transition='';btn.disabled=false;},700);}
   }
 }
 
