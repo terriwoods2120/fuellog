@@ -4365,6 +4365,7 @@ function renderReports(){
     while(d<=endD){days.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}
     const isMultiDay=days.length>1;
 
+    // Build vehRows with driver type
     const vehRows=fleet.map(v=>{
       let presentDays=0,absentDays=0,unmarkedDays=0;
       days.forEach(dt=>{
@@ -4376,8 +4377,13 @@ function renderReports(){
       const latestM=[...(musters||[])].filter(x=>x.vehicleId===v.id&&days.includes(x.date)).sort((a,b)=>b.date.localeCompare(a.date))[0];
       const drvId=latestM?.driverId||v.driverId;
       const drv=(drivers||[]).find(d=>d.id===drvId);
-      return{v,presentDays,absentDays,unmarkedDays,drvName:drv?.name||v.driverName||'—'};
+      const drvType=drv?.type||'driver'; // 'driver'|'operator'|'both'
+      return{v,presentDays,absentDays,unmarkedDays,drvName:drv?.name||v.driverName||'—',drvType};
     });
+
+    // Helper labels/colors
+    const typeLbl=t=>t==='operator'?'OPERATOR':t==='both'?'DRV+OP':'DRIVER';
+    const typeCol=t=>t==='operator'?'var(--blue)':t==='both'?'var(--purple)':'var(--green)';
 
     if(!isMultiDay){
       const td=range.from;
@@ -4386,7 +4392,12 @@ function renderReports(){
       const absent=vehRows.filter(({v})=>{const m=getMuster(v.id);return m&&m.status==='absent';});
       const unmarked=vehRows.filter(({v})=>!getMuster(v.id));
 
+      // Driver vs Operator counts from present list
+      const driversPresent=present.filter(x=>x.drvType==='driver'||x.drvType==='both').length;
+      const opsPresent=present.filter(x=>x.drvType==='operator'||x.drvType==='both').length;
+
       html=`
+      <!-- Top counts -->
       <div style="margin:10px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;gap:0">
         <div style="flex:1;text-align:center">
           <div style="font-family:var(--fh);font-size:24px;color:var(--green)">${present.length}</div>
@@ -4402,73 +4413,120 @@ function renderReports(){
         </div>
       </div>
 
+      <!-- Driver / Operator quick counts -->
+      <div style="margin:8px 14px 0;display:flex;gap:8px">
+        <div style="flex:1;background:rgba(0,200,83,.08);border:1.5px solid var(--green);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:22px">👨‍✈️</span>
+          <div>
+            <div style="font-family:var(--fh);font-size:20px;color:var(--green)">${driversPresent}</div>
+            <div style="font-size:10px;color:var(--green);font-weight:700;letter-spacing:.5px">DRIVERS PRESENT</div>
+          </div>
+        </div>
+        <div style="flex:1;background:rgba(41,121,255,.08);border:1.5px solid var(--blue);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:22px">⚙️</span>
+          <div>
+            <div style="font-family:var(--fh);font-size:20px;color:var(--blue)">${opsPresent}</div>
+            <div style="font-size:10px;color:var(--blue);font-weight:700;letter-spacing:.5px">OPERATORS PRESENT</div>
+          </div>
+        </div>
+      </div>
+
       ${present.length?`<div class="rep-card" style="margin-top:10px">
         <div class="rep-hd" style="color:var(--green)">✅ PRESENT (${present.length})</div>
-        ${present.map(({v,drvName})=>{const m=getMuster(v.id);return`
-          <div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px">
+        ${present.map(({v,drvName,drvType})=>{
+          const m=getMuster(v.id);
+          return`<div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px">
             <span style="font-size:18px">${vIco(v.type)}</span>
             <div style="flex:1">
               <div style="font-family:var(--fh);font-size:13px;color:var(--white)">${v.name}</div>
-              <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:1px">👤 ${m?.driverName||drvName}${m?.swap?' · 🔄 Swapped':''}</div>
+              <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">
+                👤 ${m?.driverName||drvName}
+                ${m?.swap?' · 🔄 Swap':''}
+              </div>
             </div>
-            ${m?.swap?`<span style="font-size:10px;color:var(--blue);font-weight:700;background:rgba(41,121,255,.1);padding:3px 8px;border-radius:6px">SWAP</span>`:''}
-          </div>`;}).join('')}
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+              <span style="font-size:10px;font-weight:700;color:${typeCol(drvType)};background:${typeCol(drvType)}18;padding:3px 8px;border-radius:6px">${typeLbl(drvType)}</span>
+              ${m?.swap?`<span style="font-size:10px;color:var(--blue);font-weight:700">SWAP</span>`:''}
+            </div>
+          </div>`;
+        }).join('')}
       </div>`:''}
 
       ${absent.length?`<div class="rep-card">
         <div class="rep-hd" style="color:var(--red)">❌ ABSENT (${absent.length})</div>
-        ${absent.map(({v,drvName})=>`
+        ${absent.map(({v,drvName,drvType})=>`
           <div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px">
             <span style="font-size:18px">${vIco(v.type)}</span>
             <div style="flex:1">
               <div style="font-family:var(--fh);font-size:13px;color:var(--white)">${v.name}</div>
-              <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:1px">👤 ${drvName}</div>
+              <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">👤 ${drvName}</div>
             </div>
+            <span style="font-size:10px;font-weight:700;color:${typeCol(drvType)};background:${typeCol(drvType)}18;padding:3px 8px;border-radius:6px">${typeLbl(drvType)}</span>
           </div>`).join('')}
       </div>`:''}
 
       ${unmarked.length?`<div class="rep-card">
         <div class="rep-hd">— UNMARKED (${unmarked.length})</div>
-        ${unmarked.map(({v,drvName})=>`
+        ${unmarked.map(({v,drvName,drvType})=>`
           <div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px">
             <span style="font-size:18px">${vIco(v.type)}</span>
             <div style="flex:1">
               <div style="font-family:var(--fh);font-size:13px;color:var(--muted)">${v.name}</div>
-              <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:1px">👤 ${drvName}</div>
+              <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">👤 ${drvName}</div>
             </div>
+            <span style="font-size:10px;font-weight:700;color:var(--muted);padding:3px 8px;border-radius:6px;border:1px solid var(--border)">${typeLbl(drvType)}</span>
           </div>`).join('')}
       </div>`:''}`;
 
     } else {
-      // Multi-day: cumulative attendance table
+      // Multi-day: cumulative table with driver/operator split
+      const driversCol='var(--green)';
+      const opsCol='var(--blue)';
       html=`
       <div style="margin:10px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 14px">
         <div style="font-family:var(--fh);font-size:12px;color:var(--amber);letter-spacing:1px;margin-bottom:4px">CUMULATIVE ATTENDANCE</div>
         <div style="font-size:11px;color:var(--muted);font-weight:600">${days.length} days · ${fmtD(range.from)} – ${fmtD(range.to)}</div>
       </div>
+
+      <!-- Driver / Operator totals for period -->
+      <div style="margin:8px 14px 0;display:flex;gap:8px">
+        <div style="flex:1;background:rgba(0,200,83,.08);border:1.5px solid var(--green);border-radius:10px;padding:10px 14px">
+          <div style="font-size:10px;color:var(--green);font-weight:700;letter-spacing:.5px;margin-bottom:4px">👨‍✈️ DRIVERS</div>
+          <div style="font-family:var(--fh);font-size:16px;color:var(--green)">${vehRows.filter(x=>x.drvType==='driver'||x.drvType==='both').reduce((a,x)=>a+x.presentDays,0)} days present</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:2px">${vehRows.filter(x=>x.drvType==='driver'||x.drvType==='both').length} drivers in fleet</div>
+        </div>
+        <div style="flex:1;background:rgba(41,121,255,.08);border:1.5px solid var(--blue);border-radius:10px;padding:10px 14px">
+          <div style="font-size:10px;color:var(--blue);font-weight:700;letter-spacing:.5px;margin-bottom:4px">⚙️ OPERATORS</div>
+          <div style="font-family:var(--fh);font-size:16px;color:var(--blue)">${vehRows.filter(x=>x.drvType==='operator'||x.drvType==='both').reduce((a,x)=>a+x.presentDays,0)} days present</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:2px">${vehRows.filter(x=>x.drvType==='operator'||x.drvType==='both').length} operators in fleet</div>
+        </div>
+      </div>
+
       <div class="rep-card" style="margin-top:10px">
         <div style="overflow-x:auto">
           <table style="width:100%;border-collapse:collapse;font-size:12px">
             <thead>
               <tr style="background:var(--bg3);color:var(--muted)">
                 <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.5px">VEHICLE</th>
-                <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">DRIVER</th>
+                <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">DRIVER / OP</th>
+                <th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700;color:var(--muted)">TYPE</th>
                 <th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700;color:var(--green)">✅</th>
                 <th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700;color:var(--red)">❌</th>
-                <th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700">—</th>
                 <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">%</th>
               </tr>
             </thead>
             <tbody>
-              ${vehRows.filter(x=>x.presentDays>0||x.absentDays>0).sort((a,b)=>b.presentDays-a.presentDays).map(({v,presentDays,absentDays,unmarkedDays,drvName})=>{
+              ${vehRows.filter(x=>x.presentDays>0||x.absentDays>0).sort((a,b)=>b.presentDays-a.presentDays).map(({v,presentDays,absentDays,unmarkedDays,drvName,drvType})=>{
                 const pct=days.length>0?Math.round(presentDays/days.length*100):0;
                 const col=pct>=80?'var(--green)':pct>=50?'var(--amber)':'var(--red)';
                 return`<tr style="border-top:1px solid var(--border)">
                   <td style="padding:9px 10px;color:var(--white);font-weight:600">${vIco(v.type)} ${v.name}</td>
                   <td style="padding:9px 10px;color:var(--muted);font-size:11px">${drvName}</td>
+                  <td style="padding:9px 6px;text-align:center">
+                    <span style="font-size:10px;font-weight:700;color:${typeCol(drvType)}">${typeLbl(drvType)}</span>
+                  </td>
                   <td style="padding:9px 6px;text-align:center;color:var(--green);font-weight:700">${presentDays}</td>
                   <td style="padding:9px 6px;text-align:center;color:var(--red);font-weight:700">${absentDays||'—'}</td>
-                  <td style="padding:9px 6px;text-align:center;color:var(--muted)">${unmarkedDays||'—'}</td>
                   <td style="padding:9px 10px;text-align:right;font-family:var(--fh);color:${col}">${pct}%</td>
                 </tr>`;
               }).join('')}
@@ -4826,7 +4884,8 @@ function exportRepPDF(){
       const latestM=[...(musters||[])].filter(x=>x.vehicleId===v.id&&days.includes(x.date)).sort((a,b)=>b.date.localeCompare(a.date))[0];
       const drvId=latestM?.driverId||v.driverId;
       const drv=(drivers||[]).find(d=>d.id===drvId);
-      return{v,presentDays,absentDays,drvName:drv?.name||v.driverName||'—'};
+      const drvType=drv?.type||'driver';
+      return{v,presentDays,absentDays,drvName:drv?.name||v.driverName||'—',drvType};
     });
 
     if(!isMultiDay){
@@ -4834,25 +4893,33 @@ function exportRepPDF(){
       const getMuster=vid=>(musters||[]).find(m=>m.vehicleId===vid&&m.date===td);
       const present=vehRows.filter(({v})=>{const m=getMuster(v.id);return m&&m.status!=='absent';});
       const absent=vehRows.filter(({v})=>{const m=getMuster(v.id);return m&&m.status==='absent';});
+      const driversPresent=present.filter(x=>x.drvType==='driver'||x.drvType==='both').length;
+      const opsPresent=present.filter(x=>x.drvType==='operator'||x.drvType==='both').length;
+      const typeLblP=t=>t==='operator'?'Operator':t==='both'?'Drv+Op':'Driver';
 
       body=`
       ${header('MUSTER REPORT — '+fmtD(td))}
-      <div class="grid3" style="margin-bottom:20px">
+      <div class="grid3" style="margin-bottom:12px">
         <div class="cell green"><div class="val" style="color:green">${present.length}</div><div class="lbl">Present</div></div>
         <div class="cell red"><div class="val" style="color:#c62828">${absent.length}</div><div class="lbl">Absent</div></div>
         <div class="cell"><div class="val">${fleet.length-present.length-absent.length}</div><div class="lbl">Unmarked</div></div>
+      </div>
+      <div class="grid2" style="margin-bottom:20px">
+        <div class="cell green"><div class="val" style="color:green;font-size:22px">👨‍✈️ ${driversPresent}</div><div class="lbl">Drivers Present</div></div>
+        <div class="cell" style="background:#e3f2fd"><div class="val" style="color:#1565c0;font-size:22px">⚙️ ${opsPresent}</div><div class="lbl">Operators Present</div></div>
       </div>
 
       ${present.length?`
       <h2>✅ Present (${present.length})</h2>
       <table>
-        <thead><tr><th>#</th><th>Vehicle</th><th>Driver / Operator</th><th>Note</th></tr></thead>
+        <thead><tr><th>#</th><th>Vehicle</th><th>Driver / Operator</th><th>Type</th><th>Note</th></tr></thead>
         <tbody>
-          ${present.map(({v,drvName},i)=>{const m=getMuster(v.id);return`<tr>
+          ${present.map(({v,drvName,drvType},i)=>{const m=getMuster(v.id);return`<tr>
             <td>${i+1}</td>
             <td>${v.name}</td>
             <td>${m?.driverName||drvName}</td>
-            <td>${m?.swap?'🔄 Driver swapped':''}</td>
+            <td style="color:${drvType==='operator'?'#1565c0':'green'};font-weight:700">${typeLblP(drvType)}</td>
+            <td>${m?.swap?'🔄 Swapped':''}</td>
           </tr>`;}).join('')}
         </tbody>
       </table>`:''}
@@ -4860,10 +4927,11 @@ function exportRepPDF(){
       ${absent.length?`
       <h2>❌ Absent (${absent.length})</h2>
       <table>
-        <thead><tr><th>#</th><th>Vehicle</th><th>Driver / Operator</th></tr></thead>
+        <thead><tr><th>#</th><th>Vehicle</th><th>Driver / Operator</th><th>Type</th></tr></thead>
         <tbody>
-          ${absent.map(({v,drvName},i)=>`<tr>
+          ${absent.map(({v,drvName,drvType},i)=>`<tr>
             <td>${i+1}</td><td>${v.name}</td><td>${drvName}</td>
+            <td style="color:${drvType==='operator'?'#1565c0':'green'};font-weight:700">${typeLblP(drvType)}</td>
           </tr>`).join('')}
         </tbody>
       </table>`:''}
@@ -4871,27 +4939,35 @@ function exportRepPDF(){
       <div class="footer">Muster Report · ${fmtD(td)} · Chiddarwar Construction Co. Pvt. Ltd.</div>`;
 
     } else {
-      // Multi-day cumulative
+      // Multi-day cumulative with driver/operator type column
       const withMuster=vehRows.filter(x=>x.presentDays>0||x.absentDays>0).sort((a,b)=>b.presentDays-a.presentDays);
+      const typeLblP=t=>t==='operator'?'Operator':t==='both'?'Drv+Op':'Driver';
+      const totalDrvDays=withMuster.filter(x=>x.drvType==='driver'||x.drvType==='both').reduce((a,x)=>a+x.presentDays,0);
+      const totalOpDays=withMuster.filter(x=>x.drvType==='operator'||x.drvType==='both').reduce((a,x)=>a+x.presentDays,0);
       body=`
       ${header('CUMULATIVE MUSTER — '+repFmtRange(range))}
+      <div class="grid2" style="margin-bottom:20px">
+        <div class="cell green"><div class="val" style="color:green">👨‍✈️ ${totalDrvDays}</div><div class="lbl">Driver Days Present</div></div>
+        <div class="cell" style="background:#e3f2fd"><div class="val" style="color:#1565c0">⚙️ ${totalOpDays}</div><div class="lbl">Operator Days Present</div></div>
+      </div>
       <table>
-        <thead><tr><th>#</th><th>Vehicle</th><th>Driver</th><th class="right">Present</th><th class="right">Absent</th><th class="right">Attendance %</th></tr></thead>
+        <thead><tr><th>#</th><th>Vehicle</th><th>Name</th><th>Type</th><th class="right">Present</th><th class="right">Absent</th><th class="right">Attendance %</th></tr></thead>
         <tbody>
-          ${withMuster.map(({v,presentDays,absentDays,drvName},i)=>{
+          ${withMuster.map(({v,presentDays,absentDays,drvName,drvType},i)=>{
             const pct=days.length>0?Math.round(presentDays/days.length*100):0;
             const col=pct>=80?'green':pct>=50?'#e65100':'#c62828';
             return`<tr>
               <td>${i+1}</td>
               <td>${v.name}</td>
               <td>${drvName}</td>
+              <td style="color:${drvType==='operator'?'#1565c0':'green'};font-weight:700">${typeLblP(drvType)}</td>
               <td class="right" style="color:green;font-weight:700">${presentDays}</td>
               <td class="right" style="color:#c62828;font-weight:700">${absentDays||'—'}</td>
               <td class="right" style="color:${col};font-weight:700">${pct}%</td>
             </tr>`;
           }).join('')}
         </tbody>
-        <tfoot><tr class="tfoot"><td colspan="3">TOTAL VEHICLES WITH MUSTER DATA</td><td class="right">${withMuster.reduce((a,x)=>a+x.presentDays,0)}</td><td class="right">${withMuster.reduce((a,x)=>a+x.absentDays,0)}</td><td></td></tr></tfoot>
+        <tfoot><tr class="tfoot"><td colspan="4">TOTAL</td><td class="right">${withMuster.reduce((a,x)=>a+x.presentDays,0)}</td><td class="right">${withMuster.reduce((a,x)=>a+x.absentDays,0)}</td><td></td></tr></tfoot>
       </table>
       <div class="footer">Cumulative Muster · ${repFmtRange(range)} · ${days.length} days · Chiddarwar Construction Co. Pvt. Ltd.</div>`;
     }
