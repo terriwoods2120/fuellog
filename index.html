@@ -3213,6 +3213,18 @@ function saveFleet(){
   if(!isOwner()){alert('Only Owner can modify fleet');return;}
   const name=document.getElementById('fl-name').value.trim();
   if(!name){alert('Enter name');return;}
+
+  // Duplicate check — same name (case-insensitive)
+  const duplicate=fleet.find(f=>f.name.toLowerCase()===name.toLowerCase());
+  if(duplicate){
+    const el=document.getElementById('fl-name');
+    el.style.borderColor='var(--red)';
+    el.style.background='rgba(255,61,61,.08)';
+    setTimeout(()=>{el.style.borderColor='';el.style.background='';},2000);
+    flash('⚠ DUPLICATE!','"'+name+'" already exists in fleet');
+    return;
+  }
+
   const t=document.getElementById('fl-type').value;
   const siteId=document.getElementById('fl-site')?.value||'';
   const site=sites?.find(s=>s.id===siteId);
@@ -4798,19 +4810,104 @@ function exportRepPDF(){
     </table>
 
     <div class="footer">Generated from FuelLog App · Chiddarwar Construction Co. Pvt. Ltd. · Period: ${repFmtRange(range)}</div>`;
+  } else if(repActiveTab==='muster'){
+    const days=[];
+    let dm=new Date(range.from);const endDm=new Date(range.to);
+    while(dm<=endDm){days.push(dm.toISOString().slice(0,10));dm.setDate(dm.getDate()+1);}
+    const isMultiDay=days.length>1;
+
+    const vehRows=fleet.map(v=>{
+      let presentDays=0,absentDays=0;
+      days.forEach(dt=>{
+        const m=(musters||[]).find(x=>x.vehicleId===v.id&&x.date===dt);
+        if(m&&m.status!=='absent')presentDays++;
+        else if(m&&m.status==='absent')absentDays++;
+      });
+      const latestM=[...(musters||[])].filter(x=>x.vehicleId===v.id&&days.includes(x.date)).sort((a,b)=>b.date.localeCompare(a.date))[0];
+      const drvId=latestM?.driverId||v.driverId;
+      const drv=(drivers||[]).find(d=>d.id===drvId);
+      return{v,presentDays,absentDays,drvName:drv?.name||v.driverName||'—'};
+    });
+
+    if(!isMultiDay){
+      const td=range.from;
+      const getMuster=vid=>(musters||[]).find(m=>m.vehicleId===vid&&m.date===td);
+      const present=vehRows.filter(({v})=>{const m=getMuster(v.id);return m&&m.status!=='absent';});
+      const absent=vehRows.filter(({v})=>{const m=getMuster(v.id);return m&&m.status==='absent';});
+
+      body=`
+      ${header('MUSTER REPORT — '+fmtD(td))}
+      <div class="grid3" style="margin-bottom:20px">
+        <div class="cell green"><div class="val" style="color:green">${present.length}</div><div class="lbl">Present</div></div>
+        <div class="cell red"><div class="val" style="color:#c62828">${absent.length}</div><div class="lbl">Absent</div></div>
+        <div class="cell"><div class="val">${fleet.length-present.length-absent.length}</div><div class="lbl">Unmarked</div></div>
+      </div>
+
+      ${present.length?`
+      <h2>✅ Present (${present.length})</h2>
+      <table>
+        <thead><tr><th>#</th><th>Vehicle</th><th>Driver / Operator</th><th>Note</th></tr></thead>
+        <tbody>
+          ${present.map(({v,drvName},i)=>{const m=getMuster(v.id);return`<tr>
+            <td>${i+1}</td>
+            <td>${v.name}</td>
+            <td>${m?.driverName||drvName}</td>
+            <td>${m?.swap?'🔄 Driver swapped':''}</td>
+          </tr>`;}).join('')}
+        </tbody>
+      </table>`:''}
+
+      ${absent.length?`
+      <h2>❌ Absent (${absent.length})</h2>
+      <table>
+        <thead><tr><th>#</th><th>Vehicle</th><th>Driver / Operator</th></tr></thead>
+        <tbody>
+          ${absent.map(({v,drvName},i)=>`<tr>
+            <td>${i+1}</td><td>${v.name}</td><td>${drvName}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`:''}
+
+      <div class="footer">Muster Report · ${fmtD(td)} · Chiddarwar Construction Co. Pvt. Ltd.</div>`;
+
+    } else {
+      // Multi-day cumulative
+      const withMuster=vehRows.filter(x=>x.presentDays>0||x.absentDays>0).sort((a,b)=>b.presentDays-a.presentDays);
+      body=`
+      ${header('CUMULATIVE MUSTER — '+repFmtRange(range))}
+      <table>
+        <thead><tr><th>#</th><th>Vehicle</th><th>Driver</th><th class="right">Present</th><th class="right">Absent</th><th class="right">Attendance %</th></tr></thead>
+        <tbody>
+          ${withMuster.map(({v,presentDays,absentDays,drvName},i)=>{
+            const pct=days.length>0?Math.round(presentDays/days.length*100):0;
+            const col=pct>=80?'green':pct>=50?'#e65100':'#c62828';
+            return`<tr>
+              <td>${i+1}</td>
+              <td>${v.name}</td>
+              <td>${drvName}</td>
+              <td class="right" style="color:green;font-weight:700">${presentDays}</td>
+              <td class="right" style="color:#c62828;font-weight:700">${absentDays||'—'}</td>
+              <td class="right" style="color:${col};font-weight:700">${pct}%</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+        <tfoot><tr class="tfoot"><td colspan="3">TOTAL VEHICLES WITH MUSTER DATA</td><td class="right">${withMuster.reduce((a,x)=>a+x.presentDays,0)}</td><td class="right">${withMuster.reduce((a,x)=>a+x.absentDays,0)}</td><td></td></tr></tfoot>
+      </table>
+      <div class="footer">Cumulative Muster · ${repFmtRange(range)} · ${days.length} days · Chiddarwar Construction Co. Pvt. Ltd.</div>`;
+    }
   } else {
-    body=`${header('FUEL LOG')}
-    <div style="padding:40px;text-align:center;color:#999">Switch to Daily Ops or Financial tab and tap 📄 to export that report.</div>`;
+    body=`${header('REPORT')}
+    <div style="padding:40px;text-align:center;color:#999">Switch to Daily Ops, Financial or Muster tab and tap 📄 to export.</div>`;
   }
 
   const printBar=`<div style="background:#111;padding:10px 20px;display:flex;gap:10px;align-items:center;border-bottom:3px solid #ffb300;position:sticky;top:0;z-index:100" class="no-print">
     <button onclick="window.close()" style="background:#333;color:#ffb300;border:none;padding:10px 18px;font-size:14px;font-weight:700;border-radius:8px;cursor:pointer">‹ BACK TO APP</button>
     <button onclick="window.print()" style="background:#ffb300;color:#111;border:none;padding:10px 18px;font-size:14px;font-weight:700;border-radius:8px;cursor:pointer">🖨 PRINT / SAVE PDF</button>
-    <span style="color:#777;font-size:13px;font-weight:700;margin-left:auto">${repActiveTab==='daily'?'📋 Daily Operations':'💰 Financial Summary'} · ${repFmtRange(range)}</span>
+    <span style="color:#777;font-size:13px;font-weight:700;margin-left:auto">${repActiveTab==='daily'?'📋 Daily Operations':repActiveTab==='financial'?'💰 Financial Summary':'👷 Muster Report'} · ${repFmtRange(range)}</span>
   </div>`;
 
   let html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
-  <title>FuelLog ${repActiveTab==='daily'?'Daily Ops':'Financial'} — ${repFmtRange(range)}</title>
+  <title>FuelLog ${repActiveTab==='daily'?'Daily Ops':repActiveTab==='financial'?'Financial':'Muster'} — ${repFmtRange(range)}</title>
   <style>${CSS}.no-print{display:flex!important;}@media print{.no-print{display:none!important;}}</style>
   </head><body>${printBar}${body}</body></html>`;
 
