@@ -1026,6 +1026,49 @@ input[type=file]{display:none}
   <div class="pad-bot"></div>
 </div>
 
+<!-- ═══ AUDIT LOG ═══ -->
+<div class="screen" id="scr-audit-log">
+  <div class="topbar">
+    <button class="tb-back" onclick="show('scr-home')">‹</button>
+    <div><div class="tb-title">AUDIT LOG</div><div class="tb-sub" id="audit-log-sub">All entries</div></div>
+  </div>
+  <div style="background:var(--bg2);border-bottom:1px solid var(--border);padding:8px 14px;display:flex;gap:6px;flex-shrink:0">
+    <input id="audit-search" type="text" placeholder="🔍 Search vehicle, user..." autocomplete="off"
+      oninput="renderAuditLog()"
+      style="flex:1;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);
+             padding:9px 12px;border-radius:8px;font-size:14px;font-family:var(--fb);outline:none">
+    <select id="audit-filter" onchange="renderAuditLog()"
+      style="background:var(--bg3);border:1.5px solid var(--border);color:var(--white);
+             padding:9px 10px;border-radius:8px;font-size:13px;font-family:var(--fb)">
+      <option value="all">All Time</option>
+      <option value="today">Today</option>
+      <option value="week">This Week</option>
+      <option value="month">This Month</option>
+    </select>
+  </div>
+  <div id="audit-log-list" style="overflow-y:auto;flex:1"></div>
+  <div class="pad-bot"></div>
+</div>
+
+<!-- ═══ CHECKLIST REVIEW ═══ -->
+<div class="screen" id="scr-checklist-review">
+  <div class="topbar">
+    <button class="tb-back" onclick="show('scr-home')">‹</button>
+    <div><div class="tb-title">CHECKLIST REVIEW</div><div class="tb-sub" id="chk-review-sub"></div></div>
+    <div style="margin-left:auto;padding-right:4px">
+      <select id="chk-review-filter" onchange="renderChecklistReview()"
+        style="background:var(--bg3);border:1px solid var(--border);color:var(--white);
+               padding:6px 8px;border-radius:8px;font-size:12px;font-family:var(--fb)">
+        <option value="issues">Issues Only</option>
+        <option value="all">All Submissions</option>
+        <option value="unresolved">Unresolved</option>
+      </select>
+    </div>
+  </div>
+  <div id="chk-review-list" style="overflow-y:auto;flex:1"></div>
+  <div class="pad-bot"></div>
+</div>
+
 <!-- ═══ REPORTS ═══ -->
 <div class="screen" id="scr-reports">
   <div class="topbar">
@@ -2438,6 +2481,33 @@ function renderDashboard(dash,alerts){
       </div>
     </div>`;
   }
+  // Unresolved checklist issues
+  if(isOwner()||isAdmin()||isManager()){
+    const unresolvedIssues=(checklistRecords||[]).filter(r=>{
+      if(!r.issues||r.issues===0) return false;
+      const hasUnresolved=r.items&&r.items.some(it=>(it.status==='attention'||it.status==='broken')&&!it.resolved);
+      return hasUnresolved;
+    });
+    if(unresolvedIssues.length>0){
+      const totalIssues=unresolvedIssues.reduce((a,r)=>a+(r.items||[]).filter(it=>(it.status==='attention'||it.status==='broken')&&!it.resolved).length,0);
+      alertHtml+=`<div class="dash-alert" style="background:rgba(255,61,61,.06);border:2px solid var(--red);cursor:pointer" onclick="showChecklistReview()">
+        <div class="dash-alert-row">
+          <div style="font-size:24px">🔧</div>
+          <div style="flex:1">
+            <div style="font-family:var(--fh);font-size:14px;color:var(--red)">${totalIssues} UNRESOLVED CHECKLIST ISSUE${totalIssues>1?'S':''}</div>
+            <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">Across ${unresolvedIssues.length} submission${unresolvedIssues.length>1?'s':''} · Tap to review</div>
+          </div>
+          <div style="color:var(--red);font-size:18px">›</div>
+        </div>
+      </div>`;
+      // Update badge on More tab nav
+      const moreBadge=document.getElementById('chk-badge-more');
+      if(moreBadge){moreBadge.textContent=totalIssues;moreBadge.style.display='inline';}
+    } else {
+      const moreBadge=document.getElementById('chk-badge-more');
+      if(moreBadge) moreBadge.style.display='none';
+    }
+  }
   alerts.innerHTML=alertHtml ? `<div style="padding:0 14px;display:flex;flex-direction:column;gap:6px;margin-top:6px">${alertHtml}</div>` : '';
 }
 
@@ -2634,8 +2704,18 @@ function renderFleetTab(el){
 // ── MORE TAB ──
 function renderMoreTab(el){
   el.innerHTML=`
+    ${isOwner()||isAdmin()||isManager()?`
+    <div class="sec-lbl">Tracking & Review</div>
+    <div class="act" onclick="showAuditLog()">
+      <div class="act-ico">📋</div><div class="act-txt"><div class="act-title">AUDIT LOG</div><div class="act-desc">Who entered what · Edit history</div></div><div class="act-arr">›</div>
+    </div>
+    <div class="act" onclick="showChecklistReview()" style="position:relative">
+      <div class="act-ico">🔧</div><div class="act-txt"><div class="act-title">CHECKLIST REVIEW</div><div class="act-desc">Driver submissions · Issues · Resolutions</div></div>
+      <span id="chk-badge-more" style="display:none;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-right:6px"></span>
+      <div class="act-arr">›</div>
+    </div>`:''}
     ${isOwner()||isAdmin()?`
-    <div class="sec-lbl">Administration</div>
+    <div class="sec-lbl" style="margin-top:4px">Administration</div>
     <div class="act" onclick="show('scr-users')">
       <div class="act-ico">👥</div><div class="act-txt"><div class="act-title">USERS</div><div class="act-desc">Add staff · Manage access · Reset PIN</div></div><div class="act-arr">›</div>
     </div>
@@ -2659,6 +2739,217 @@ function renderMoreTab(el){
     <div class="pad-bot"></div>`;
 }
 
+
+// ════════════════════════════════════
+// AUDIT LOG
+// ════════════════════════════════════
+function showAuditLog(){
+  show('scr-audit-log');
+  renderAuditLog();
+}
+
+function renderAuditLog(){
+  const el=document.getElementById('audit-log-list');
+  if(!el) return;
+  const q=(document.getElementById('audit-search')?.value||'').toLowerCase();
+  const filter=document.getElementById('audit-filter')?.value||'all';
+  const td=today();
+
+  // Date range
+  let fromDate='2000-01-01';
+  if(filter==='today') fromDate=td;
+  else if(filter==='week'){const d=new Date();d.setDate(d.getDate()-6);fromDate=d.toISOString().slice(0,10);}
+  else if(filter==='month'){const d=new Date();fromDate=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;}
+
+  // Build entries from disbs + pumpFills + purchases
+  // Manager sees only their own; Owner/Admin see all
+  const canSeeAll=isOwner()||isAdmin();
+  let entries=[];
+
+  disbs.filter(d=>d.date>=fromDate).forEach(d=>{
+    if(!canSeeAll&&d.loggedBy!==sess?.userId) return;
+    const veh=gV(d.vehicleId);
+    entries.push({
+      id:d.id, ts:d.ts||0, date:d.date,
+      type:'fuel', icon:'⛽',
+      title:`${fmt(d.litres,1)}L → ${veh?.name||'?'}`,
+      sub:`${d.source==='can'?'🪣 Can':d.source==='pump'?'🏪 Pump':'🛢 Bowser'} · by ${d.loggedByName||'?'}`,
+      editedBy:d.editedByName, editedAt:d.editedAt,
+      loggedBy:d.loggedByName, changes:d._changes||null
+    });
+  });
+
+  (pumpFills||[]).filter(p=>p.date>=fromDate).forEach(p=>{
+    if(!canSeeAll&&p.loggedBy!==sess?.userId) return;
+    const veh=gV(p.vehicleId);
+    entries.push({
+      id:p.id, ts:p.ts||0, date:p.date,
+      type:'pump', icon:'🏪',
+      title:`${fmt(p.litres,1)}L → ${veh?.name||'?'} (Direct Pump)`,
+      sub:`₹${p.amount||0} · by ${p.loggedByName||'?'}`,
+      editedBy:p.editedByName, editedAt:p.editedAt,
+      loggedBy:p.loggedByName
+    });
+  });
+
+  if(canSeeAll){
+    purchases.filter(p=>p.date>=fromDate).forEach(p=>{
+      entries.push({
+        id:p.id, ts:p.ts||0, date:p.date,
+        type:'purchase', icon:'🛒',
+        title:`Purchased ${fmt(p.litres,0)}L from ${p.vendor||'?'}`,
+        sub:`₹${(p.amount||0).toLocaleString('en-IN')} · by ${p.loggedByName||'?'}`,
+        editedBy:p.editedByName, editedAt:p.editedAt,
+        loggedBy:p.loggedByName
+      });
+    });
+  }
+
+  // Search filter
+  if(q){
+    entries=entries.filter(e=>
+      e.title.toLowerCase().includes(q)||
+      (e.loggedBy||'').toLowerCase().includes(q)||
+      (e.editedBy||'').toLowerCase().includes(q)
+    );
+  }
+
+  entries.sort((a,b)=>b.ts-a.ts||b.date.localeCompare(a.date));
+
+  const sub=document.getElementById('audit-log-sub');
+  if(sub) sub.textContent=entries.length+' entries'+(q?` matching "${q}"`:'');
+
+  if(!entries.length){
+    el.innerHTML=`<div style="padding:40px;text-align:center;color:var(--muted);font-size:13px;font-weight:600">No entries found</div>`;
+    return;
+  }
+
+  const fmtINR=n=>'₹'+Number(Math.round(n)).toLocaleString('en-IN');
+  el.innerHTML=entries.map(e=>{
+    const timeStr=e.ts?new Date(e.ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}):'';
+    const editedBadge=e.editedBy?`<span style="font-size:10px;background:rgba(41,121,255,.15);color:var(--blue);padding:2px 7px;border-radius:6px;font-weight:700;margin-left:6px">✏ edited by ${e.editedBy}</span>`:'';
+    return`<div style="padding:12px 14px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <span style="font-size:22px;flex-shrink:0">${e.icon}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-family:var(--fh);font-size:13px;color:var(--white);line-height:1.3">${e.title}${editedBadge}</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:3px">${e.sub}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px">${fmtD(e.date)}${timeStr?' · '+timeStr:''}</div>
+          ${e.editedAt?`<div style="font-size:10px;color:var(--blue);margin-top:3px">Edited: ${new Date(e.editedAt).toLocaleString('en-IN')}</div>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════
+// CHECKLIST REVIEW
+// ════════════════════════════════════
+function showChecklistReview(){
+  show('scr-checklist-review');
+  renderChecklistReview();
+}
+
+function renderChecklistReview(){
+  const el=document.getElementById('chk-review-list');
+  if(!el) return;
+  const filter=document.getElementById('chk-review-filter')?.value||'issues';
+
+  let records=[...(checklistRecords||[])].sort((a,b)=>b.ts-a.ts);
+
+  if(filter==='issues') records=records.filter(r=>r.issues>0);
+  else if(filter==='unresolved') records=records.filter(r=>{
+    return r.issues>0&&(r.items||[]).some(it=>(it.status==='attention'||it.status==='broken')&&!it.resolved);
+  });
+
+  const sub=document.getElementById('chk-review-sub');
+  if(sub) sub.textContent=records.length+' submission'+(records.length!==1?'s':'');
+
+  if(!records.length){
+    el.innerHTML=`<div style="padding:40px;text-align:center;color:var(--muted);font-size:13px;font-weight:600">${filter==='issues'?'No issues found':'No unresolved issues'}</div>`;
+    return;
+  }
+
+  el.innerHTML=records.map(r=>{
+    const veh=gV(r.vehicleId);
+    const issueItems=(r.items||[]).filter(it=>it.status==='attention'||it.status==='broken');
+    const unresolvedCount=issueItems.filter(it=>!it.resolved).length;
+    const allResolved=unresolvedCount===0&&issueItems.length>0;
+    const scheduleCol=r.schedule==='monthly'?'var(--purple)':r.schedule==='weekly'?'var(--blue)':'var(--amber)';
+
+    return`<div style="margin:8px 14px 0;background:var(--bg2);border:1.5px solid ${allResolved?'var(--green)':unresolvedCount>0?'var(--red)':'var(--border)'};border-radius:12px;overflow:hidden">
+      <!-- Header -->
+      <div style="padding:10px 14px;background:var(--bg3);display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)">
+        <span style="font-size:18px">${vIco(veh?.type||'other')}</span>
+        <div style="flex:1">
+          <div style="font-family:var(--fh);font-size:14px;color:var(--white)">${veh?.name||r.vehicleName||'?'}</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:1px">
+            👤 ${r.driverName||'?'} · 
+            <span style="color:${scheduleCol}">${r.schedule?.toUpperCase()}</span> · 
+            ${fmtD(r.date)} · ${new Date(r.ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}
+          </div>
+        </div>
+        <div style="text-align:right">
+          ${allResolved
+            ?`<span style="font-size:11px;color:var(--green);font-weight:700">✅ ALL RESOLVED</span>`
+            :unresolvedCount>0
+              ?`<span style="font-size:11px;color:var(--red);font-weight:700">${unresolvedCount} UNRESOLVED</span>`
+              :`<span style="font-size:11px;color:var(--green);font-weight:700">✅ ALL OK</span>`}
+        </div>
+      </div>
+
+      <!-- Issue items -->
+      ${issueItems.map(it=>{
+        const isResolved=!!it.resolved;
+        return`<div style="padding:10px 14px;border-bottom:1px solid var(--border);${isResolved?'opacity:0.65':''}">
+          <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px">
+            <span style="font-size:16px;flex-shrink:0">${it.status==='broken'?'❌':'⚠️'}</span>
+            <div style="flex:1">
+              <div style="font-family:var(--fh);font-size:13px;color:${it.status==='broken'?'var(--red)':'var(--amber)'}">${it.label}</div>
+              ${it.remark?`<div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:3px">💬 "${it.remark}"</div>`:''}
+              ${it.resolved?`<div style="font-size:10px;color:var(--green);font-weight:700;margin-top:3px">✅ ${it.resolvedNote||'Resolved'} · by ${it.resolvedBy||'?'} · ${it.resolvedAt?new Date(it.resolvedAt).toLocaleDateString('en-IN'):''}</div>`:''}
+            </div>
+          </div>
+          ${it.photo?`<img src="${it.photo}" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;margin-bottom:8px" onclick="this.style.maxHeight=this.style.maxHeight==='none'?'160px':'none'">`:''}
+          ${!isResolved&&(isOwner()||isAdmin()||isManager())?`
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+            <button onclick="resolveChecklistItem('${r.id}','${it.id}','Sent to workshop')"
+              style="flex:1;min-width:100px;background:rgba(41,121,255,.1);border:1.5px solid var(--blue);color:var(--blue);padding:7px 8px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">🔧 Workshop</button>
+            <button onclick="resolveChecklistItem('${r.id}','${it.id}','Driver told to monitor')"
+              style="flex:1;min-width:100px;background:rgba(255,179,0,.1);border:1.5px solid var(--amber);color:var(--amber);padding:7px 8px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">👁 Monitor</button>
+            <button onclick="resolveChecklistItem('${r.id}','${it.id}','Fixed on site')"
+              style="flex:1;min-width:100px;background:rgba(0,200,83,.1);border:1.5px solid var(--green);color:var(--green);padding:7px 8px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">✅ Fixed</button>
+            <button onclick="resolveChecklistCustom('${r.id}','${it.id}')"
+              style="flex:1;min-width:100px;background:var(--bg3);border:1.5px solid var(--border);color:var(--muted);padding:7px 8px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">✏ Custom</button>
+          </div>`:''}
+        </div>`;
+      }).join('')}
+
+      ${issueItems.length===0?`<div style="padding:12px 14px;font-size:12px;color:var(--muted);font-weight:600">✅ All ${r.items?.length||0} items marked OK — no issues</div>`:''}
+    </div>`;
+  }).join('')+'<div class="pad-bot"></div>';
+}
+
+function resolveChecklistItem(recordId, itemId, note){
+  const rIdx=(checklistRecords||[]).findIndex(r=>r.id===recordId);
+  if(rIdx===-1) return;
+  const iIdx=(checklistRecords[rIdx].items||[]).findIndex(it=>it.id===itemId);
+  if(iIdx===-1) return;
+  checklistRecords[rIdx].items[iIdx].resolved=true;
+  checklistRecords[rIdx].items[iIdx].resolvedNote=note;
+  checklistRecords[rIdx].items[iIdx].resolvedBy=sess?.name||'?';
+  checklistRecords[rIdx].items[iIdx].resolvedAt=Date.now();
+  sv('checklistRecords',checklistRecords);
+  flash('✅ RESOLVED',note);
+  renderChecklistReview();
+  renderHome(); // refresh badge
+}
+
+function resolveChecklistCustom(recordId, itemId){
+  const note=prompt('Enter resolution note:');
+  if(!note) return;
+  resolveChecklistItem(recordId, itemId, note);
+}
 
 // ════════════════════════════════════
 // EFFICIENCY ALERTS (Owner only)
