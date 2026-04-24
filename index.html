@@ -2343,6 +2343,15 @@ function renderDashboard(dash,alerts){
       <div class="dash-gauge-bar">
         <div class="dash-gauge-fill" style="width:${stockPct}%;background:${stockCol}"></div>
       </div>
+      <div style="padding:5px 14px 8px;display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:10px;color:var(--muted);font-weight:600">
+          ⛽ Rate: <span style="color:var(--amber);font-weight:700">₹${fmt(fuelRate,2)}/L</span>
+          ${(()=>{const lp=purchases.filter(p=>p.litres>0).sort((a,b)=>b.date.localeCompare(a.date)||b.ts-a.ts)[0];return lp?`<span style="color:var(--muted)"> · ${lp.vendor||'last purchase'}</span>`:'';})()}
+        </div>
+        <div style="font-size:10px;color:var(--muted);font-weight:600">
+          ${(()=>{const lp=purchases.filter(p=>p.litres>0).sort((a,b)=>b.date.localeCompare(a.date)||b.ts-a.ts)[0];return lp?fmtD(lp.date):'—';})()}
+        </div>
+      </div>
     </div>
 
     <!-- Today Coverage -->
