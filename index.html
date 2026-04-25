@@ -603,9 +603,9 @@ input[type=file]{display:none}
       <div class="bnav-ico">📊</div>
       <div class="bnav-lbl">Reports</div>
     </button>
-    <button class="bnav-btn" id="bnav-fleet" onclick="bnavTab('fleet')">
-      <div class="bnav-ico">🚜</div>
-      <div class="bnav-lbl">Fleet</div>
+    <button class="bnav-btn" id="bnav-trips" onclick="bnavTab('trips')">
+      <div class="bnav-ico">📦</div>
+      <div class="bnav-lbl">Trips</div>
     </button>
     <button class="bnav-btn" id="bnav-more" onclick="bnavTab('more')" style="position:relative">
       <div class="bnav-ico">☰</div>
@@ -1036,6 +1036,139 @@ input[type=file]{display:none}
   <div class="pad-bot"></div>
 </div>
 
+<!-- ═══ TRIP ENTRY ═══ -->
+<div class="screen" id="scr-trip-entry">
+  <div class="topbar">
+    <button class="tb-back" onclick="show('scr-home');bnavTab('trips')">‹</button>
+    <div><div class="tb-title" id="trip-entry-title">NEW TRIP</div><div class="tb-sub">Material movement / customer sale</div></div>
+  </div>
+  <div class="form-body" id="trip-entry-body" style="overflow-y:auto;flex:1;padding:14px"></div>
+  <div style="padding:10px 14px;background:var(--bg2);border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 2fr;gap:10px">
+    <button class="big-btn bb-cancel" onclick="show('scr-home');bnavTab('trips')">CANCEL</button>
+    <button class="big-btn bb-go" onclick="saveTrip()">✓ SAVE TRIP</button>
+  </div>
+</div>
+
+<!-- ═══ TRIP LOG (search / edit / delete) ═══ -->
+<div class="screen" id="scr-trip-log">
+  <div class="topbar">
+    <button class="tb-back" onclick="show('scr-home');bnavTab('trips')">‹</button>
+    <div><div class="tb-title">TRIP LOG</div><div class="tb-sub" id="trip-log-sub">All trips</div></div>
+  </div>
+  <div style="background:var(--bg2);border-bottom:1px solid var(--border);padding:8px 14px;display:flex;gap:6px;flex-shrink:0">
+    <input id="trip-log-search" type="text" placeholder="🔍 Customer, vehicle, driver..." autocomplete="off"
+      oninput="renderTripLog()"
+      style="flex:1;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);
+             padding:9px 12px;border-radius:8px;font-size:14px;font-family:var(--fb);outline:none">
+    <select id="trip-log-filter" onchange="renderTripLog()"
+      style="background:var(--bg3);border:1.5px solid var(--border);color:var(--white);
+             padding:9px 10px;border-radius:8px;font-size:13px;font-family:var(--fb)">
+      <option value="all">All Time</option>
+      <option value="today">Today</option>
+      <option value="week">This Week</option>
+      <option value="month">This Month</option>
+    </select>
+  </div>
+  <div id="trip-log-list" style="overflow-y:auto;flex:1"></div>
+  <div class="pad-bot"></div>
+</div>
+
+<!-- ═══ CUSTOMERS ═══ -->
+<div class="screen" id="scr-customers">
+  <div class="topbar">
+    <button class="tb-back" onclick="show('scr-home')">‹</button>
+    <div><div class="tb-title">CUSTOMERS</div><div class="tb-sub" id="cust-sub"></div></div>
+  </div>
+  <div style="background:var(--bg2);border-bottom:1px solid var(--border);padding:10px 14px;flex-shrink:0">
+    <input id="cust-search" type="text" placeholder="🔍 Search customer..." autocomplete="off"
+      oninput="renderCustomers()"
+      style="width:100%;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);
+             padding:10px 12px;border-radius:8px;font-size:14px;font-family:var(--fb);box-sizing:border-box;outline:none">
+  </div>
+  <div style="padding:10px 14px;flex-shrink:0">
+    <button onclick="openCustomerForm()" class="big-btn bb-go" style="height:46px;font-size:14px">+ ADD NEW CUSTOMER</button>
+  </div>
+  <div id="cust-list" style="overflow-y:auto;flex:1"></div>
+  <div class="pad-bot"></div>
+</div>
+
+<!-- ═══ CUSTOMER FORM (add/edit) ═══ -->
+<div class="screen" id="scr-customer-form">
+  <div class="topbar">
+    <button class="tb-back" onclick="show('scr-customers')">‹</button>
+    <div><div class="tb-title" id="cust-form-title">NEW CUSTOMER</div></div>
+  </div>
+  <div class="form-body" style="padding:14px;flex:1;overflow-y:auto">
+    <div class="f-field"><label class="f-lbl">Customer Name *</label><input class="f-inp" id="cust-name" type="text" placeholder="e.g. Sharma Builders"></div>
+    <div class="f-field"><label class="f-lbl">Phone Number *</label><input class="f-inp" id="cust-phone" type="tel" placeholder="10-digit mobile"></div>
+    <div class="f-field"><label class="f-lbl">Address</label><input class="f-inp" id="cust-addr" type="text" placeholder="Optional"></div>
+    <div class="f-field"><label class="f-lbl">GST Number</label><input class="f-inp" id="cust-gst" type="text" placeholder="Optional, for invoicing"></div>
+    <div class="f-field"><label class="f-lbl">Payment Terms</label>
+      <select class="f-inp" id="cust-terms" style="background:var(--bg3);color:var(--white)">
+        <option value="cash">Cash on Delivery</option>
+        <option value="credit7">Credit — 7 Days</option>
+        <option value="credit15">Credit — 15 Days</option>
+        <option value="credit30">Credit — 30 Days</option>
+        <option value="custom">Custom Terms</option>
+      </select>
+    </div>
+    <div class="f-field"><label class="f-lbl">Notes</label><textarea class="f-inp" id="cust-notes" rows="2" style="resize:vertical"></textarea></div>
+  </div>
+  <div style="padding:10px 14px;background:var(--bg2);border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 2fr;gap:10px">
+    <button class="big-btn bb-cancel" onclick="show('scr-customers')">CANCEL</button>
+    <button class="big-btn bb-go" onclick="saveCustomer()">✓ SAVE</button>
+  </div>
+</div>
+
+<!-- ═══ CUSTOMER DETAIL (purchase history) ═══ -->
+<div class="screen" id="scr-customer-detail">
+  <div class="topbar">
+    <button class="tb-back" onclick="show('scr-customers')">‹</button>
+    <div><div class="tb-title" id="cust-detail-name"></div><div class="tb-sub" id="cust-detail-sub"></div></div>
+  </div>
+  <div id="cust-detail-content" style="overflow-y:auto;flex:1;padding:0"></div>
+  <div class="pad-bot"></div>
+</div>
+
+<!-- ═══ MATERIALS ═══ -->
+<div class="screen" id="scr-materials">
+  <div class="topbar">
+    <button class="tb-back" onclick="show('scr-home')">‹</button>
+    <div><div class="tb-title">MATERIALS</div><div class="tb-sub">Predefined product list</div></div>
+  </div>
+  <div style="padding:10px 14px;flex-shrink:0">
+    <button onclick="openMaterialForm()" class="big-btn bb-go" style="height:46px;font-size:14px">+ ADD MATERIAL</button>
+  </div>
+  <div id="mat-list" style="overflow-y:auto;flex:1"></div>
+  <div class="pad-bot"></div>
+</div>
+
+<!-- ═══ MATERIAL FORM ═══ -->
+<div class="screen" id="scr-material-form">
+  <div class="topbar">
+    <button class="tb-back" onclick="show('scr-materials')">‹</button>
+    <div><div class="tb-title" id="mat-form-title">NEW MATERIAL</div></div>
+  </div>
+  <div class="form-body" style="padding:14px;flex:1;overflow-y:auto">
+    <div class="f-field"><label class="f-lbl">Material Name *</label><input class="f-inp" id="mat-name" type="text" placeholder="e.g. Sand, Aggregate, Murum"></div>
+    <div class="f-field"><label class="f-lbl">Default Unit *</label>
+      <select class="f-inp" id="mat-unit" style="background:var(--bg3);color:var(--white)">
+        <option value="brass">Brass</option>
+        <option value="MT">Metric Ton (MT)</option>
+        <option value="cum">Cubic Metre (cum)</option>
+        <option value="truck">Truck Load</option>
+        <option value="ton">Ton</option>
+      </select>
+    </div>
+    <div class="f-field"><label class="f-lbl">Default Rate ₹ (optional)</label><input class="f-inp" id="mat-rate" type="number" inputmode="decimal" placeholder="Leave blank if variable"></div>
+    <div class="f-field"><label class="f-lbl">Notes</label><input class="f-inp" id="mat-notes" type="text" placeholder="Optional"></div>
+  </div>
+  <div style="padding:10px 14px;background:var(--bg2);border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 2fr;gap:10px">
+    <button class="big-btn bb-cancel" onclick="show('scr-materials')">CANCEL</button>
+    <button class="big-btn bb-go" onclick="saveMaterial()">✓ SAVE</button>
+  </div>
+</div>
+
 <!-- ═══ AUDIT LOG ═══ -->
 <div class="screen" id="scr-audit-log">
   <div class="topbar">
@@ -1372,7 +1505,7 @@ window.addEventListener('beforeunload', (e) => {
     return e.returnValue;
   }
 });
-let users=ld('users'),fleet=ld('fleet'),disbs=ld('disbs'),readings=ld('readings'),purchases=ld('purchases'),pumps=ld('pumps'),pumpFills=ld('pumpFills'),sites=ld('sites'),drivers=ld('drivers'),musters=ld('musters'),checklistTemplates=ld('checklistTemplates'),checklistRecords=ld('checklistRecords');
+let users=ld('users'),fleet=ld('fleet'),disbs=ld('disbs'),readings=ld('readings'),purchases=ld('purchases'),pumps=ld('pumps'),pumpFills=ld('pumpFills'),sites=ld('sites'),drivers=ld('drivers'),musters=ld('musters'),checklistTemplates=ld('checklistTemplates'),checklistRecords=ld('checklistRecords'),trips=ld('trips'),customers=ld('customers'),materials=ld('materials');
 
 
 // Bowser stock = total purchased into bowser minus total dispensed from bowser
@@ -2315,10 +2448,11 @@ function renderHome(){
   document.getElementById('sess-who').textContent=sess.name;
   document.getElementById('sess-bdg').innerHTML=`<span class="bdg ${rBdg(sess.role)}">${rLbl(sess.role)}</span>`;
   // Show/hide bottom nav tabs based on role
-  const fleetBtn=document.getElementById('bnav-fleet');
+  const tripsBtn=document.getElementById('bnav-trips');
   const moreBtn=document.getElementById('bnav-more');
   const reportsBtn=document.getElementById('bnav-reports');
-  if(fleetBtn)fleetBtn.style.display=isDriver()?'none':'';
+  // Drivers/operators don't see trips, reports, or more
+  if(tripsBtn) tripsBtn.style.display=(isDriver()||isOperator()) ? 'none' : '';
   if(moreBtn)moreBtn.style.display=isDriver()?'none':'';
   if(reportsBtn)reportsBtn.style.display=isDriver()?'none':'';
   // Render active tab
@@ -2330,7 +2464,7 @@ let _bnavTab='home';
 function bnavTab(tab){
   _bnavTab=tab;
   // Update active state
-  ['home','ops','reports','fleet','more'].forEach(t=>{
+  ['home','ops','trips','reports','more'].forEach(t=>{
     const b=document.getElementById('bnav-'+t);
     if(b)b.classList.toggle('active',t===tab);
   });
@@ -2354,14 +2488,14 @@ function bnavRender(tab){
     dash.innerHTML='';alerts.innerHTML='';
     actions.style.display='';
     renderOpsTab(actions);
+  } else if(tab==='trips'){
+    dash.innerHTML='';alerts.innerHTML='';
+    actions.style.display='';
+    renderTripsTab(actions);
   } else if(tab==='reports'){
     dash.innerHTML='';alerts.innerHTML='';
     actions.style.display='';
     renderReportsTab(actions);
-  } else if(tab==='fleet'){
-    dash.innerHTML='';alerts.innerHTML='';
-    actions.style.display='';
-    renderFleetTab(actions);
   } else if(tab==='more'){
     dash.innerHTML='';alerts.innerHTML='';
     actions.style.display='';
@@ -2749,11 +2883,20 @@ function renderMoreTab(el){
     </div>`:''}
     ${isOwner()||isAdmin()?`
     <div class="sec-lbl" style="margin-top:4px">Administration</div>
+    <div class="act" onclick="show('scr-home');setTimeout(()=>{_bnavTab='fleet-special';renderFleetTab(document.getElementById('home-actions'));document.querySelectorAll('.bnav-btn').forEach(b=>b.classList.remove('active'));},50)">
+      <div class="act-ico">🚜</div><div class="act-txt"><div class="act-title">FLEET</div><div class="act-desc">Manage vehicles · Tank sizes · Site assignment</div></div><div class="act-arr">›</div>
+    </div>
     <div class="act" onclick="show('scr-users')">
       <div class="act-ico">👥</div><div class="act-txt"><div class="act-title">USERS</div><div class="act-desc">Add staff · Manage access · Reset PIN</div></div><div class="act-arr">›</div>
     </div>
     <div class="act" onclick="show('scr-checklists')">
       <div class="act-ico">✅</div><div class="act-txt"><div class="act-title">CHECKLISTS</div><div class="act-desc">Pre-start · Post-shift templates</div></div><div class="act-arr">›</div>
+    </div>
+    <div class="act" onclick="showCustomers()">
+      <div class="act-ico">👥</div><div class="act-txt"><div class="act-title">CUSTOMERS</div><div class="act-desc">Manage parties · Phone · Address · GST</div></div><div class="act-arr">›</div>
+    </div>
+    <div class="act" onclick="showMaterials()">
+      <div class="act-ico">📦</div><div class="act-txt"><div class="act-title">MATERIALS</div><div class="act-desc">Manage product types · Default rates</div></div><div class="act-arr">›</div>
     </div>`:''}
     <div class="sec-lbl" style="margin-top:4px">System</div>
     <div class="act" onclick="fbManualSync();flash('SYNCING...','Uploading to cloud')">
@@ -2772,6 +2915,694 @@ function renderMoreTab(el){
     <div class="pad-bot"></div>`;
 }
 
+
+// ════════════════════════════════════
+// TRIPS MODULE
+// ════════════════════════════════════
+
+// Permissions
+function canTripEnter(){ return isOwner()||isManager(); }
+function canTripView(){ return isOwner()||isAdmin()||isManager(); }
+function canTripEdit(t){
+  if(!canTripEnter()) return false;
+  if(isOwner()) return true; // owner can edit anything
+  // Manager: only same-day entries
+  return t.date===today();
+}
+
+// Default materials (initial seed)
+function _seedMaterials(){
+  if(materials.length===0){
+    materials=[
+      {id:uid(),name:'Sand',unit:'brass',rate:null,notes:'River sand'},
+      {id:uid(),name:'Aggregate / Khadi',unit:'brass',rate:null,notes:''},
+      {id:uid(),name:'Crushed Stone',unit:'brass',rate:null,notes:''},
+      {id:uid(),name:'GSB',unit:'brass',rate:null,notes:'Granular sub base'},
+      {id:uid(),name:'Murum',unit:'brass',rate:null,notes:''},
+      {id:uid(),name:'WBM Metal',unit:'brass',rate:null,notes:''},
+    ];
+    sv('materials',materials);
+  }
+}
+
+// ── TRIPS TAB (bottom nav) ──
+function renderTripsTab(el){
+  if(!canTripView()){
+    el.innerHTML='<div class="muted-txt" style="padding:40px;text-align:center">Access restricted</div>';
+    return;
+  }
+  _seedMaterials();
+  const td=today();
+  const todayTrips=trips.filter(t=>t.date===td);
+  const todayCount=todayTrips.reduce((a,t)=>a+(t.numTrips||1),0);
+  const todayRevenue=todayTrips.reduce((a,t)=>a+((t.amount||0)*(t.movementType==='external'?1:0)),0);
+  const todayIncentive=todayTrips.reduce((a,t)=>a+(t.driverIncentive||0),0);
+  const uniqueCustomers=new Set(todayTrips.filter(t=>t.customerId).map(t=>t.customerId)).size;
+  const fmtINR=n=>'₹'+Number(Math.round(n||0)).toLocaleString('en-IN');
+
+  el.innerHTML=`
+    <div class="sec-lbl">Trip Management</div>
+
+    <!-- Today summary -->
+    <div style="margin:0 14px 10px;background:linear-gradient(135deg,rgba(255,179,0,.12),rgba(255,179,0,.03));
+                border:1.5px solid var(--amber);border-radius:14px;padding:14px 16px">
+      <div style="font-family:var(--fh);font-size:11px;color:var(--amber);letter-spacing:1px;margin-bottom:8px">📅 TODAY · ${new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-family:var(--fh);font-size:22px;color:var(--white)">${todayCount}</div>
+          <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:2px">TRIPS TODAY</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-family:var(--fh);font-size:18px;color:var(--green)">${fmtINR(todayRevenue)}</div>
+          <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:2px">REVENUE</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-family:var(--fh);font-size:18px;color:var(--amber)">${fmtINR(todayIncentive)}</div>
+          <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:2px">INCENTIVE PAID</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-family:var(--fh);font-size:22px;color:var(--blue)">${uniqueCustomers}</div>
+          <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:2px">CUSTOMERS</div>
+        </div>
+      </div>
+    </div>
+
+    ${canTripEnter()?`
+    <div class="act prim" onclick="openTripEntry()">
+      <div class="act-ico">➕</div><div class="act-txt"><div class="act-title">NEW TRIP</div><div class="act-desc">Log material movement or sale</div></div><div class="act-arr">›</div>
+    </div>`:''}
+
+    <div class="act" onclick="showTripLog()">
+      <div class="act-ico">📜</div><div class="act-txt"><div class="act-title">TRIP LOG</div><div class="act-desc">View · Edit · Search all trips</div></div><div class="act-arr">›</div>
+    </div>
+
+    ${todayTrips.length?`
+    <div class="sec-lbl" style="margin-top:6px">Today's Trips</div>
+    <div style="margin:0 14px 12px">
+      ${[...todayTrips].sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,10).map(t=>_tripRowHtml(t,true)).join('')}
+      ${todayTrips.length>10?`<div style="padding:8px;text-align:center;font-size:11px;color:var(--muted);font-weight:600;cursor:pointer" onclick="showTripLog()">+ ${todayTrips.length-10} more — View all</div>`:''}
+    </div>`:''}
+
+    <div class="pad-bot"></div>`;
+}
+
+// ── Trip row helper (used in tab + log) ──
+function _tripRowHtml(t,compact){
+  const veh=gV(t.vehicleId);
+  const drv=(drivers||[]).find(d=>d.id===t.driverId);
+  const fromSite=(sites||[]).find(s=>s.id===t.fromSiteId);
+  const toSite=(sites||[]).find(s=>s.id===t.toSiteId);
+  const customer=(customers||[]).find(c=>c.id===t.customerId);
+  const material=(materials||[]).find(m=>m.id===t.materialId);
+  const fmtINR=n=>'₹'+Number(Math.round(n||0)).toLocaleString('en-IN');
+  const isExt=t.movementType==='external';
+  const movementLine=isExt
+    ? `${fromSite?.name||'?'} → 🏢 ${customer?.name||'Customer'}`
+    : `${fromSite?.name||'?'} → ${toSite?.name||'?'}`;
+  const paymentBadge=isExt?(t.paymentStatus==='paid'?`<span style="font-size:10px;color:var(--green);font-weight:700;background:rgba(0,200,83,.1);padding:2px 7px;border-radius:5px">✓ PAID</span>`:t.paymentStatus==='partial'?`<span style="font-size:10px;color:var(--amber);font-weight:700;background:rgba(255,179,0,.1);padding:2px 7px;border-radius:5px">PARTIAL</span>`:`<span style="font-size:10px;color:var(--red);font-weight:700;background:rgba(255,61,61,.1);padding:2px 7px;border-radius:5px">DUE</span>`):'';
+  return `<div onclick="openTripDetail('${t.id}')" style="background:var(--bg2);border:1px solid var(--border);border-left:3px solid ${isExt?'var(--green)':'var(--blue)'};border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <span style="font-size:10px;font-weight:700;color:${isExt?'var(--green)':'var(--blue)'};background:${isExt?'rgba(0,200,83,.1)':'rgba(41,121,255,.1)'};padding:2px 7px;border-radius:5px">${isExt?'EXTERNAL':'INTERNAL'}</span>
+      ${paymentBadge}
+      <span style="font-size:10px;color:var(--muted);font-weight:600;margin-left:auto">${t.numTrips||1} trip${(t.numTrips||1)!==1?'s':''}</span>
+    </div>
+    <div style="font-family:var(--fh);font-size:13px;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${movementLine}</div>
+    <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:3px;display:flex;justify-content:space-between;gap:8px">
+      <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">${vIco(veh?.type||'other')} ${veh?.name||'?'} · ${drv?.name||'?'}</span>
+      ${material?`<span style="color:var(--white);font-weight:700;white-space:nowrap">${material.name}${t.quantity?` ${fmt(t.quantity,1)} ${t.unit||material.unit||''}`:''}</span>`:''}
+    </div>
+    ${isExt&&t.amount?`<div style="font-family:var(--fh);font-size:14px;color:var(--green);margin-top:4px">${fmtINR(t.amount)}${t.driverIncentive?`<span style="font-size:11px;color:var(--amber);font-weight:600;margin-left:8px">+ ₹${fmt(t.driverIncentive,0)} incentive</span>`:''}</div>`:t.driverIncentive?`<div style="font-size:11px;color:var(--amber);font-weight:700;margin-top:3px">+ ₹${fmt(t.driverIncentive,0)} incentive</div>`:''}
+  </div>`;
+}
+
+// ── NEW TRIP ENTRY FORM ──
+let _tripEntryState={editId:null};
+
+function openTripEntry(editId){
+  if(!canTripEnter()){alert('Only Owner or Manager can enter trips');return;}
+  _seedMaterials();
+  _tripEntryState={editId:editId||null};
+  let editing=null;
+  if(editId){
+    editing=trips.find(t=>t.id===editId);
+    if(!editing){alert('Trip not found');return;}
+    if(!canTripEdit(editing)){alert('You can only edit same-day entries (Owner can edit anytime)');return;}
+  }
+  document.getElementById('trip-entry-title').textContent=editing?'EDIT TRIP':'NEW TRIP';
+  renderTripEntryForm(editing);
+  show('scr-trip-entry');
+}
+
+function renderTripEntryForm(editing){
+  const e=editing||{};
+  const td=today();
+  const dateVal=e.date||td;
+  const drvOpts=(drivers||[]).map(d=>`<option value="${d.id}"${d.id===e.driverId?' selected':''}>${d.name} (${d.type||'driver'})</option>`).join('');
+  const vehOpts=(fleet||[]).map(f=>`<option value="${f.id}"${f.id===e.vehicleId?' selected':''}>${f.name}</option>`).join('');
+  const siteOpts=(sites||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  const matOpts=(materials||[]).map(m=>`<option value="${m.id}"${m.id===e.materialId?' selected':''}>${m.name} (${m.unit})</option>`).join('');
+  const custOpts=(customers||[]).map(c=>`<option value="${c.id}"${c.id===e.customerId?' selected':''}>${c.name} · ${c.phone||'no phone'}</option>`).join('');
+  const movementType=e.movementType||'external';
+
+  document.getElementById('trip-entry-body').innerHTML=`
+    <div class="f-r2">
+      <div class="f-field"><label class="f-lbl">Date *</label><input class="f-inp" id="trip-date" type="date" value="${dateVal}" ${!isOwner()&&editing?'readonly':''}></div>
+      <div class="f-field"><label class="f-lbl">Slip Number</label><input class="f-inp" id="trip-slip" type="text" value="${e.slipNo||''}" placeholder="Optional"></div>
+    </div>
+
+    <div class="f-field"><label class="f-lbl">Driver *</label>
+      <select class="f-inp" id="trip-driver" style="background:var(--bg3);color:var(--white)">
+        <option value="">Select driver...</option>${drvOpts}
+      </select>
+    </div>
+
+    <div class="f-field"><label class="f-lbl">Vehicle *</label>
+      <select class="f-inp" id="trip-vehicle" style="background:var(--bg3);color:var(--white)">
+        <option value="">Select vehicle...</option>${vehOpts}
+      </select>
+    </div>
+
+    <div class="f-field"><label class="f-lbl">Movement Type</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <label style="background:${movementType==='internal'?'rgba(41,121,255,.12)':'var(--bg3)'};border:2px solid ${movementType==='internal'?'var(--blue)':'var(--border)'};border-radius:10px;padding:12px;text-align:center;cursor:pointer;font-family:var(--fh);font-size:13px;color:${movementType==='internal'?'var(--blue)':'var(--muted)'}">
+          <input type="radio" name="trip-mtype" value="internal" ${movementType==='internal'?'checked':''} onchange="renderTripEntryForm(_currentTripEdit())" style="display:none">
+          🏗 INTERNAL<br><span style="font-size:10px;font-weight:600;color:var(--muted)">Site to Site</span>
+        </label>
+        <label style="background:${movementType==='external'?'rgba(0,200,83,.12)':'var(--bg3)'};border:2px solid ${movementType==='external'?'var(--green)':'var(--border)'};border-radius:10px;padding:12px;text-align:center;cursor:pointer;font-family:var(--fh);font-size:13px;color:${movementType==='external'?'var(--green)':'var(--muted)'}">
+          <input type="radio" name="trip-mtype" value="external" ${movementType==='external'?'checked':''} onchange="renderTripEntryForm(_currentTripEdit())" style="display:none">
+          💰 EXTERNAL<br><span style="font-size:10px;font-weight:600;color:var(--muted)">Customer Sale</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="f-field"><label class="f-lbl">From Site *</label>
+      <select class="f-inp" id="trip-from-site" style="background:var(--bg3);color:var(--white)">
+        <option value="">Select source site...</option>${(sites||[]).map(s=>`<option value="${s.id}"${s.id===e.fromSiteId?' selected':''}>${s.name}</option>`).join('')}
+      </select>
+    </div>
+
+    ${movementType==='internal'?`
+    <div class="f-field"><label class="f-lbl">To Site *</label>
+      <select class="f-inp" id="trip-to-site" style="background:var(--bg3);color:var(--white)">
+        <option value="">Select destination...</option>${(sites||[]).map(s=>`<option value="${s.id}"${s.id===e.toSiteId?' selected':''}>${s.name}</option>`).join('')}
+      </select>
+    </div>`:`
+    <div class="f-field" style="background:rgba(0,200,83,.04);border:1px solid var(--green);border-radius:10px;padding:10px">
+      <label class="f-lbl" style="color:var(--green)">Customer *</label>
+      <select class="f-inp" id="trip-customer" style="background:var(--bg3);color:var(--white)" onchange="if(this.value==='__new__'){show('scr-customer-form');document.getElementById('cust-form-title').textContent='NEW CUSTOMER (then return to trip)';}">
+        <option value="">Select customer...</option>${custOpts}
+        <option value="__new__" style="color:var(--amber)">+ ADD NEW CUSTOMER</option>
+      </select>
+    </div>`}
+
+    <div class="f-field"><label class="f-lbl">Material *</label>
+      <select class="f-inp" id="trip-material" style="background:var(--bg3);color:var(--white)" onchange="onTripMaterialChange()">
+        <option value="">Select material...</option>${matOpts}
+      </select>
+    </div>
+
+    <div class="f-r2">
+      <div class="f-field"><label class="f-lbl">Quantity (per trip)</label><input class="f-inp" id="trip-qty" type="number" inputmode="decimal" value="${e.quantity||''}" placeholder="0"></div>
+      <div class="f-field"><label class="f-lbl">Unit</label><input class="f-inp" id="trip-unit" type="text" value="${e.unit||''}" placeholder="brass / MT"></div>
+    </div>
+
+    ${movementType==='external'?`
+    <div class="f-r2">
+      <div class="f-field"><label class="f-lbl">Rate ₹</label><input class="f-inp" id="trip-rate" type="number" inputmode="decimal" value="${e.rate||''}" placeholder="0" oninput="updateTripAmount()"></div>
+      <div class="f-field"><label class="f-lbl">Amount ₹ *</label><input class="f-inp" id="trip-amount" type="number" inputmode="decimal" value="${e.amount||''}" placeholder="auto-calc" style="font-family:var(--fh)"></div>
+    </div>
+
+    <div class="f-field"><label class="f-lbl">Payment Status</label>
+      <select class="f-inp" id="trip-payment" style="background:var(--bg3);color:var(--white)" onchange="onTripPaymentChange()">
+        <option value="paid"${e.paymentStatus==='paid'?' selected':''}>✅ Paid in full</option>
+        <option value="partial"${e.paymentStatus==='partial'?' selected':''}>⚠ Partial payment</option>
+        <option value="pending"${(e.paymentStatus==='pending'||!e.paymentStatus)?' selected':''}>⏳ Credit / Pending</option>
+      </select>
+    </div>
+    <div class="f-field" id="trip-paid-wrap" style="display:${e.paymentStatus==='partial'?'block':'none'}">
+      <label class="f-lbl">Amount Paid Now ₹</label><input class="f-inp" id="trip-paid" type="number" inputmode="decimal" value="${e.amountPaid||''}" placeholder="0">
+    </div>`:''}
+
+    <div class="f-r2">
+      <div class="f-field"><label class="f-lbl">Number of Trips *</label><input class="f-inp" id="trip-count" type="number" inputmode="numeric" value="${e.numTrips||1}" min="1"></div>
+      <div class="f-field"><label class="f-lbl">Driver Incentive ₹ (total)</label><input class="f-inp" id="trip-incentive" type="number" inputmode="decimal" value="${e.driverIncentive||''}" placeholder="0"></div>
+    </div>
+
+    <div class="f-field"><label class="f-lbl">Remarks</label><textarea class="f-inp" id="trip-remarks" rows="2" style="resize:vertical">${e.remarks||''}</textarea></div>
+  `;
+}
+
+function _currentTripEdit(){
+  // Read current form state to preserve user input across re-renders
+  const editing=_tripEntryState.editId?trips.find(t=>t.id===_tripEntryState.editId):null;
+  const movementType=document.querySelector('input[name="trip-mtype"]:checked')?.value||'external';
+  const live={
+    date:document.getElementById('trip-date')?.value||today(),
+    slipNo:document.getElementById('trip-slip')?.value||'',
+    driverId:document.getElementById('trip-driver')?.value||'',
+    vehicleId:document.getElementById('trip-vehicle')?.value||'',
+    fromSiteId:document.getElementById('trip-from-site')?.value||'',
+    toSiteId:document.getElementById('trip-to-site')?.value||'',
+    customerId:document.getElementById('trip-customer')?.value||'',
+    materialId:document.getElementById('trip-material')?.value||'',
+    quantity:parseFloat(document.getElementById('trip-qty')?.value)||0,
+    unit:document.getElementById('trip-unit')?.value||'',
+    rate:parseFloat(document.getElementById('trip-rate')?.value)||0,
+    amount:parseFloat(document.getElementById('trip-amount')?.value)||0,
+    amountPaid:parseFloat(document.getElementById('trip-paid')?.value)||0,
+    paymentStatus:document.getElementById('trip-payment')?.value||'pending',
+    numTrips:parseInt(document.getElementById('trip-count')?.value)||1,
+    driverIncentive:parseFloat(document.getElementById('trip-incentive')?.value)||0,
+    remarks:document.getElementById('trip-remarks')?.value||'',
+    movementType
+  };
+  return {...editing,...live};
+}
+
+function onTripMaterialChange(){
+  const matId=document.getElementById('trip-material')?.value;
+  const mat=(materials||[]).find(m=>m.id===matId);
+  if(!mat) return;
+  const unitInp=document.getElementById('trip-unit');
+  const rateInp=document.getElementById('trip-rate');
+  if(unitInp&&!unitInp.value) unitInp.value=mat.unit||'';
+  if(rateInp&&!rateInp.value&&mat.rate) {rateInp.value=mat.rate; updateTripAmount();}
+}
+
+function updateTripAmount(){
+  const qty=parseFloat(document.getElementById('trip-qty')?.value)||0;
+  const rate=parseFloat(document.getElementById('trip-rate')?.value)||0;
+  const trips=parseInt(document.getElementById('trip-count')?.value)||1;
+  const amtInp=document.getElementById('trip-amount');
+  if(amtInp&&qty>0&&rate>0){
+    amtInp.value=(qty*rate*trips).toFixed(0);
+  }
+}
+
+function onTripPaymentChange(){
+  const v=document.getElementById('trip-payment')?.value;
+  const wrap=document.getElementById('trip-paid-wrap');
+  if(wrap) wrap.style.display=v==='partial'?'block':'none';
+}
+
+async function saveTrip(){
+  const editId=_tripEntryState.editId;
+  const orig=editId?trips.find(t=>t.id===editId):null;
+  const movementType=document.querySelector('input[name="trip-mtype"]:checked')?.value||'external';
+  const date=document.getElementById('trip-date').value||today();
+  const driverId=document.getElementById('trip-driver').value;
+  const vehicleId=document.getElementById('trip-vehicle').value;
+  const fromSiteId=document.getElementById('trip-from-site').value;
+
+  // Validation
+  if(!driverId){alert('Select driver');return;}
+  if(!vehicleId){alert('Select vehicle');return;}
+  if(!fromSiteId){alert('Select from site');return;}
+
+  let toSiteId=null,customerId=null;
+  if(movementType==='internal'){
+    toSiteId=document.getElementById('trip-to-site').value;
+    if(!toSiteId){alert('Select destination site');return;}
+    if(toSiteId===fromSiteId){alert('From and To sites must be different');return;}
+  } else {
+    customerId=document.getElementById('trip-customer').value;
+    if(!customerId||customerId==='__new__'){alert('Select or add customer');return;}
+  }
+
+  const materialId=document.getElementById('trip-material').value;
+  if(!materialId){alert('Select material');return;}
+
+  const numTrips=parseInt(document.getElementById('trip-count').value)||1;
+  if(numTrips<1){alert('Number of trips must be at least 1');return;}
+
+  const trip={
+    id:editId||uid(),
+    ts:editId?orig.ts:Date.now(),
+    date,
+    slipNo:document.getElementById('trip-slip').value.trim(),
+    driverId,
+    driverName:(drivers.find(d=>d.id===driverId)||{}).name||'',
+    vehicleId,
+    movementType,
+    fromSiteId,
+    toSiteId,
+    customerId,
+    materialId,
+    materialName:(materials.find(m=>m.id===materialId)||{}).name||'',
+    quantity:parseFloat(document.getElementById('trip-qty').value)||0,
+    unit:document.getElementById('trip-unit').value.trim(),
+    rate:movementType==='external'?(parseFloat(document.getElementById('trip-rate').value)||0):0,
+    amount:movementType==='external'?(parseFloat(document.getElementById('trip-amount').value)||0):0,
+    amountPaid:movementType==='external'?(parseFloat(document.getElementById('trip-paid')?.value)||0):0,
+    paymentStatus:movementType==='external'?(document.getElementById('trip-payment')?.value||'pending'):null,
+    numTrips,
+    driverIncentive:parseFloat(document.getElementById('trip-incentive').value)||0,
+    remarks:document.getElementById('trip-remarks').value.trim(),
+    loggedBy:editId?orig.loggedBy:sess.userId,
+    loggedByName:editId?orig.loggedByName:sess.name
+  };
+
+  // External: payment defaults
+  if(movementType==='external'){
+    if(trip.paymentStatus==='paid') trip.amountPaid=trip.amount;
+    else if(trip.paymentStatus==='pending') trip.amountPaid=0;
+  }
+
+  if(editId){
+    const idx=trips.findIndex(t=>t.id===editId);
+    if(idx===-1){alert('Trip not found');return;}
+    trip.editedBy=sess.userId;
+    trip.editedByName=sess.name;
+    trip.editedAt=Date.now();
+    trips[idx]=trip;
+    flash('UPDATED','Trip updated');
+  } else {
+    trips.push(trip);
+    flash(movementType==='external'?'✅ TRIP SAVED':'✅ INTERNAL TRIP','Recorded successfully');
+  }
+  sv('trips',trips);
+  show('scr-home');
+  bnavTab('trips');
+}
+
+// ── TRIP DETAIL VIEW ──
+function openTripDetail(tripId){
+  const t=trips.find(x=>x.id===tripId);
+  if(!t){alert('Trip not found');return;}
+  if(canTripEnter()){
+    openTripEntry(tripId);
+  } else {
+    // Admin view-only: show details in alert for now (could build a detail screen later)
+    const veh=gV(t.vehicleId);
+    const drv=(drivers||[]).find(d=>d.id===t.driverId);
+    const mat=(materials||[]).find(m=>m.id===t.materialId);
+    const cust=(customers||[]).find(c=>c.id===t.customerId);
+    alert(`Trip Detail\n\nDate: ${fmtD(t.date)}\nVehicle: ${veh?.name}\nDriver: ${drv?.name}\nMaterial: ${mat?.name}\nQty: ${t.quantity} ${t.unit}\n${t.movementType==='external'?'Customer: '+cust?.name+'\nAmount: ₹'+t.amount:'Internal trip'}\nTrips: ${t.numTrips}\nIncentive: ₹${t.driverIncentive}`);
+  }
+}
+
+// ── TRIP LOG (search/edit/delete) ──
+function showTripLog(){
+  show('scr-trip-log');
+  renderTripLog();
+}
+
+function renderTripLog(){
+  const el=document.getElementById('trip-log-list');
+  if(!el) return;
+  const q=(document.getElementById('trip-log-search')?.value||'').toLowerCase().trim();
+  const filter=document.getElementById('trip-log-filter')?.value||'all';
+  const td=today();
+
+  let fromDate='2000-01-01';
+  if(filter==='today') fromDate=td;
+  else if(filter==='week'){const d=new Date();d.setDate(d.getDate()-6);fromDate=d.toISOString().slice(0,10);}
+  else if(filter==='month'){const d=new Date();fromDate=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;}
+
+  let entries=[...(trips||[])].filter(t=>t.date>=fromDate);
+  if(q){
+    entries=entries.filter(t=>{
+      const veh=gV(t.vehicleId);
+      const drv=(drivers||[]).find(d=>d.id===t.driverId);
+      const cust=(customers||[]).find(c=>c.id===t.customerId);
+      const mat=(materials||[]).find(m=>m.id===t.materialId);
+      return (veh?.name||'').toLowerCase().includes(q)||
+             (drv?.name||'').toLowerCase().includes(q)||
+             (cust?.name||'').toLowerCase().includes(q)||
+             (mat?.name||'').toLowerCase().includes(q)||
+             (t.slipNo||'').toLowerCase().includes(q);
+    });
+  }
+  entries.sort((a,b)=>(b.ts||0)-(a.ts||0)||b.date.localeCompare(a.date));
+
+  const sub=document.getElementById('trip-log-sub');
+  if(sub) sub.textContent=entries.length+' trips'+(q?` matching "${q}"`:'');
+
+  if(!entries.length){
+    el.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted);font-size:13px;font-weight:600">No trips found</div>';
+    return;
+  }
+
+  el.innerHTML=entries.map(t=>{
+    const editedBadge=t.editedByName?`<span style="font-size:10px;color:var(--blue);background:rgba(41,121,255,.1);padding:2px 6px;border-radius:5px;margin-left:6px">✏ ${t.editedByName} ${t.editedAt?new Date(t.editedAt).toLocaleDateString('en-IN'):''}</span>`:'';
+    return `<div style="margin:6px 14px 0">
+      ${_tripRowHtml(t,false)}
+      <div style="font-size:10px;color:var(--muted);font-weight:600;padding:0 4px;margin-top:-2px;margin-bottom:8px">
+        ${fmtD(t.date)} · by ${t.loggedByName||'?'} ${editedBadge}
+        ${t.slipNo?` · slip #${t.slipNo}`:''}
+      </div>
+    </div>`;
+  }).join('')+'<div class="pad-bot"></div>';
+}
+
+// ── CUSTOMERS ──
+function showCustomers(){
+  show('scr-customers');
+  renderCustomers();
+}
+
+function renderCustomers(){
+  const el=document.getElementById('cust-list');
+  if(!el) return;
+  const q=(document.getElementById('cust-search')?.value||'').toLowerCase().trim();
+  let list=[...(customers||[])];
+  if(q) list=list.filter(c=>c.name.toLowerCase().includes(q)||(c.phone||'').includes(q));
+  list.sort((a,b)=>a.name.localeCompare(b.name));
+
+  const sub=document.getElementById('cust-sub');
+  if(sub) sub.textContent=list.length+' customer'+(list.length!==1?'s':'');
+
+  if(!list.length){
+    el.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted);font-size:13px;font-weight:600">No customers yet — add your first customer</div>';
+    return;
+  }
+  const fmtINR=n=>'₹'+Number(Math.round(n||0)).toLocaleString('en-IN');
+  el.innerHTML=list.map(c=>{
+    const cTrips=(trips||[]).filter(t=>t.customerId===c.id&&t.movementType==='external');
+    const totalAmt=cTrips.reduce((a,t)=>a+(t.amount||0),0);
+    const totalPaid=cTrips.reduce((a,t)=>a+(t.amountPaid||0),0);
+    const due=totalAmt-totalPaid;
+    const lastT=cTrips.sort((a,b)=>b.date.localeCompare(a.date))[0];
+    return `<div onclick="showCustomerDetail('${c.id}')" style="margin:6px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer;${due>0?'border-left:3px solid var(--red)':''}">
+      <div style="display:flex;justify-content:space-between;align-items:start;gap:10px">
+        <div style="flex:1;min-width:0">
+          <div style="font-family:var(--fh);font-size:14px;color:var(--white)">${c.name}</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">📱 ${c.phone||'No phone'} · ${cTrips.length} trip${cTrips.length!==1?'s':''}${lastT?` · Last: ${fmtD(lastT.date)}`:''}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-family:var(--fh);font-size:13px;color:var(--white)">${fmtINR(totalAmt)}</div>
+          ${due>0?`<div style="font-size:10px;color:var(--red);font-weight:700">DUE ${fmtINR(due)}</div>`:`<div style="font-size:10px;color:var(--green);font-weight:700">✓ CLEARED</div>`}
+        </div>
+      </div>
+    </div>`;
+  }).join('')+'<div class="pad-bot"></div>';
+}
+
+let _custFormEditId=null;
+function openCustomerForm(editId){
+  _custFormEditId=editId||null;
+  const e=editId?customers.find(c=>c.id===editId):{};
+  document.getElementById('cust-form-title').textContent=editId?'EDIT CUSTOMER':'NEW CUSTOMER';
+  document.getElementById('cust-name').value=e.name||'';
+  document.getElementById('cust-phone').value=e.phone||'';
+  document.getElementById('cust-addr').value=e.address||'';
+  document.getElementById('cust-gst').value=e.gst||'';
+  document.getElementById('cust-terms').value=e.paymentTerms||'cash';
+  document.getElementById('cust-notes').value=e.notes||'';
+  show('scr-customer-form');
+}
+
+function saveCustomer(){
+  const name=document.getElementById('cust-name').value.trim();
+  const phone=document.getElementById('cust-phone').value.trim();
+  if(!name){alert('Customer name required');return;}
+  if(!phone){alert('Phone number required');return;}
+  // Check duplicate
+  const dup=(customers||[]).find(c=>c.id!==_custFormEditId&&(c.name.toLowerCase()===name.toLowerCase()||c.phone===phone));
+  if(dup){
+    if(!confirm(`A customer "${dup.name}" with same name/phone already exists. Add anyway?`)) return;
+  }
+  const data={
+    id:_custFormEditId||uid(),
+    name, phone,
+    address:document.getElementById('cust-addr').value.trim(),
+    gst:document.getElementById('cust-gst').value.trim(),
+    paymentTerms:document.getElementById('cust-terms').value,
+    notes:document.getElementById('cust-notes').value.trim(),
+    ts:_custFormEditId?customers.find(c=>c.id===_custFormEditId).ts:Date.now()
+  };
+  if(_custFormEditId){
+    const idx=customers.findIndex(c=>c.id===_custFormEditId);
+    customers[idx]=data;
+    flash('UPDATED','Customer updated');
+  } else {
+    customers.push(data);
+    flash('ADDED',`Customer "${name}" saved`);
+  }
+  sv('customers',customers);
+  _custFormEditId=null;
+  show('scr-customers');
+  renderCustomers();
+}
+
+function showCustomerDetail(custId){
+  const c=customers.find(x=>x.id===custId);
+  if(!c) return;
+  const cTrips=(trips||[]).filter(t=>t.customerId===c.id&&t.movementType==='external').sort((a,b)=>b.date.localeCompare(a.date));
+  const totalAmt=cTrips.reduce((a,t)=>a+(t.amount||0),0);
+  const totalPaid=cTrips.reduce((a,t)=>a+(t.amountPaid||0),0);
+  const due=totalAmt-totalPaid;
+  const fmtINR=n=>'₹'+Number(Math.round(n||0)).toLocaleString('en-IN');
+  document.getElementById('cust-detail-name').textContent=c.name;
+  document.getElementById('cust-detail-sub').textContent='📱 '+(c.phone||'No phone');
+
+  // Material breakdown
+  const matMap={};
+  cTrips.forEach(t=>{
+    const m=(materials||[]).find(x=>x.id===t.materialId);
+    if(!m) return;
+    if(!matMap[m.id]) matMap[m.id]={name:m.name,unit:m.unit,qty:0,amt:0,trips:0};
+    matMap[m.id].qty+=(t.quantity||0)*(t.numTrips||1);
+    matMap[m.id].amt+=(t.amount||0);
+    matMap[m.id].trips+=(t.numTrips||1);
+  });
+  const matList=Object.values(matMap).sort((a,b)=>b.amt-a.amt);
+
+  document.getElementById('cust-detail-content').innerHTML=`
+    <div style="margin:10px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-family:var(--fh);font-size:18px;color:var(--white)">${fmtINR(totalAmt)}</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:700">TOTAL BUSINESS</div>
+        </div>
+        <div style="background:${due>0?'rgba(255,61,61,.08)':'rgba(0,200,83,.08)'};border:1px solid var(${due>0?'--red':'--green'});border-radius:8px;padding:10px;text-align:center">
+          <div style="font-family:var(--fh);font-size:18px;color:var(${due>0?'--red':'--green'})">${due>0?fmtINR(due):'✓ CLEARED'}</div>
+          <div style="font-size:10px;color:var(${due>0?'--red':'--green'});font-weight:700">${due>0?'OUTSTANDING':'PAID'}</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);font-weight:600">${cTrips.length} trip${cTrips.length!==1?'s':''} · ${c.address?'📍 '+c.address:''}${c.gst?' · GST: '+c.gst:''}</div>
+      ${c.phone?`<div style="margin-top:10px;display:flex;gap:6px">
+        <a href="tel:${c.phone}" style="flex:1;background:var(--bg3);border:1px solid var(--green);color:var(--green);padding:8px;border-radius:8px;text-align:center;font-size:12px;font-weight:700;text-decoration:none">📞 CALL</a>
+        <a href="https://wa.me/91${c.phone.replace(/\D/g,'').slice(-10)}" target="_blank" style="flex:1;background:var(--bg3);border:1px solid var(--green);color:var(--green);padding:8px;border-radius:8px;text-align:center;font-size:12px;font-weight:700;text-decoration:none">💬 WHATSAPP</a>
+        <button onclick="openCustomerForm('${c.id}')" style="flex:1;background:var(--bg3);border:1px solid var(--amber);color:var(--amber);padding:8px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">✏️ EDIT</button>
+      </div>`:''}
+    </div>
+
+    ${matList.length?`
+    <div style="margin:10px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+      <div style="padding:10px 14px;background:var(--bg3);font-family:var(--fh);font-size:11px;color:var(--amber);letter-spacing:.5px">📦 MATERIALS PURCHASED</div>
+      ${matList.map(m=>`<div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-family:var(--fh);font-size:13px;color:var(--white)">${m.name}</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:600">${fmt(m.qty,1)} ${m.unit||''} · ${m.trips} trip${m.trips!==1?'s':''}</div>
+        </div>
+        <div style="font-family:var(--fh);color:var(--green)">${fmtINR(m.amt)}</div>
+      </div>`).join('')}
+    </div>`:''}
+
+    <div style="margin:10px 14px 0;font-family:var(--fh);font-size:11px;color:var(--muted);letter-spacing:.5px;padding:0 4px">📜 PURCHASE HISTORY</div>
+    ${cTrips.length?cTrips.slice(0,30).map(t=>{
+      const veh=gV(t.vehicleId);
+      const m=(materials||[]).find(x=>x.id===t.materialId);
+      const due=(t.amount||0)-(t.amountPaid||0);
+      return `<div style="margin:6px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 14px">
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:10px">
+          <div>
+            <div style="font-family:var(--fh);font-size:12px;color:var(--white)">${m?.name||'?'} · ${fmt(t.quantity,1)} ${t.unit||''} × ${t.numTrips} trips</div>
+            <div style="font-size:10px;color:var(--muted);font-weight:600">${fmtD(t.date)} · ${veh?.name||'?'}${t.slipNo?' · #'+t.slipNo:''}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-family:var(--fh);font-size:13px;color:var(--green)">${fmtINR(t.amount)}</div>
+            ${due>0?`<div style="font-size:10px;color:var(--red);font-weight:700">DUE ${fmtINR(due)}</div>`:''}
+          </div>
+        </div>
+      </div>`;
+    }).join(''):'<div class="muted-txt" style="padding:20px;text-align:center">No purchases yet</div>'}
+    <div class="pad-bot"></div>
+  `;
+  show('scr-customer-detail');
+}
+
+// ── MATERIALS ──
+function showMaterials(){
+  _seedMaterials();
+  show('scr-materials');
+  renderMaterials();
+}
+
+function renderMaterials(){
+  const el=document.getElementById('mat-list');
+  if(!el) return;
+  if(!materials.length){
+    el.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted);font-size:13px;font-weight:600">No materials — add your first</div>';
+    return;
+  }
+  const fmtINR=n=>'₹'+Number(Math.round(n||0)).toLocaleString('en-IN');
+  el.innerHTML=materials.map(m=>{
+    const cnt=(trips||[]).filter(t=>t.materialId===m.id).reduce((a,t)=>a+(t.numTrips||1),0);
+    return `<div onclick="openMaterialForm('${m.id}')" style="margin:6px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <div style="font-size:24px">📦</div>
+      <div style="flex:1">
+        <div style="font-family:var(--fh);font-size:14px;color:var(--white)">${m.name}</div>
+        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">Unit: ${m.unit}${m.rate?' · Default rate: ₹'+m.rate:''}${cnt?' · Used in '+cnt+' trips':''}</div>
+      </div>
+      <div style="color:var(--muted);font-size:18px">›</div>
+    </div>`;
+  }).join('')+'<div class="pad-bot"></div>';
+}
+
+let _matFormEditId=null;
+function openMaterialForm(editId){
+  _matFormEditId=editId||null;
+  const e=editId?materials.find(m=>m.id===editId):{};
+  document.getElementById('mat-form-title').textContent=editId?'EDIT MATERIAL':'NEW MATERIAL';
+  document.getElementById('mat-name').value=e.name||'';
+  document.getElementById('mat-unit').value=e.unit||'brass';
+  document.getElementById('mat-rate').value=e.rate||'';
+  document.getElementById('mat-notes').value=e.notes||'';
+  show('scr-material-form');
+}
+
+function saveMaterial(){
+  const name=document.getElementById('mat-name').value.trim();
+  if(!name){alert('Material name required');return;}
+  const data={
+    id:_matFormEditId||uid(),
+    name,
+    unit:document.getElementById('mat-unit').value,
+    rate:parseFloat(document.getElementById('mat-rate').value)||null,
+    notes:document.getElementById('mat-notes').value.trim()
+  };
+  if(_matFormEditId){
+    const idx=materials.findIndex(m=>m.id===_matFormEditId);
+    materials[idx]=data;
+    flash('UPDATED','Material updated');
+  } else {
+    const dup=materials.find(m=>m.name.toLowerCase()===name.toLowerCase());
+    if(dup){alert('"'+name+'" already exists');return;}
+    materials.push(data);
+    flash('ADDED','Material added');
+  }
+  sv('materials',materials);
+  _matFormEditId=null;
+  show('scr-materials');
+  renderMaterials();
+}
+
+// Helper: isOperator
+if(typeof isOperator==='undefined'){
+  window.isOperator = function(){ 
+    if(!sess) return false;
+    if(sess.role==='driver'){
+      const drv=(drivers||[]).find(d=>d.id===sess.driverId);
+      return drv?.type==='operator';
+    }
+    return false;
+  };
+}
+if(typeof isManager==='undefined'){
+  window.isManager = function(){ return sess?.role==='manager'; };
+}
 
 // ════════════════════════════════════
 // THEME (dark / light)
@@ -6981,7 +7812,7 @@ const FB_URL = 'https://fuellog-9f3c0-default-rtdb.firebaseio.com';
 const FB_KEY = 'AIzaSyB44pKu7YTc-Q_6GLC3mlaEBPJm3d3odPc';
 
 // All keys we sync to Firebase
-const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords'];
+const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords','trips','customers','materials'];
 
 let fbOnline = false;
 let fbSyncing = false;
@@ -7236,6 +8067,9 @@ async function fbInit(){
       else if(k==='musters') musters=val;
       else if(k==='checklistTemplates') checklistTemplates=val;
       else if(k==='checklistRecords') checklistRecords=val;
+      else if(k==='trips') trips=val;
+      else if(k==='customers') customers=val;
+      else if(k==='materials') materials=val;
     });
     console.log('Loaded from Firebase — disbs:',disbs.length,'fleet:',fleet.length,'users:',users.length);
   } else {
@@ -7256,6 +8090,9 @@ async function fbInit(){
         else if(k==='musters') musters=val;
         else if(k==='checklistTemplates') checklistTemplates=val;
         else if(k==='checklistRecords') checklistRecords=val;
+      else if(k==='trips') trips=val;
+      else if(k==='customers') customers=val;
+      else if(k==='materials') materials=val;
       }catch(e){}
     });
   }
@@ -7350,6 +8187,9 @@ function restoreBackup(){
             else if(k==='musters')musters=val;
             else if(k==='checklistTemplates')checklistTemplates=val;
             else if(k==='checklistRecords')checklistRecords=val;
+            else if(k==='trips')trips=val;
+            else if(k==='customers')customers=val;
+            else if(k==='materials')materials=val;
           });
           setTimeout(function(){
             flash('RESTORE DONE!','Disbs:'+disbs.length+' Fleet:'+fleet.length+' Users:'+users.length);
@@ -7403,6 +8243,9 @@ async function refreshData(){
         else if(k==='musters') musters=val;
         else if(k==='checklistTemplates') checklistTemplates=val;
         else if(k==='checklistRecords') checklistRecords=val;
+      else if(k==='trips') trips=val;
+      else if(k==='customers') customers=val;
+      else if(k==='materials') materials=val;
       });
       // Re-render current screen
       renderHome();
