@@ -1096,9 +1096,9 @@ input[type=file]{display:none}
     <!-- VIEW TABS -->
     <div style="display:flex;gap:5px;margin-top:8px;overflow-x:auto">
       <button class="rep-tab active" id="rtab-daily" onclick="repTab('daily')">📋 Daily Ops</button>
+      <button class="rep-tab" id="rtab-vehicle" onclick="repTab('vehicle')">🚚 Vehicle</button>
       <button class="rep-tab" id="rtab-financial" onclick="repTab('financial')">💰 Financial</button>
       <button class="rep-tab" id="rtab-muster" onclick="repTab('muster')">👷 Muster</button>
-      <button class="rep-tab" id="rtab-vehicle" onclick="repTab('vehicle')">🚚 Vehicle</button>
     </div>
   </div>
   <div id="rep-content"></div>
@@ -4237,7 +4237,7 @@ function repQuick(q){
 
 function repTab(t){
   repActiveTab=t;
-  ['daily','financial','muster','vehicle'].forEach(k=>{
+  ['daily','vehicle','financial','muster'].forEach(k=>{
     const b=document.getElementById('rtab-'+k);
     if(b)b.classList.toggle('active',k===t);
   });
@@ -4631,35 +4631,53 @@ function renderReports(){
     `;
   // ═══ TAB: VEHICLE REPORTS ═══
   } else if(repActiveTab==='vehicle'){
-    // Two dropdowns: report type + vehicle filter
+    // Vehicle reports: dropdown for report type + searchable picker for vehicle
     const isMachType=t=>['excavator','dozer','roller','paver','hmp','generator','tractor','other'].includes(t);
     const reportType=document.getElementById('veh-rep-type')?.value||'summary';
-    const selVehId=document.getElementById('veh-rep-veh')?.value||'all';
 
-    // Build vehicle options
-    const vehOpts=fleet.map(f=>`<option value="${f.id}">${vIco(f.type)} ${f.name}</option>`).join('');
+    // Persistent vehicle filter (search-friendly)
+    if(typeof window._vehRepSearch==='undefined') window._vehRepSearch='';
+    if(typeof window._vehRepSelId==='undefined') window._vehRepSelId='all';
+    const vehSearch=window._vehRepSearch.toLowerCase();
+    const matchedVehicles=fleet.filter(f=>!vehSearch||f.name.toLowerCase().includes(vehSearch));
 
     html=`
     <!-- Controls -->
-    <div style="margin:10px 14px 0;display:flex;gap:8px">
+    <div style="margin:10px 14px 0">
       <select id="veh-rep-type" onchange="renderReports()"
-        style="flex:1;background:var(--bg2);border:1.5px solid var(--border);color:var(--white);
-               padding:10px 12px;border-radius:10px;font-size:13px;font-family:var(--fb)">
-        <option value="summary">📋 Vehicle Fuel Summary</option>
-        <option value="efficiency">📊 Fleet Efficiency Ranking (km/L)</option>
-        <option value="consumers">🏆 Top 10 Fuel Consumers</option>
-        <option value="machine">⚙️ Machine Hours Efficiency (L/hr)</option>
-      </select>
-    </div>
-    <div style="margin:6px 14px 0">
-      <select id="veh-rep-veh" onchange="renderReports()"
         style="width:100%;background:var(--bg2);border:1.5px solid var(--border);color:var(--white);
                padding:10px 12px;border-radius:10px;font-size:13px;font-family:var(--fb)">
-        <option value="all">🚛 All Vehicles</option>
-        ${vehOpts}
+        <option value="summary"${reportType==='summary'?' selected':''}>📋 Vehicle Fuel Summary</option>
+        <option value="efficiency"${reportType==='efficiency'?' selected':''}>📊 Fleet Efficiency Ranking (km/L)</option>
+        <option value="consumers"${reportType==='consumers'?' selected':''}>🏆 Top 10 Fuel Consumers</option>
+        <option value="machine"${reportType==='machine'?' selected':''}>⚙️ Machine Hours Efficiency (L/hr)</option>
       </select>
     </div>
+    ${reportType==='summary'?`
+    <div style="margin:6px 14px 0;display:flex;gap:6px;align-items:center">
+      <input id="veh-rep-search" type="text" placeholder="🔍 Type vehicle name..." value="${window._vehRepSearch||''}"
+        oninput="window._vehRepSearch=this.value;renderReports();setTimeout(()=>{const i=document.getElementById('veh-rep-search');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}},50)"
+        style="flex:1;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);
+               padding:9px 12px;border-radius:8px;font-size:13px;font-family:var(--fb);outline:none">
+      ${window._vehRepSearch?`<button onclick="window._vehRepSearch='';window._vehRepSelId='all';renderReports()" style="background:var(--bg3);border:1px solid var(--border);color:var(--muted);padding:8px 12px;border-radius:8px;font-size:12px;cursor:pointer">✕</button>`:''}
+    </div>
+    ${vehSearch&&matchedVehicles.length>0?`
+    <div style="margin:6px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:8px;max-height:180px;overflow-y:auto">
+      ${matchedVehicles.slice(0,15).map(f=>`
+        <div onclick="window._vehRepSelId='${f.id}';window._vehRepSearch='${f.name.replace(/'/g,"\\\\'")}';renderReports()"
+          style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;${window._vehRepSelId===f.id?'background:rgba(255,179,0,.08)':''}">
+          <span>${vIco(f.type)}</span>
+          <span style="flex:1;color:var(--white);font-size:13px">${f.name}</span>
+          <span style="font-size:10px;color:var(--muted);font-weight:600">${f.siteName||'Mobile'}</span>
+        </div>`).join('')}
+      ${matchedVehicles.length>15?`<div style="padding:6px 12px;font-size:10px;color:var(--muted);text-align:center">${matchedVehicles.length-15} more — refine search</div>`:''}
+    </div>`:''}
+    ${!window._vehRepSearch?`<div style="margin:4px 14px 0;font-size:10px;color:var(--muted);font-weight:600">Showing all vehicles · Type to filter</div>`:''}
+    `:''}
     <div style="height:8px"></div>`;
+
+    // Set selVehId based on persisted state
+    const selVehId=reportType==='summary'?(window._vehRepSelId||'all'):'all';
 
     // ── Report: Vehicle Fuel Summary ──
     if(reportType==='summary'){
@@ -5486,6 +5504,144 @@ function exportRepPDF(){
       </table>
       <div class="footer">Cumulative Muster · ${repFmtRange(range)} · ${days.length} days · Chiddarwar Construction Co. Pvt. Ltd.</div>`;
     }
+  } else if(repActiveTab==='vehicle'){
+    const isMachType=t=>['excavator','dozer','roller','paver','hmp','generator','tractor','other'].includes(t);
+    const reportType=document.getElementById('veh-rep-type')?.value||'summary';
+    const selVehId=window._vehRepSelId||'all';
+
+    if(reportType==='summary'){
+      const vehicles=selVehId==='all'?fleet:fleet.filter(f=>f.id===selVehId);
+      let summaryBody='';
+      vehicles.forEach(veh=>{
+        const vDisbs=allDisbs.filter(d=>d.vehicleId===veh.id);
+        const vPF=allPF.filter(d=>d.vehicleId===veh.id);
+        const totalL=vDisbs.reduce((a,d)=>a+d.litres,0)+vPF.reduce((a,d)=>a+d.litres,0);
+        if(!totalL&&selVehId==='all') return;
+        const totalCost=totalL*fuelRate;
+        const entries=vDisbs.length+vPF.length;
+        const avgPerFill=entries?totalL/entries:0;
+        const isMach=isMachType(veh.type);
+        let effLine='';
+        if(isMach&&typeof getMachEfficiency==='function'){
+          const eff=getMachEfficiency(veh);
+          if(eff?.lph) effLine=`<tr><td><b>Fuel Efficiency</b></td><td class="right" style="color:green;font-weight:700">${fmt(eff.lph,2)} L/hr${veh.expected?` (target: ${veh.expected})`:''}</td></tr>`;
+        } else if(typeof getRoadEfficiency==='function'){
+          const eff=getRoadEfficiency(veh);
+          if(eff?.kpl) effLine=`<tr><td><b>Fuel Efficiency</b></td><td class="right" style="color:green;font-weight:700">${fmt(eff.kpl,2)} km/L${veh.expected?` (target: ${veh.expected})`:''}</td></tr>`;
+        }
+        const allEntries=[...vDisbs,...vPF].sort((a,b)=>(b.ts||0)-(a.ts||0));
+        summaryBody+=`
+        <h2>${veh.name} <span style="color:#999;font-weight:400;font-size:11px">· ${veh.siteName||'Mobile'}</span></h2>
+        <table style="margin-bottom:10px">
+          <tr><td><b>Total Consumed</b></td><td class="right" style="color:#e65100;font-weight:700">${fmt(totalL,1)} L</td></tr>
+          <tr><td><b>Total Cost</b></td><td class="right" style="font-weight:700">${fmtINR(totalCost)}</td></tr>
+          <tr><td><b>Fill-ups</b></td><td class="right">${entries}</td></tr>
+          <tr><td><b>Average per fill</b></td><td class="right">${fmt(avgPerFill,1)} L</td></tr>
+          ${effLine}
+        </table>
+        ${allEntries.length?`
+        <table>
+          <thead><tr><th>Date</th><th>Source</th><th class="right">Litres</th><th class="right">Cost</th><th>Operator</th><th>Logged By</th></tr></thead>
+          <tbody>
+            ${allEntries.map(e=>{
+              const isCan=e.source==='can'||e.destType==='can';
+              const src=e._type==='pf'?'Pump':isCan?'Can':'Bowser';
+              return`<tr>
+                <td>${fmtD(e.date)}</td>
+                <td>${src}</td>
+                <td class="right">${fmt(e.litres,1)}</td>
+                <td class="right">${fmtINR(e.litres*fuelRate)}</td>
+                <td>${e.operator||'—'}</td>
+                <td>${e.loggedByName||'—'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>`:'<div style="padding:10px;color:#999">No entries this period</div>'}`;
+      });
+      body=`${header('VEHICLE FUEL SUMMARY')}${summaryBody||'<div style="padding:40px;text-align:center;color:#999">No fuel entries in this period</div>'}<div class="footer">Vehicle Summary · ${repFmtRange(range)} · Chiddarwar Construction Co. Pvt. Ltd.</div>`;
+
+    } else if(reportType==='efficiency'){
+      const ranked=fleet.map(veh=>{
+        if(isMachType(veh.type)) return null;
+        const eff=typeof getRoadEfficiency==='function'?getRoadEfficiency(veh):null;
+        if(!eff?.kpl) return null;
+        const target=parseFloat(veh.expected)||null;
+        const pct=target?Math.round((eff.kpl/target)*100):null;
+        return{veh,kpl:eff.kpl,target,pct};
+      }).filter(Boolean).sort((a,b)=>b.kpl-a.kpl);
+      body=`${header('FLEET EFFICIENCY RANKING — km/L')}
+      ${!ranked.length?'<div style="padding:40px;text-align:center;color:#999">No efficiency data — add KM readings in Log Reading</div>':`
+      <table>
+        <thead><tr><th>#</th><th>Vehicle</th><th class="right">km/L</th><th class="right">Target</th><th class="right">vs Target</th></tr></thead>
+        <tbody>
+          ${ranked.map(({veh,kpl,target,pct},i)=>{
+            const col=pct?pct>=100?'green':pct>=85?'#e65100':'#c62828':'#999';
+            return`<tr>
+              <td>${i+1}</td>
+              <td>${veh.name}</td>
+              <td class="right" style="color:#e65100;font-weight:700">${fmt(kpl,2)}</td>
+              <td class="right">${target||'—'}</td>
+              <td class="right" style="color:${col};font-weight:700">${pct?pct+'%':'—'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`}
+      <div class="footer">Fleet Efficiency · ${repFmtRange(range)} · Chiddarwar Construction Co. Pvt. Ltd.</div>`;
+
+    } else if(reportType==='consumers'){
+      const vehMap={};
+      [...allDisbs,...allPF].forEach(d=>{
+        if(!vehMap[d.vehicleId])vehMap[d.vehicleId]={L:0,cost:0,entries:0};
+        vehMap[d.vehicleId].L+=d.litres;
+        vehMap[d.vehicleId].cost+=d.litres*fuelRate;
+        vehMap[d.vehicleId].entries++;
+      });
+      const top10=Object.entries(vehMap).map(([id,v])=>({veh:gV(id),...v})).filter(x=>x.veh).sort((a,b)=>b.L-a.L).slice(0,10);
+      body=`${header('TOP 10 FUEL CONSUMERS')}
+      <table>
+        <thead><tr><th>#</th><th>Vehicle</th><th class="right">Litres</th><th class="right">Cost</th><th class="right">Fill-ups</th></tr></thead>
+        <tbody>
+          ${top10.map(({veh,L,cost,entries},i)=>`
+            <tr>
+              <td>${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</td>
+              <td><b>${veh.name}</b></td>
+              <td class="right" style="color:#e65100;font-weight:700">${fmt(L,1)}</td>
+              <td class="right">${fmtINR(cost)}</td>
+              <td class="right">${entries}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+      <div class="footer">Top 10 Consumers · ${repFmtRange(range)} · Chiddarwar Construction Co. Pvt. Ltd.</div>`;
+
+    } else if(reportType==='machine'){
+      const machines=fleet.filter(f=>isMachType(f.type));
+      const ranked=machines.map(veh=>{
+        const eff=typeof getMachEfficiency==='function'?getMachEfficiency(veh):null;
+        if(!eff?.lph) return null;
+        const target=parseFloat(veh.expected)||null;
+        const pct=target?Math.round((target/eff.lph)*100):null;
+        return{veh,lph:eff.lph,target,pct};
+      }).filter(Boolean).sort((a,b)=>a.lph-b.lph);
+      body=`${header('MACHINE HOURS EFFICIENCY — L/hr')}
+      ${!ranked.length?'<div style="padding:40px;text-align:center;color:#999">No hours data — add hour meter readings in Log Reading</div>':`
+      <table>
+        <thead><tr><th>#</th><th>Machine</th><th class="right">L/hr</th><th class="right">Target</th><th class="right">Status</th></tr></thead>
+        <tbody>
+          ${ranked.map(({veh,lph,target,pct},i)=>{
+            const col=pct?pct>=100?'green':pct>=85?'#e65100':'#c62828':'#999';
+            const status=pct?pct>=100?'On target':pct>=85?'Slightly high':'High consumption':'—';
+            return`<tr>
+              <td>${i+1}</td>
+              <td>${veh.name}</td>
+              <td class="right" style="color:#e65100;font-weight:700">${fmt(lph,2)}</td>
+              <td class="right">${target||'—'}</td>
+              <td class="right" style="color:${col};font-weight:700">${status}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`}
+      <div class="footer">Machine Efficiency · ${repFmtRange(range)} · Chiddarwar Construction Co. Pvt. Ltd.</div>`;
+    }
   } else {
     body=`${header('REPORT')}
     <div style="padding:40px;text-align:center;color:#999">Switch to Daily Ops, Financial or Muster tab and tap 📄 to export.</div>`;
@@ -5494,11 +5650,11 @@ function exportRepPDF(){
   const printBar=`<div style="background:#111;padding:10px 20px;display:flex;gap:10px;align-items:center;border-bottom:3px solid #ffb300;position:sticky;top:0;z-index:100" class="no-print">
     <button onclick="window.close()" style="background:#333;color:#ffb300;border:none;padding:10px 18px;font-size:14px;font-weight:700;border-radius:8px;cursor:pointer">‹ BACK TO APP</button>
     <button onclick="window.print()" style="background:#ffb300;color:#111;border:none;padding:10px 18px;font-size:14px;font-weight:700;border-radius:8px;cursor:pointer">🖨 PRINT / SAVE PDF</button>
-    <span style="color:#777;font-size:13px;font-weight:700;margin-left:auto">${repActiveTab==='daily'?'📋 Daily Operations':repActiveTab==='financial'?'💰 Financial Summary':'👷 Muster Report'} · ${repFmtRange(range)}</span>
+    <span style="color:#777;font-size:13px;font-weight:700;margin-left:auto">${repActiveTab==='daily'?'📋 Daily Operations':repActiveTab==='financial'?'💰 Financial Summary':repActiveTab==='vehicle'?'🚚 Vehicle Report':'👷 Muster Report'} · ${repFmtRange(range)}</span>
   </div>`;
 
   let html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
-  <title>FuelLog ${repActiveTab==='daily'?'Daily Ops':repActiveTab==='financial'?'Financial':'Muster'} — ${repFmtRange(range)}</title>
+  <title>FuelLog ${repActiveTab==='daily'?'Daily Ops':repActiveTab==='financial'?'Financial':repActiveTab==='vehicle'?'Vehicle':'Muster'} — ${repFmtRange(range)}</title>
   <style>${CSS}.no-print{display:flex!important;}@media print{.no-print{display:none!important;}}</style>
   </head><body>${printBar}${body}</body></html>`;
 
