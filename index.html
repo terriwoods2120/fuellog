@@ -570,6 +570,9 @@ input[type=file]{display:none}
       <button onclick="refreshData()" id="refresh-btn"
         style="background:var(--bg3);border:1px solid var(--border);color:var(--amber);font-size:16px;cursor:pointer;padding:6px 10px;border-radius:8px"
         title="Refresh data from Firebase">⟳</button>
+      <button onclick="toggleTheme()" id="theme-btn"
+        style="background:var(--bg3);border:1px solid var(--border);font-size:14px;cursor:pointer;padding:6px 10px;border-radius:8px"
+        title="Toggle dark / light mode"></button>
       <button onclick="logout()" style="background:var(--bg3);border:1px solid var(--border);color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;padding:7px 12px;border-radius:8px">↩ OUT</button>
     </div>
   </div>
@@ -2305,6 +2308,7 @@ function submitDriverChecklist(){
 // ════════════════════════════════════
 function renderHome(){
   if(!sess)return;
+  applyTheme(); // ensure theme button icon is set
   // Update top bar
   document.getElementById('home-tag').textContent=
     new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})+' · Chiddarwar Construction';
@@ -2751,15 +2755,6 @@ function renderMoreTab(el){
     <div class="act" onclick="show('scr-checklists')">
       <div class="act-ico">✅</div><div class="act-txt"><div class="act-title">CHECKLISTS</div><div class="act-desc">Pre-start · Post-shift templates</div></div><div class="act-arr">›</div>
     </div>`:''}
-    <div class="sec-lbl" style="margin-top:4px">Preferences</div>
-    <div class="act" onclick="toggleTheme()">
-      <div class="act-ico" id="theme-icon">${(localStorage.getItem('fl7_theme')||'dark')==='dark'?'🌙':'☀️'}</div>
-      <div class="act-txt">
-        <div class="act-title">${(localStorage.getItem('fl7_theme')||'dark')==='dark'?'DARK MODE':'LIGHT MODE'}</div>
-        <div class="act-desc">Tap to switch to ${(localStorage.getItem('fl7_theme')||'dark')==='dark'?'light':'dark'} mode</div>
-      </div>
-      <div class="act-arr">›</div>
-    </div>
     <div class="sec-lbl" style="margin-top:4px">System</div>
     <div class="act" onclick="fbManualSync();flash('SYNCING...','Uploading to cloud')">
       <div class="act-ico">☁</div><div class="act-txt"><div class="act-title">SYNC DATA</div><div class="act-desc">Push all data to Firebase cloud</div></div>
@@ -2785,15 +2780,15 @@ function applyTheme(){
   const t=localStorage.getItem('fl7_theme')||'dark';
   if(t==='light') document.documentElement.setAttribute('data-theme','light');
   else document.documentElement.removeAttribute('data-theme');
+  // Update toggle button icon
+  const btn=document.getElementById('theme-btn');
+  if(btn) btn.textContent=t==='dark'?'☀️':'🌙';
 }
 function toggleTheme(){
   const cur=localStorage.getItem('fl7_theme')||'dark';
   const next=cur==='dark'?'light':'dark';
   localStorage.setItem('fl7_theme',next);
   applyTheme();
-  flash(next==='dark'?'🌙 DARK MODE':'☀️ LIGHT MODE','Theme updated');
-  // Re-render current tab to update theme toggle label
-  if(typeof renderHome==='function') renderHome();
 }
 applyTheme(); // run immediately
 
