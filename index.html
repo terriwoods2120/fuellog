@@ -1156,8 +1156,9 @@ input[type=file]{display:none}
         <option value="brass">Brass</option>
         <option value="MT">Metric Ton (MT)</option>
         <option value="cum">Cubic Metre (cum)</option>
+        <option value="sqft">Square Feet (sqft)</option>
+        <option value="nos">Numbers (nos)</option>
         <option value="truck">Truck Load</option>
-        <option value="ton">Ton</option>
       </select>
     </div>
     <div class="f-field"><label class="f-lbl">Default Rate ₹ (optional)</label><input class="f-inp" id="mat-rate" type="number" inputmode="decimal" placeholder="Leave blank if variable"></div>
@@ -1374,7 +1375,7 @@ input[type=file]{display:none}
 // ════════════════════════════════════
 // STORAGE
 // ════════════════════════════════════
-const SK={users:'fl7_users',fleet:'fl7_fleet',disbs:'fl7_disbs',readings:'fl7_readings',purchases:'fl7_purchases',pumps:'fl7_pumps',pumpFills:'fl7_pumpFills',sites:'fl7_sites',drivers:'fl7_drivers',musters:'fl7_musters',checklistTemplates:'fl7_clTemplates',checklistRecords:'fl7_clRecords'};
+const SK={users:'fl7_users',fleet:'fl7_fleet',disbs:'fl7_disbs',readings:'fl7_readings',purchases:'fl7_purchases',pumps:'fl7_pumps',pumpFills:'fl7_pumpFills',sites:'fl7_sites',drivers:'fl7_drivers',musters:'fl7_musters',checklistTemplates:'fl7_clTemplates',checklistRecords:'fl7_clRecords',trips:'fl7_trips',customers:'fl7_customers',materials:'fl7_materials'};
 const ld=k=>{try{return JSON.parse(localStorage.getItem(SK[k])||'[]')}catch{return[]}};
 // ═══ OFFLINE SYNC QUEUE (Item 3 + 4) ═══
 // Every save goes through a queue. Failed writes retry automatically.
@@ -2934,12 +2935,14 @@ function canTripEdit(t){
 function _seedMaterials(){
   if(materials.length===0){
     materials=[
-      {id:uid(),name:'Sand',unit:'brass',rate:null,notes:'River sand'},
+      {id:uid(),name:'Sand',unit:'brass',rate:null,notes:'River sand / wash sand'},
       {id:uid(),name:'Aggregate / Khadi',unit:'brass',rate:null,notes:''},
       {id:uid(),name:'Crushed Stone',unit:'brass',rate:null,notes:''},
       {id:uid(),name:'GSB',unit:'brass',rate:null,notes:'Granular sub base'},
       {id:uid(),name:'Murum',unit:'brass',rate:null,notes:''},
       {id:uid(),name:'WBM Metal',unit:'brass',rate:null,notes:''},
+      {id:uid(),name:'Paver Blocks',unit:'sqft',rate:null,notes:''},
+      {id:uid(),name:'RMC',unit:'cum',rate:null,notes:'Ready Mix Concrete'},
     ];
     sv('materials',materials);
   }
