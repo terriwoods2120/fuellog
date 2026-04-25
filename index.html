@@ -25,6 +25,12 @@ html,body{width:100%;height:100%;background:#111;overflow:hidden}
   --fh:'Black Han Sans',sans-serif;--fb:'Noto Sans',sans-serif;
   --sit:env(safe-area-inset-top,0px);--sib:env(safe-area-inset-bottom,0px);
 }
+[data-theme="light"]{
+  --bg:#f5f5f7;--bg2:#ffffff;--bg3:#ececef;--bg4:#dadade;
+  --border:#d4d4d8;--border2:#bfbfc6;
+  --amber:#e07b00;--green:#00a341;--red:#e02424;--blue:#1c5cd8;--purple:#7e22ce;
+  --white:#1a1a1a;--muted:#5a5a60;--muted2:#85858d;
+}
 body{font-family:var(--fb);color:var(--white);touch-action:manipulation}
 
 /* ── SCREEN SYSTEM: simple show/hide, no transforms ── */
@@ -1191,6 +1197,17 @@ input[type=file]{display:none}
       <button class="big-btn bb-cancel" onclick="closeEditModal()">CANCEL</button>
       <button class="big-btn bb-go" onclick="saveEdit()">✓ SAVE CHANGES</button>
     </div>
+  </div>
+</div>
+
+<!-- ═══ PHOTO VIEWER MODAL ═══ -->
+<div id="photo-viewer" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:9999;align-items:center;justify-content:center;flex-direction:column;padding:20px;box-sizing:border-box"
+     onclick="closePhotoViewer()">
+  <div id="photo-viewer-info" style="color:#fff;font-family:var(--fh);font-size:14px;margin-bottom:10px;text-align:center"></div>
+  <img id="photo-viewer-img" style="max-width:100%;max-height:80vh;border-radius:10px;background:#000" onclick="event.stopPropagation()">
+  <div style="margin-top:15px;display:flex;gap:10px">
+    <button onclick="downloadPhoto()" style="background:var(--amber);color:#111;border:none;padding:10px 18px;border-radius:8px;font-family:var(--fh);font-size:13px;cursor:pointer">⬇ DOWNLOAD</button>
+    <button onclick="closePhotoViewer()" style="background:var(--bg3);color:var(--white);border:1px solid var(--border);padding:10px 18px;border-radius:8px;font-family:var(--fh);font-size:13px;cursor:pointer">✕ CLOSE</button>
   </div>
 </div>
 
@@ -2610,9 +2627,11 @@ function renderFuelLog(){
     const srcLabel=e._type==='pf'?'🏪 Pump':isCan?'🪣 Can':'🛢 Bowser';
     const srcCol=e._type==='pf'?'var(--blue)':isCan?'var(--amber)':'var(--green)';
     const timeStr=e._ts?new Date(e._ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}):'';
-    const editedBadge=e.editedBy?`<span style="color:var(--blue);font-size:10px;margin-left:4px">✏ edited</span>`:'';
+    const editedBadge=e.editedBy?`<span style="color:var(--blue);font-size:10px;margin-left:4px;background:rgba(41,121,255,.15);padding:2px 6px;border-radius:5px">✏ edited by ${e.editedByName} · ${e.editedAt?new Date(e.editedAt).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''}</span>`:'';
+    const hasBefore=e._type==='disb'&&e.beforePhoto;
+    const hasAfter=e._type==='disb'&&e.afterPhoto;
     return `<div style="margin:0;border-bottom:1px solid var(--border);background:var(--bg)">
-      <div style="padding:8px 14px;background:var(--bg2);display:flex;align-items:center;gap:8px">
+      <div style="padding:8px 14px;background:var(--bg2);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span style="font-size:11px;font-weight:700;color:${srcCol}">${srcLabel}</span>
         <span style="font-size:11px;color:var(--muted);font-weight:600">${fmtD(e.date)}${timeStr?' · '+timeStr:''}</span>
         ${editedBadge}
@@ -2634,6 +2653,10 @@ function renderFuelLog(){
           <div style="font-size:11px;color:var(--muted);font-weight:600">${fmtINR(e.litres*fuelRate)}</div>
         </div>
       </div>
+      ${hasBefore||hasAfter?`<div style="padding:0 14px 8px;display:flex;gap:6px;flex-wrap:wrap">
+        ${hasBefore?`<button onclick="viewPhoto('${e.id}','disb-before')" style="background:rgba(41,121,255,.1);border:1px solid var(--blue);color:var(--blue);font-size:11px;font-weight:700;padding:5px 10px;border-radius:6px;cursor:pointer">📷 Before tape</button>`:''}
+        ${hasAfter?`<button onclick="viewPhoto('${e.id}','disb-after')" style="background:rgba(0,200,83,.1);border:1px solid var(--green);color:var(--green);font-size:11px;font-weight:700;padding:5px 10px;border-radius:6px;cursor:pointer">📷 After tape</button>`:''}
+      </div>`:''}
       <div style="padding:0 14px 10px;display:flex;gap:8px;justify-content:flex-end">
         <button onclick="openEditModal('${e._type==='pf'?'pumpFill':'disb'}','${e.id}');document.getElementById('edit-modal').dataset.returnTo='fuel-log'"
           style="background:var(--bg2);border:1.5px solid var(--amber);color:var(--amber);
@@ -2728,6 +2751,15 @@ function renderMoreTab(el){
     <div class="act" onclick="show('scr-checklists')">
       <div class="act-ico">✅</div><div class="act-txt"><div class="act-title">CHECKLISTS</div><div class="act-desc">Pre-start · Post-shift templates</div></div><div class="act-arr">›</div>
     </div>`:''}
+    <div class="sec-lbl" style="margin-top:4px">Preferences</div>
+    <div class="act" onclick="toggleTheme()">
+      <div class="act-ico" id="theme-icon">${(localStorage.getItem('fl7_theme')||'dark')==='dark'?'🌙':'☀️'}</div>
+      <div class="act-txt">
+        <div class="act-title">${(localStorage.getItem('fl7_theme')||'dark')==='dark'?'DARK MODE':'LIGHT MODE'}</div>
+        <div class="act-desc">Tap to switch to ${(localStorage.getItem('fl7_theme')||'dark')==='dark'?'light':'dark'} mode</div>
+      </div>
+      <div class="act-arr">›</div>
+    </div>
     <div class="sec-lbl" style="margin-top:4px">System</div>
     <div class="act" onclick="fbManualSync();flash('SYNCING...','Uploading to cloud')">
       <div class="act-ico">☁</div><div class="act-txt"><div class="act-title">SYNC DATA</div><div class="act-desc">Push all data to Firebase cloud</div></div>
@@ -2745,6 +2777,82 @@ function renderMoreTab(el){
     <div class="pad-bot"></div>`;
 }
 
+
+// ════════════════════════════════════
+// THEME (dark / light)
+// ════════════════════════════════════
+function applyTheme(){
+  const t=localStorage.getItem('fl7_theme')||'dark';
+  if(t==='light') document.documentElement.setAttribute('data-theme','light');
+  else document.documentElement.removeAttribute('data-theme');
+}
+function toggleTheme(){
+  const cur=localStorage.getItem('fl7_theme')||'dark';
+  const next=cur==='dark'?'light':'dark';
+  localStorage.setItem('fl7_theme',next);
+  applyTheme();
+  flash(next==='dark'?'🌙 DARK MODE':'☀️ LIGHT MODE','Theme updated');
+  // Re-render current tab to update theme toggle label
+  if(typeof renderHome==='function') renderHome();
+}
+applyTheme(); // run immediately
+
+// ════════════════════════════════════
+// PHOTO VIEWER (purchase bills, dip gauges)
+// ════════════════════════════════════
+let _photoViewerData=null;
+let _photoViewerLabel='';
+
+function viewPhoto(recordId, type){
+  let photo=null, label='';
+  if(type==='purchase'){
+    const p=purchases.find(x=>x.id===recordId);
+    if(p?.billPhoto){
+      photo=p.billPhoto;
+      label=`📷 Bill — ${p.vendor||'?'} · ${fmtD(p.date)}${p.bill?' · #'+p.bill:''}`;
+    }
+  } else if(type==='disb-before'){
+    const d=disbs.find(x=>x.id===recordId);
+    if(d?.beforePhoto){
+      photo=d.beforePhoto;
+      const veh=gV(d.vehicleId);
+      label=`📷 Before tape — ${veh?.name||'?'} · ${fmtD(d.date)}`;
+    }
+  } else if(type==='disb-after'){
+    const d=disbs.find(x=>x.id===recordId);
+    if(d?.afterPhoto){
+      photo=d.afterPhoto;
+      const veh=gV(d.vehicleId);
+      label=`📷 After tape — ${veh?.name||'?'} · ${fmtD(d.date)}`;
+    }
+  } else if(type==='reading'){
+    const r=readings.find(x=>x.id===recordId);
+    if(r?.photo){
+      photo=r.photo;
+      const veh=gV(r.vehicleId);
+      label=`📷 Reading — ${veh?.name||'?'} · ${fmtD(r.date)}`;
+    }
+  }
+  if(!photo){alert('No photo attached');return;}
+  _photoViewerData=photo;
+  _photoViewerLabel=label;
+  document.getElementById('photo-viewer-img').src=photo;
+  document.getElementById('photo-viewer-info').textContent=label;
+  document.getElementById('photo-viewer').style.display='flex';
+}
+
+function closePhotoViewer(){
+  document.getElementById('photo-viewer').style.display='none';
+  _photoViewerData=null;
+}
+
+function downloadPhoto(){
+  if(!_photoViewerData) return;
+  const a=document.createElement('a');
+  a.href=_photoViewerData;
+  a.download=`fuellog_${_photoViewerLabel.replace(/[^a-z0-9]/gi,'_')}_${Date.now()}.jpg`;
+  a.click();
+}
 
 // ════════════════════════════════════
 // AUDIT LOG
@@ -3499,8 +3607,8 @@ function renderPurchases(){
       <div class="li-ico">🏪</div>
       <div class="li-main">
         <div class="li-name">${p.vendor}</div>
-        <div class="li-det">${fmt(p.litres,1)} L · ₹${fmt(p.amount,0)} · ${p.bill||'No bill'}${p.billPhoto?' 📷':''}</div>
-        <div class="li-by">by ${p.loggedByName}${p.editedByName?' · edited by '+p.editedByName:''}</div>
+        <div class="li-det">${fmt(p.litres,1)} L · ₹${fmt(p.amount,0)} · ${p.bill||'No bill'}${p.billPhoto?` <span onclick="event.stopPropagation();viewPhoto('${p.id}','purchase')" style="cursor:pointer;color:var(--blue);font-weight:700">📷 View</span>`:''}</div>
+        <div class="li-by">by ${p.loggedByName}${p.editedByName?` · edited by ${p.editedByName}${p.editedAt?' on '+new Date(p.editedAt).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''}`:''}</div>
         <span class="bdg ${b>0?'bg-red':'bg-grn'}">${b>0?'DUE ₹'+fmt(b,0):'PAID'}</span>
       </div>
       <div class="li-right"><div class="li-val" style="font-size:14px">₹${fmt(p.paid,0)}</div><div class="li-date">${fmtD(p.date)}</div></div>
