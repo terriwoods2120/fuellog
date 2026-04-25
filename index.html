@@ -794,6 +794,7 @@ input[type=file]{display:none}
       <div class="f-field"><label class="f-lbl">Amount Paid ₹</label><input class="f-inp" id="pur-paid" placeholder="0" type="number" inputmode="decimal"></div>
     </div>
     <div class="f-field"><label class="f-lbl">Bill / Invoice No.</label><input class="f-inp" id="pur-bill" placeholder="Bill number" type="text"></div>
+    <div class="f-field"><label class="f-lbl">Purchase Date</label><input class="f-inp" id="pur-date" type="date"></div>
     <div class="f-field">
       <label class="f-lbl">📷 Bill Photo</label>
       <div class="photo-btn" id="pur-photo-btn" onclick="document.getElementById('pur-photo-inp').click()">
@@ -1097,6 +1098,7 @@ input[type=file]{display:none}
       <button class="rep-tab active" id="rtab-daily" onclick="repTab('daily')">📋 Daily Ops</button>
       <button class="rep-tab" id="rtab-financial" onclick="repTab('financial')">💰 Financial</button>
       <button class="rep-tab" id="rtab-muster" onclick="repTab('muster')">👷 Muster</button>
+      <button class="rep-tab" id="rtab-vehicle" onclick="repTab('vehicle')">🚚 Vehicle</button>
     </div>
   </div>
   <div id="rep-content"></div>
@@ -1420,7 +1422,7 @@ function onEnter(id){
   if(id==='scr-drivers')   renderDriverList();
   if(id==='scr-muster'){const el=document.getElementById('muster-date');if(el)el.textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'});renderMuster();}
   if(id==='scr-readings')  {const s=document.getElementById('readings-veh-search');if(s)s.value='';renderReadingsVehGrid();}
-  if(id==='scr-purchases') {renderPurchases();document.getElementById('pur-by').value=sess?.name||'';}
+  if(id==='scr-purchases') {renderPurchases();document.getElementById('pur-by').value=sess?.name||'';document.getElementById('pur-date').value=today();}
   if(id==='scr-reports'){renderReports();renderAuditTrail();}
   if(id==='scr-pending')   renderPendingList();
 }
@@ -2668,15 +2670,19 @@ function renderReportsTab(el){
   el.innerHTML=`
     <div class="sec-lbl">Reports & Analytics</div>
     <div class="act prim" onclick="show('scr-reports')">
-      <div class="act-ico">📊</div><div class="act-txt"><div class="act-title">OPEN REPORTS</div><div class="act-desc">Daily Ops · Financial Summary</div></div><div class="act-arr">›</div>
+      <div class="act-ico">📊</div><div class="act-txt"><div class="act-title">OPEN REPORTS</div><div class="act-desc">Daily Ops · Financial · Muster · Vehicle</div></div><div class="act-arr">›</div>
     </div>
     <div style="margin:12px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px">
       <div style="font-family:var(--fh);font-size:12px;color:var(--amber);letter-spacing:1px;margin-bottom:8px">📋 DAILY OPS</div>
-      <div style="font-size:12px;color:var(--muted);font-weight:600;line-height:1.5">Stock movement · Vehicle-wise consumption · Pending dip gauges · Meter mismatches · Alerts</div>
+      <div style="font-size:12px;color:var(--muted);font-weight:600;line-height:1.5">Stock movement · Vehicle-wise consumption · Pending dip gauges · Alerts</div>
     </div>
     <div style="margin:8px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px">
       <div style="font-family:var(--fh);font-size:12px;color:var(--blue);letter-spacing:1px;margin-bottom:8px">💰 FINANCIAL</div>
-      <div style="font-size:12px;color:var(--muted);font-weight:600;line-height:1.5">Purchased vs consumed · Pump-wise dues · Site cost allocation · Purchase-issue reconciliation · Outstanding balances</div>
+      <div style="font-size:12px;color:var(--muted);font-weight:600;line-height:1.5">Purchased vs consumed · Pump-wise dues · Site cost allocation · Reconciliation</div>
+    </div>
+    <div style="margin:8px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px">
+      <div style="font-family:var(--fh);font-size:12px;color:var(--green);letter-spacing:1px;margin-bottom:8px">🚚 VEHICLE</div>
+      <div style="font-size:12px;color:var(--muted);font-weight:600;line-height:1.5">Per-vehicle summary · Fleet km/L ranking · Top 10 consumers · Machine L/hr efficiency</div>
     </div>
     <div class="pad-bot"></div>`;
 }
@@ -3448,8 +3454,9 @@ function savePurchase(){
   const litres=parseFloat(document.getElementById('pur-litres').value)||0;
   if(!vendor){alert('Select a pump');return;}
   if(!litres){alert('Enter litres');return;}
+  const purchaseDate=document.getElementById('pur-date')?.value||today();
   purchases.push({
-    id:uid(),date:today(),ts:Date.now(),vendor,pumpId:pumpId||null,litres,
+    id:uid(),date:purchaseDate,ts:Date.now(),vendor,pumpId:pumpId||null,litres,
     rate:parseFloat(document.getElementById('pur-rate').value)||0,
     amount:parseFloat(document.getElementById('pur-amount').value)||0,
     paid:parseFloat(document.getElementById('pur-paid').value)||0,
@@ -3460,6 +3467,7 @@ function savePurchase(){
   sv('purchases',purchases);
   purPhotoData=null;
   ['pur-litres','pur-rate','pur-amount','pur-paid','pur-bill'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('pur-date').value=today(); // reset to today
   const psel=document.getElementById('pur-pump');if(psel)psel.value='';
   const pimg=document.getElementById('pur-photo-img');if(pimg){pimg.src='';pimg.classList.remove('show');}
   const plbl=document.getElementById('pur-photo-lbl');if(plbl)plbl.textContent='Tap to photograph bill';
@@ -4229,7 +4237,7 @@ function repQuick(q){
 
 function repTab(t){
   repActiveTab=t;
-  ['daily','financial','muster'].forEach(k=>{
+  ['daily','financial','muster','vehicle'].forEach(k=>{
     const b=document.getElementById('rtab-'+k);
     if(b)b.classList.toggle('active',k===t);
   });
@@ -4680,8 +4688,250 @@ function renderReports(){
       </div>`;
     }).join('')}
     `;
-  // ═══ TAB: MUSTER REPORT ═══
-  } else if(repActiveTab==='muster'){
+  // ═══ TAB: VEHICLE REPORTS ═══
+  } else if(repActiveTab==='vehicle'){
+    // Two dropdowns: report type + vehicle filter
+    const isMachType=t=>['excavator','dozer','roller','paver','hmp','generator','tractor','other'].includes(t);
+    const reportType=document.getElementById('veh-rep-type')?.value||'summary';
+    const selVehId=document.getElementById('veh-rep-veh')?.value||'all';
+
+    // Build vehicle options
+    const vehOpts=fleet.map(f=>`<option value="${f.id}">${vIco(f.type)} ${f.name}</option>`).join('');
+
+    html=`
+    <!-- Controls -->
+    <div style="margin:10px 14px 0;display:flex;gap:8px">
+      <select id="veh-rep-type" onchange="renderReports()"
+        style="flex:1;background:var(--bg2);border:1.5px solid var(--border);color:var(--white);
+               padding:10px 12px;border-radius:10px;font-size:13px;font-family:var(--fb)">
+        <option value="summary">📋 Vehicle Fuel Summary</option>
+        <option value="efficiency">📊 Fleet Efficiency Ranking (km/L)</option>
+        <option value="consumers">🏆 Top 10 Fuel Consumers</option>
+        <option value="machine">⚙️ Machine Hours Efficiency (L/hr)</option>
+      </select>
+    </div>
+    <div style="margin:6px 14px 0">
+      <select id="veh-rep-veh" onchange="renderReports()"
+        style="width:100%;background:var(--bg2);border:1.5px solid var(--border);color:var(--white);
+               padding:10px 12px;border-radius:10px;font-size:13px;font-family:var(--fb)">
+        <option value="all">🚛 All Vehicles</option>
+        ${vehOpts}
+      </select>
+    </div>
+    <div style="height:8px"></div>`;
+
+    // ── Report: Vehicle Fuel Summary ──
+    if(reportType==='summary'){
+      const vehicles=selVehId==='all'?fleet:fleet.filter(f=>f.id===selVehId);
+      vehicles.forEach(veh=>{
+        const vDisbs=allDisbs.filter(d=>d.vehicleId===veh.id);
+        const vPF=allPF.filter(d=>d.vehicleId===veh.id);
+        const totalL=vDisbs.reduce((a,d)=>a+d.litres,0)+vPF.reduce((a,d)=>a+d.litres,0);
+        if(!totalL&&selVehId==='all') return; // skip zero-consumption in all view
+        const totalCost=totalL*fuelRate;
+        const entries=vDisbs.length+vPF.length;
+        const avgPerFill=entries?totalL/entries:0;
+        const isMach=isMachType(veh.type);
+
+        // Efficiency
+        let effHtml='';
+        if(isMach){
+          const eff=getMachEfficiency?getMachEfficiency(veh):null;
+          if(eff?.lph){
+            const target=parseFloat(veh.expected)||null;
+            const col=target?(eff.lph>target*1.1?'var(--red)':'var(--green)'):'var(--white)';
+            effHtml=`<div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border)">
+              <span style="font-size:12px;color:var(--muted);font-weight:600">Fuel Efficiency</span>
+              <span style="font-family:var(--fh);color:${col}">${fmt(eff.lph,2)} L/hr${target?` · target ${target} L/hr`:''}</span>
+            </div>`;
+          }
+        } else {
+          const eff=getRoadEfficiency?getRoadEfficiency(veh):null;
+          if(eff?.kpl){
+            const target=parseFloat(veh.expected)||null;
+            const col=target?(eff.kpl<target*0.9?'var(--red)':'var(--green)'):'var(--white)';
+            effHtml=`<div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border)">
+              <span style="font-size:12px;color:var(--muted);font-weight:600">Fuel Efficiency</span>
+              <span style="font-family:var(--fh);color:${col}">${fmt(eff.kpl,2)} km/L${target?` · target ${target} km/L`:''}</span>
+            </div>`;
+          }
+        }
+
+        // Recent entries
+        const allEntries=[...vDisbs,...vPF].sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,8);
+
+        html+=`<div class="rep-card" style="margin-bottom:0">
+          <div class="rep-hd">${vIco(veh.type)} ${veh.name}
+            <span style="font-size:10px;color:var(--muted);font-weight:600;margin-left:auto">${veh.siteName||'Mobile'}</span>
+          </div>
+          <div style="padding:14px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+              <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+                <div style="font-family:var(--fh);font-size:20px;color:var(--amber)">${fmt(totalL,1)} L</div>
+                <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:2px">TOTAL CONSUMED</div>
+              </div>
+              <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+                <div style="font-family:var(--fh);font-size:20px;color:var(--white)">${fmtINR(totalCost)}</div>
+                <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:2px">TOTAL COST</div>
+              </div>
+              <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+                <div style="font-family:var(--fh);font-size:20px;color:var(--white)">${entries}</div>
+                <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:2px">FILL-UPS</div>
+              </div>
+              <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+                <div style="font-family:var(--fh);font-size:20px;color:var(--white)">${fmt(avgPerFill,1)} L</div>
+                <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:2px">AVG PER FILL</div>
+              </div>
+            </div>
+            ${effHtml}
+          </div>
+          ${allEntries.length?`
+          <div style="border-top:1px solid var(--border)">
+            <div style="padding:8px 14px;font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px;background:var(--bg3)">RECENT ENTRIES</div>
+            ${allEntries.map(e=>{
+              const isCan=e.source==='can'||e.destType==='can';
+              const src=e.source?'pumpFill'!==e._type?(isCan?'🪣':'🛢'):'🏪':'🛢';
+              return`<div style="padding:8px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+                <span style="font-size:14px">${src}</span>
+                <div style="flex:1">
+                  <div style="font-size:12px;color:var(--white);font-weight:600">${fmtD(e.date)}</div>
+                  <div style="font-size:10px;color:var(--muted);font-weight:600">${e.loggedByName||e.operator||'?'}</div>
+                </div>
+                <div style="text-align:right">
+                  <div style="font-family:var(--fh);font-size:13px;color:var(--amber)">${fmt(e.litres,1)} L</div>
+                  <div style="font-size:10px;color:var(--muted)">${fmtINR(e.litres*fuelRate)}</div>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>`:''}
+        </div>`;
+      });
+      if(!html.includes('rep-card')) html+=`<div class="muted-txt" style="padding:40px;text-align:center">No fuel entries in this period</div>`;
+
+    // ── Report: Fleet Efficiency Ranking ──
+    } else if(reportType==='efficiency'){
+      const ranked=fleet.map(veh=>{
+        if(isMachType(veh.type)) return null;
+        const eff=getRoadEfficiency?getRoadEfficiency(veh):null;
+        if(!eff?.kpl) return null;
+        const totalL=allDisbs.filter(d=>d.vehicleId===veh.id).reduce((a,d)=>a+d.litres,0);
+        const target=parseFloat(veh.expected)||null;
+        const pct=target?Math.round((eff.kpl/target)*100):null;
+        return{veh,kpl:eff.kpl,totalL,target,pct};
+      }).filter(Boolean).sort((a,b)=>b.kpl-a.kpl);
+
+      if(!ranked.length){
+        html+=`<div class="muted-txt" style="padding:40px;text-align:center">No efficiency data yet — add KM readings in Log Reading</div>`;
+      } else {
+        html+=`<div class="rep-card">
+          <div class="rep-hd">📊 FLEET EFFICIENCY RANKING — km/L</div>
+          <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:12px">
+              <thead><tr style="background:var(--bg3);color:var(--muted)">
+                <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">#</th>
+                <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">VEHICLE</th>
+                <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">km/L</th>
+                <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">TARGET</th>
+                <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">vs TARGET</th>
+              </tr></thead>
+              <tbody>
+                ${ranked.map(({veh,kpl,target,pct},i)=>{
+                  const col=pct?pct>=100?'var(--green)':pct>=85?'var(--amber)':'var(--red)':'var(--muted)';
+                  return`<tr style="border-top:1px solid var(--border)">
+                    <td style="padding:9px 10px;color:var(--muted);font-weight:700">${i+1}</td>
+                    <td style="padding:9px 10px;color:var(--white);font-weight:600">${vIco(veh.type)} ${veh.name}</td>
+                    <td style="padding:9px 10px;text-align:right;font-family:var(--fh);color:var(--amber)">${fmt(kpl,2)}</td>
+                    <td style="padding:9px 10px;text-align:right;color:var(--muted)">${target||'—'}</td>
+                    <td style="padding:9px 10px;text-align:right;font-weight:700;color:${col}">${pct?pct+'%':'—'}</td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>`;
+      }
+
+    // ── Report: Top 10 Fuel Consumers ──
+    } else if(reportType==='consumers'){
+      const vehMap={};
+      [...allDisbs,...allPF].forEach(d=>{
+        if(!vehMap[d.vehicleId])vehMap[d.vehicleId]={L:0,cost:0,entries:0};
+        vehMap[d.vehicleId].L+=d.litres;
+        vehMap[d.vehicleId].cost+=d.litres*fuelRate;
+        vehMap[d.vehicleId].entries++;
+      });
+      const top10=Object.entries(vehMap).map(([id,v])=>({veh:gV(id),...v}))
+        .filter(x=>x.veh).sort((a,b)=>b.L-a.L).slice(0,10);
+
+      html+=`<div class="rep-card">
+        <div class="rep-hd">🏆 TOP 10 FUEL CONSUMERS</div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead><tr style="background:var(--bg3);color:var(--muted)">
+              <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">#</th>
+              <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">VEHICLE</th>
+              <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">LITRES</th>
+              <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">COST</th>
+              <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">FILLS</th>
+            </tr></thead>
+            <tbody>
+              ${top10.map(({veh,L,cost,entries},i)=>`
+                <tr style="border-top:1px solid var(--border)">
+                  <td style="padding:9px 10px;font-family:var(--fh);color:${i<3?'var(--amber)':'var(--muted)'}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</td>
+                  <td style="padding:9px 10px;color:var(--white);font-weight:600">${vIco(veh.type)} ${veh.name}</td>
+                  <td style="padding:9px 10px;text-align:right;font-family:var(--fh);color:var(--amber)">${fmt(L,1)}</td>
+                  <td style="padding:9px 10px;text-align:right;font-family:var(--fh);color:var(--white)">${fmtINR(cost)}</td>
+                  <td style="padding:9px 10px;text-align:right;color:var(--muted)">${entries}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+
+    // ── Report: Machine Hours Efficiency ──
+    } else if(reportType==='machine'){
+      const machines=fleet.filter(f=>isMachType(f.type));
+      const ranked=machines.map(veh=>{
+        const eff=getMachEfficiency?getMachEfficiency(veh):null;
+        if(!eff?.lph) return null;
+        const totalL=allDisbs.filter(d=>d.vehicleId===veh.id).reduce((a,d)=>a+d.litres,0);
+        const target=parseFloat(veh.expected)||null;
+        const pct=target?Math.round((target/eff.lph)*100):null; // lower is better for L/hr
+        return{veh,lph:eff.lph,totalL,target,pct};
+      }).filter(Boolean).sort((a,b)=>a.lph-b.lph); // most efficient first
+
+      if(!ranked.length){
+        html+=`<div class="muted-txt" style="padding:40px;text-align:center">No hours data yet — add hour meter readings in Log Reading</div>`;
+      } else {
+        html+=`<div class="rep-card">
+          <div class="rep-hd">⚙️ MACHINE HOURS EFFICIENCY — L/hr</div>
+          <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:12px">
+              <thead><tr style="background:var(--bg3);color:var(--muted)">
+                <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">#</th>
+                <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">MACHINE</th>
+                <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">L/hr</th>
+                <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">TARGET</th>
+                <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">STATUS</th>
+              </tr></thead>
+              <tbody>
+                ${ranked.map(({veh,lph,target,pct},i)=>{
+                  const col=pct?pct>=100?'var(--green)':pct>=85?'var(--amber)':'var(--red)':'var(--muted)';
+                  const status=pct?pct>=100?'✅ On target':pct>=85?'⚠ Slightly high':'🔴 High consumption':'—';
+                  return`<tr style="border-top:1px solid var(--border)">
+                    <td style="padding:9px 10px;color:var(--muted);font-weight:700">${i+1}</td>
+                    <td style="padding:9px 10px;color:var(--white);font-weight:600">${vIco(veh.type)} ${veh.name}</td>
+                    <td style="padding:9px 10px;text-align:right;font-family:var(--fh);color:var(--amber)">${fmt(lph,2)}</td>
+                    <td style="padding:9px 10px;text-align:right;color:var(--muted)">${target||'—'}</td>
+                    <td style="padding:9px 10px;text-align:right;font-size:11px;font-weight:700;color:${col}">${status}</td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>`;
+      }
+    }
     const days=[];
     let d=new Date(range.from);const endD=new Date(range.to);
     while(d<=endD){days.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}
@@ -5514,9 +5764,9 @@ async function saveEditMain(){
     const idx=disbs.findIndex(d=>d.id===disbId);if(idx===-1)return;
     const orig=disbs[idx];
     const startedAt=parseInt(modal.dataset.recordEditedAt||'0');
-    // Concurrent edit check
     const proceed=await checkConcurrentEdit('disb',disbId,startedAt);
     if(!proceed){return;}
+    const newVehId=document.getElementById('ed-veh')?.value||orig.vehicleId;
     const mb=parseFloat(document.getElementById('ed-mb').value)||orig.meterBefore;
     const ma=parseFloat(document.getElementById('ed-ma').value)||orig.meterAfter;
     const L=parseFloat(document.getElementById('ed-L').value)||orig.litres;
@@ -5525,13 +5775,14 @@ async function saveEditMain(){
     const rem=document.getElementById('ed-rem').value;
     const mDiff=ma-mb;
     const changes=[];
+    if(newVehId!==orig.vehicleId){const ov=gV(orig.vehicleId);const nv=gV(newVehId);changes.push({field:'Vehicle',oldVal:ov?.name||orig.vehicleId,newVal:nv?.name||newVehId});}
     if(mb!==orig.meterBefore)changes.push({field:'Meter Before',oldVal:orig.meterBefore,newVal:mb});
     if(ma!==orig.meterAfter)changes.push({field:'Meter After',oldVal:orig.meterAfter,newVal:ma});
     if(L!==orig.litres)changes.push({field:'Litres',oldVal:orig.litres,newVal:L});
     if(dateV!==orig.date)changes.push({field:'Date',oldVal:orig.date,newVal:dateV});
     if(op!==orig.operator)changes.push({field:'Operator',oldVal:orig.operator||'',newVal:op});
     if(rem!==orig.remarks)changes.push({field:'Remarks',oldVal:orig.remarks||'',newVal:rem});
-    disbs[idx]={...orig,meterBefore:mb,meterAfter:ma,meterDiff:mDiff,litres:L,date:dateV,
+    disbs[idx]={...orig,vehicleId:newVehId,meterBefore:mb,meterAfter:ma,meterDiff:mDiff,litres:L,date:dateV,
       meterMismatch:mDiff<0||Math.abs(mDiff-L)>1,operator:op,remarks:rem,
       editedBy:sess.userId,editedByName:sess.name,editedAt:Date.now()};
     if(changes.length)saveAudit(buildAuditEntry('disb',disbId,changes));
@@ -5544,6 +5795,7 @@ async function saveEditMain(){
     const startedAt=parseInt(modal.dataset.recordEditedAt||'0');
     const proceed=await checkConcurrentEdit('pumpFill',pfId,startedAt);
     if(!proceed){return;}
+    const newVehId=document.getElementById('ed-pf-veh')?.value||orig.vehicleId;
     const L=parseFloat(document.getElementById('ed-pfL').value)||orig.litres;
     const rate=parseFloat(document.getElementById('ed-pfr').value)||orig.rate;
     const amt=parseFloat(document.getElementById('ed-pfamt').value)||orig.amount;
@@ -5553,6 +5805,7 @@ async function saveEditMain(){
     const op=document.getElementById('ed-pfop').value;
     const rem=document.getElementById('ed-pfrem').value;
     const changes=[];
+    if(newVehId!==orig.vehicleId){const ov=gV(orig.vehicleId);const nv=gV(newVehId);changes.push({field:'Vehicle',oldVal:ov?.name||orig.vehicleId,newVal:nv?.name||newVehId});}
     if(L!==orig.litres)changes.push({field:'Litres',oldVal:orig.litres,newVal:L});
     if(rate!==orig.rate)changes.push({field:'Rate',oldVal:orig.rate,newVal:rate});
     if(amt!==orig.amount)changes.push({field:'Amount',oldVal:orig.amount,newVal:amt});
@@ -5561,7 +5814,7 @@ async function saveEditMain(){
     if(dateV!==orig.date)changes.push({field:'Date',oldVal:orig.date,newVal:dateV});
     if(op!==orig.operator)changes.push({field:'Operator',oldVal:orig.operator||'',newVal:op});
     if(rem!==orig.remarks)changes.push({field:'Remarks',oldVal:orig.remarks||'',newVal:rem});
-    pumpFills[idx]={...orig,litres:L,rate,amount:amt,paid,bill,date:dateV,operator:op,remarks:rem,
+    pumpFills[idx]={...orig,vehicleId:newVehId,litres:L,rate,amount:amt,paid,bill,date:dateV,operator:op,remarks:rem,
       editedBy:sess.userId,editedByName:sess.name,editedAt:Date.now()};
     if(changes.length)saveAudit(buildAuditEntry('pumpFill',pfId,changes));
     sv('pumpFills',pumpFills);flash('UPDATED!','Pump fill updated');closeEditModal();
@@ -7167,9 +7420,14 @@ function openEditModal(type,id){
     const d=disbs.find(x=>x.id===id);if(!d)return;
     if(!canEditEntry(d)){alert('You can only edit your own same-day entries');return;}
     const veh=gV(d.vehicleId);
+    const vehOptions=fleet.map(f=>`<option value="${f.id}"${f.id===d.vehicleId?' selected':''}>${f.name}</option>`).join('');
     document.getElementById('edit-modal-title').textContent='EDIT DISBURSEMENT';
     body.innerHTML=`
-      <div class="f-field"><label class="f-lbl">Vehicle</label><input class="f-inp ro" value="${veh?.name||'—'}" readonly></div>
+      <div class="f-field"><label class="f-lbl">Vehicle</label>
+        <select class="f-inp" id="ed-veh" style="color:var(--white);background:var(--bg3)">
+          ${vehOptions}
+        </select>
+      </div>
       <div class="f-r2">
         <div class="f-field"><label class="f-lbl">Meter Before (L)</label><input class="f-inp" id="ed-mb" value="${d.meterBefore||''}" type="number" inputmode="decimal"></div>
         <div class="f-field"><label class="f-lbl">Meter After (L)</label><input class="f-inp" id="ed-ma" value="${d.meterAfter||''}" type="number" inputmode="decimal"></div>
@@ -7183,9 +7441,14 @@ function openEditModal(type,id){
     const p=(pumpFills||[]).find(x=>x.id===id);if(!p)return;
     if(!canEditEntry(p)){alert('You can only edit your own same-day entries');return;}
     const veh=gV(p.vehicleId);
+    const vehOptions=fleet.map(f=>`<option value="${f.id}"${f.id===p.vehicleId?' selected':''}>${f.name}</option>`).join('');
     document.getElementById('edit-modal-title').textContent='EDIT PUMP FILL';
     body.innerHTML=`
-      <div class="f-field"><label class="f-lbl">Vehicle</label><input class="f-inp ro" value="${veh?.name||'—'}" readonly></div>
+      <div class="f-field"><label class="f-lbl">Vehicle</label>
+        <select class="f-inp" id="ed-pf-veh" style="color:var(--white);background:var(--bg3)">
+          ${vehOptions}
+        </select>
+      </div>
       <div class="f-r2">
         <div class="f-field"><label class="f-lbl">Litres</label><input class="f-inp" id="ed-pfL" value="${p.litres||''}" type="number" inputmode="decimal"></div>
         <div class="f-field"><label class="f-lbl">Rate ₹/L</label><input class="f-inp" id="ed-pfr" value="${p.rate||''}" type="number" inputmode="decimal"></div>
