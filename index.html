@@ -4629,65 +4629,6 @@ function renderReports(){
       }).join('')}
     </div>`:''}
     `;
-
-  // ═══ TAB 3: FUEL LOG (viewable + editable) ═══
-  } else if(repActiveTab==='log'){
-    // Fuel Log shows ALL entries regardless of date filter
-    // Owner needs to see everything to find and edit/delete
-    const logDisbs=[...disbs].sort((a,b)=>b.ts-a.ts);
-    const logPF=[...(pumpFills||[])].sort((a,b)=>b.ts-a.ts);
-    const entries=[];
-    logDisbs.forEach(d=>{
-      entries.push({...d,_type:'disb',_ts:d.ts||new Date(d.date).getTime()});
-    });
-    logPF.forEach(p=>{
-      entries.push({...p,_type:'pf',_ts:p.ts||new Date(p.date).getTime()});
-    });
-    entries.sort((a,b)=>b._ts-a._ts);
-
-    html=`
-    <div style="margin:10px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center">
-      <div>
-        <div style="font-family:var(--fh);font-size:14px;color:var(--white)">FUEL LOG</div>
-        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">${entries.length} total entries · most recent first</div>
-      </div>
-      ${isOwner()?`<div style="font-size:10px;color:var(--amber);font-weight:700;text-align:right">OWNER<br>CAN EDIT</div>`:''}
-    </div>
-
-    ${!entries.length?`<div class="muted-txt" style="padding:40px;text-align:center">No entries in this period</div>`:entries.map(e=>{
-      const veh=gV(e.vehicleId);
-      const isCan=e.source==='can'||e.destType==='can';
-      const srcLabel=e._type==='pf'?'🏪 Pump':isCan?'🪣 Can':'🛢 Bowser';
-      const srcCol=e._type==='pf'?'var(--blue)':isCan?'var(--amber)':'var(--green)';
-      return `<div style="margin:8px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden">
-        <div style="padding:10px 14px;background:var(--bg3);display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)">
-          <span style="font-size:11px;font-weight:700;color:${srcCol};letter-spacing:.5px">${srcLabel}</span>
-          <span style="font-size:11px;color:var(--muted);font-weight:600;margin-left:auto">${fmtD(e.date)} · ${e._ts?new Date(e._ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}):''}</span>
-        </div>
-        <div style="padding:10px 14px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-            <div style="flex:1;min-width:0">
-              <div style="font-family:var(--fh);font-size:14px;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${vIco(veh?.type||'other')} ${veh?.name||'—'}</div>
-              <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">
-                ${e.operator?'Operator: '+e.operator+' · ':''}By ${e.loggedByName||'—'}
-                ${e.meterMismatch?' · <span style="color:var(--red)">⚠ mismatch</span>':''}
-                ${e.dipStatus==='pending'?' · <span style="color:var(--red)">⏳ dip pending</span>':''}
-              </div>
-            </div>
-            <div style="text-align:right">
-              <div style="font-family:var(--fh);font-size:16px;color:var(--amber)">${fmt(e.litres,1)} L</div>
-              <div style="font-family:var(--fh);font-size:12px;color:var(--muted)">${fmtINR(e.litres*fuelRate)}</div>
-            </div>
-          </div>
-          ${e.remarks?`<div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:4px;padding:6px 8px;background:var(--bg3);border-radius:6px">📝 ${e.remarks}</div>`:''}
-          ${isOwner()?`<div style="margin-top:10px;display:flex;gap:6px;justify-content:flex-end">
-            <button onclick="openEditModal('${e._type==='pf'?'pumpFill':'disb'}','${e.id}')" style="background:var(--bg3);border:1px solid var(--border);color:var(--amber);font-size:12px;font-weight:700;padding:6px 12px;border-radius:8px;cursor:pointer">✏️ EDIT</button>
-            <button onclick="deleteEntry('${e._type==='pf'?'pumpFill':'disb'}','${e.id}')" style="background:var(--bg3);border:1px solid var(--border);color:var(--red);font-size:12px;font-weight:700;padding:6px 12px;border-radius:8px;cursor:pointer">🗑 DELETE</button>
-          </div>`:''}
-        </div>
-      </div>`;
-    }).join('')}
-    `;
   // ═══ TAB: VEHICLE REPORTS ═══
   } else if(repActiveTab==='vehicle'){
     // Two dropdowns: report type + vehicle filter
@@ -4932,6 +4873,8 @@ function renderReports(){
         </div>`;
       }
     }
+  // ═══ TAB: MUSTER REPORT ═══
+  } else if(repActiveTab==='muster'){
     const days=[];
     let d=new Date(range.from);const endD=new Date(range.to);
     while(d<=endD){days.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}
@@ -5108,6 +5051,7 @@ function renderReports(){
       </div>`;
     }
   }
+
 
   el.innerHTML=html+'<div class="pad-bot"></div>';
 }
