@@ -1241,6 +1241,7 @@ input[type=file]{display:none}
       <button class="rep-tab active" id="rtab-daily" onclick="repTab('daily')">📋 Daily Ops</button>
       <button class="rep-tab" id="rtab-vehicle" onclick="repTab('vehicle')">🚚 Vehicle</button>
       <button class="rep-tab" id="rtab-financial" onclick="repTab('financial')">💰 Financial</button>
+      <button class="rep-tab" id="rtab-trips" onclick="repTab('trips')">📦 Trips</button>
       <button class="rep-tab" id="rtab-muster" onclick="repTab('muster')">👷 Muster</button>
     </div>
   </div>
@@ -1577,7 +1578,15 @@ function onEnter(id){
   if(id==='scr-muster'){const el=document.getElementById('muster-date');if(el)el.textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'});renderMuster();}
   if(id==='scr-readings')  {const s=document.getElementById('readings-veh-search');if(s)s.value='';renderReadingsVehGrid();}
   if(id==='scr-purchases') {renderPurchases();document.getElementById('pur-by').value=sess?.name||'';document.getElementById('pur-date').value=today();}
-  if(id==='scr-reports'){renderReports();renderAuditTrail();}
+  if(id==='scr-reports'){
+    // Set date fields to today if blank
+    const rf=document.getElementById('rep-from');
+    const rt=document.getElementById('rep-to');
+    const td2=today();
+    if(rf&&!rf.value) rf.value=td2;
+    if(rt&&!rt.value) rt.value=td2;
+    renderReports();renderAuditTrail();
+  }
   if(id==='scr-pending')   renderPendingList();
 }
 
@@ -2832,19 +2841,23 @@ function renderReportsTab(el){
   el.innerHTML=`
     <div class="sec-lbl">Reports & Analytics</div>
     <div class="act prim" onclick="show('scr-reports')">
-      <div class="act-ico">📊</div><div class="act-txt"><div class="act-title">OPEN REPORTS</div><div class="act-desc">Daily Ops · Financial · Muster · Vehicle</div></div><div class="act-arr">›</div>
+      <div class="act-ico">📊</div><div class="act-txt"><div class="act-title">OPEN REPORTS</div><div class="act-desc">Daily Ops · Vehicle · Financial · Trips · Muster</div></div><div class="act-arr">›</div>
     </div>
     <div style="margin:12px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px">
       <div style="font-family:var(--fh);font-size:12px;color:var(--amber);letter-spacing:1px;margin-bottom:8px">📋 DAILY OPS</div>
       <div style="font-size:12px;color:var(--muted);font-weight:600;line-height:1.5">Stock movement · Vehicle-wise consumption · Pending dip gauges · Alerts</div>
     </div>
     <div style="margin:8px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px">
+      <div style="font-family:var(--fh);font-size:12px;color:var(--green);letter-spacing:1px;margin-bottom:8px">🚚 VEHICLE</div>
+      <div style="font-size:12px;color:var(--muted);font-weight:600;line-height:1.5">Per-vehicle summary · Fleet km/L ranking · Top 10 consumers · Machine L/hr efficiency</div>
+    </div>
+    <div style="margin:8px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px">
       <div style="font-family:var(--fh);font-size:12px;color:var(--blue);letter-spacing:1px;margin-bottom:8px">💰 FINANCIAL</div>
       <div style="font-size:12px;color:var(--muted);font-weight:600;line-height:1.5">Purchased vs consumed · Pump-wise dues · Site cost allocation · Reconciliation</div>
     </div>
     <div style="margin:8px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px">
-      <div style="font-family:var(--fh);font-size:12px;color:var(--green);letter-spacing:1px;margin-bottom:8px">🚚 VEHICLE</div>
-      <div style="font-size:12px;color:var(--muted);font-weight:600;line-height:1.5">Per-vehicle summary · Fleet km/L ranking · Top 10 consumers · Machine L/hr efficiency</div>
+      <div style="font-family:var(--fh);font-size:12px;color:var(--purple);letter-spacing:1px;margin-bottom:8px">📦 TRIPS</div>
+      <div style="font-size:12px;color:var(--muted);font-weight:600;line-height:1.5">Trip register · Customer revenue & dues · Material analytics · Driver incentives · Site dispatch · Outstanding</div>
     </div>
     <div class="pad-bot"></div>`;
 }
@@ -3305,6 +3318,32 @@ function openTripDetail(tripId){
 }
 
 // ── TRIP LOG (search/edit/delete) ──
+// Mark trip as paid / partial payment
+function markTripPaid(tripId){
+  const t=trips.find(x=>x.id===tripId);
+  if(!t){alert('Trip not found');return;}
+  if(!canTripEnter()){alert('Not authorized');return;}
+  const due=(t.amount||0)-(t.amountPaid||0);
+  if(due<=0){alert('Already paid');return;}
+  const ans=prompt(`Customer: ${(customers.find(c=>c.id===t.customerId)||{}).name||'?'}\nDue: ₹${fmt(due,0)}\n\nAmount received now ₹:`,due.toFixed(0));
+  if(ans===null) return;
+  const amt=parseFloat(ans);
+  if(isNaN(amt)||amt<=0){alert('Invalid amount');return;}
+  if(amt>due){
+    if(!confirm(`Amount ₹${fmt(amt,0)} exceeds due ₹${fmt(due,0)}. Continue?`)) return;
+  }
+  t.amountPaid=(t.amountPaid||0)+amt;
+  if(t.amountPaid>=t.amount) t.paymentStatus='paid';
+  else if(t.amountPaid>0) t.paymentStatus='partial';
+  t.editedBy=sess.userId;
+  t.editedByName=sess.name;
+  t.editedAt=Date.now();
+  sv('trips',trips);
+  flash('✅ PAYMENT RECORDED','₹'+fmt(amt,0)+' marked paid');
+  if(typeof renderReports==='function') renderReports();
+  if(typeof renderCustomers==='function' && document.getElementById('cust-list')) renderCustomers();
+}
+
 function showTripLog(){
   show('scr-trip-log');
   renderTripLog();
@@ -5174,7 +5213,7 @@ function repQuick(q){
 
 function repTab(t){
   repActiveTab=t;
-  ['daily','vehicle','financial','muster'].forEach(k=>{
+  ['daily','vehicle','financial','trips','muster'].forEach(k=>{
     const b=document.getElementById('rtab-'+k);
     if(b)b.classList.toggle('active',k===t);
   });
@@ -5835,7 +5874,11 @@ function renderReports(){
     while(d<=endD){days.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}
     const isMultiDay=days.length>1;
 
-    // Build vehRows with driver type
+    // Vehicle types that need a DRIVER (mobile road vehicles)
+    const isDriverVehicle = vt => ['tipper','truck','dumper','car','tanker','tractor'].includes(vt);
+    // Everything else (excavator, roller, backhoe, loader, paver, HMP, dozer, generator, crane, other) needs an OPERATOR
+
+    // Build vehRows — classify role by VEHICLE type, not person type
     const vehRows=fleet.map(v=>{
       let presentDays=0,absentDays=0,unmarkedDays=0;
       days.forEach(dt=>{
@@ -5847,13 +5890,14 @@ function renderReports(){
       const latestM=[...(musters||[])].filter(x=>x.vehicleId===v.id&&days.includes(x.date)).sort((a,b)=>b.date.localeCompare(a.date))[0];
       const drvId=latestM?.driverId||v.driverId;
       const drv=(drivers||[]).find(d=>d.id===drvId);
-      const drvType=drv?.type||'driver'; // 'driver'|'operator'|'both'
-      return{v,presentDays,absentDays,unmarkedDays,drvName:drv?.name||v.driverName||'—',drvType};
+      // ROLE comes from the vehicle, not the person — fixes double-count of 'both' type
+      const role=isDriverVehicle(v.type)?'driver':'operator';
+      return{v,presentDays,absentDays,unmarkedDays,drvName:drv?.name||v.driverName||'—',role,personType:drv?.type||'driver'};
     });
 
-    // Helper labels/colors
-    const typeLbl=t=>t==='operator'?'OPERATOR':t==='both'?'DRV+OP':'DRIVER';
-    const typeCol=t=>t==='operator'?'var(--blue)':t==='both'?'var(--purple)':'var(--green)';
+    // Helper labels/colors — based on role (vehicle-derived)
+    const typeLbl=r=>r==='operator'?'OPERATOR':'DRIVER';
+    const typeCol=r=>r==='operator'?'var(--blue)':'var(--green)';
 
     if(!isMultiDay){
       const td=range.from;
@@ -5863,8 +5907,8 @@ function renderReports(){
       const unmarked=vehRows.filter(({v})=>!getMuster(v.id));
 
       // Driver vs Operator counts from present list
-      const driversPresent=present.filter(x=>x.drvType==='driver'||x.drvType==='both').length;
-      const opsPresent=present.filter(x=>x.drvType==='operator'||x.drvType==='both').length;
+      const driversPresent=present.filter(x=>x.role==='driver').length;
+      const opsPresent=present.filter(x=>x.role==='operator').length;
 
       html=`
       <!-- Top counts -->
@@ -5903,7 +5947,7 @@ function renderReports(){
 
       ${present.length?`<div class="rep-card" style="margin-top:10px">
         <div class="rep-hd" style="color:var(--green)">✅ PRESENT (${present.length})</div>
-        ${present.map(({v,drvName,drvType})=>{
+        ${present.map(({v,drvName,role})=>{
           const m=getMuster(v.id);
           return`<div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px">
             <span style="font-size:18px">${vIco(v.type)}</span>
@@ -5915,7 +5959,7 @@ function renderReports(){
               </div>
             </div>
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-              <span style="font-size:10px;font-weight:700;color:${typeCol(drvType)};background:${typeCol(drvType)}18;padding:3px 8px;border-radius:6px">${typeLbl(drvType)}</span>
+              <span style="font-size:10px;font-weight:700;color:${typeCol(role)};background:${typeCol(role)}18;padding:3px 8px;border-radius:6px">${typeLbl(role)}</span>
               ${m?.swap?`<span style="font-size:10px;color:var(--blue);font-weight:700">SWAP</span>`:''}
             </div>
           </div>`;
@@ -5924,27 +5968,27 @@ function renderReports(){
 
       ${absent.length?`<div class="rep-card">
         <div class="rep-hd" style="color:var(--red)">❌ ABSENT (${absent.length})</div>
-        ${absent.map(({v,drvName,drvType})=>`
+        ${absent.map(({v,drvName,role})=>`
           <div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px">
             <span style="font-size:18px">${vIco(v.type)}</span>
             <div style="flex:1">
               <div style="font-family:var(--fh);font-size:13px;color:var(--white)">${v.name}</div>
               <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">👤 ${drvName}</div>
             </div>
-            <span style="font-size:10px;font-weight:700;color:${typeCol(drvType)};background:${typeCol(drvType)}18;padding:3px 8px;border-radius:6px">${typeLbl(drvType)}</span>
+            <span style="font-size:10px;font-weight:700;color:${typeCol(role)};background:${typeCol(role)}18;padding:3px 8px;border-radius:6px">${typeLbl(role)}</span>
           </div>`).join('')}
       </div>`:''}
 
       ${unmarked.length?`<div class="rep-card">
         <div class="rep-hd">— UNMARKED (${unmarked.length})</div>
-        ${unmarked.map(({v,drvName,drvType})=>`
+        ${unmarked.map(({v,drvName,role})=>`
           <div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px">
             <span style="font-size:18px">${vIco(v.type)}</span>
             <div style="flex:1">
               <div style="font-family:var(--fh);font-size:13px;color:var(--muted)">${v.name}</div>
               <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">👤 ${drvName}</div>
             </div>
-            <span style="font-size:10px;font-weight:700;color:var(--muted);padding:3px 8px;border-radius:6px;border:1px solid var(--border)">${typeLbl(drvType)}</span>
+            <span style="font-size:10px;font-weight:700;color:var(--muted);padding:3px 8px;border-radius:6px;border:1px solid var(--border)">${typeLbl(role)}</span>
           </div>`).join('')}
       </div>`:''}`;
 
@@ -5962,13 +6006,13 @@ function renderReports(){
       <div style="margin:8px 14px 0;display:flex;gap:8px">
         <div style="flex:1;background:rgba(0,200,83,.08);border:1.5px solid var(--green);border-radius:10px;padding:10px 14px">
           <div style="font-size:10px;color:var(--green);font-weight:700;letter-spacing:.5px;margin-bottom:4px">👨‍✈️ DRIVERS</div>
-          <div style="font-family:var(--fh);font-size:16px;color:var(--green)">${vehRows.filter(x=>x.drvType==='driver'||x.drvType==='both').reduce((a,x)=>a+x.presentDays,0)} days present</div>
-          <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:2px">${vehRows.filter(x=>x.drvType==='driver'||x.drvType==='both').length} drivers in fleet</div>
+          <div style="font-family:var(--fh);font-size:16px;color:var(--green)">${vehRows.filter(x=>x.role==='driver').reduce((a,x)=>a+x.presentDays,0)} days present</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:2px">${vehRows.filter(x=>x.role==='driver').length} drivers in fleet</div>
         </div>
         <div style="flex:1;background:rgba(41,121,255,.08);border:1.5px solid var(--blue);border-radius:10px;padding:10px 14px">
           <div style="font-size:10px;color:var(--blue);font-weight:700;letter-spacing:.5px;margin-bottom:4px">⚙️ OPERATORS</div>
-          <div style="font-family:var(--fh);font-size:16px;color:var(--blue)">${vehRows.filter(x=>x.drvType==='operator'||x.drvType==='both').reduce((a,x)=>a+x.presentDays,0)} days present</div>
-          <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:2px">${vehRows.filter(x=>x.drvType==='operator'||x.drvType==='both').length} operators in fleet</div>
+          <div style="font-family:var(--fh);font-size:16px;color:var(--blue)">${vehRows.filter(x=>x.role==='operator').reduce((a,x)=>a+x.presentDays,0)} days present</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:2px">${vehRows.filter(x=>x.role==='operator').length} operators in fleet</div>
         </div>
       </div>
 
@@ -5986,14 +6030,14 @@ function renderReports(){
               </tr>
             </thead>
             <tbody>
-              ${vehRows.filter(x=>x.presentDays>0||x.absentDays>0).sort((a,b)=>b.presentDays-a.presentDays).map(({v,presentDays,absentDays,unmarkedDays,drvName,drvType})=>{
+              ${vehRows.filter(x=>x.presentDays>0||x.absentDays>0).sort((a,b)=>b.presentDays-a.presentDays).map(({v,presentDays,absentDays,unmarkedDays,drvName,role})=>{
                 const pct=days.length>0?Math.round(presentDays/days.length*100):0;
                 const col=pct>=80?'var(--green)':pct>=50?'var(--amber)':'var(--red)';
                 return`<tr style="border-top:1px solid var(--border)">
                   <td style="padding:9px 10px;color:var(--white);font-weight:600">${vIco(v.type)} ${v.name}</td>
                   <td style="padding:9px 10px;color:var(--muted);font-size:11px">${drvName}</td>
                   <td style="padding:9px 6px;text-align:center">
-                    <span style="font-size:10px;font-weight:700;color:${typeCol(drvType)}">${typeLbl(drvType)}</span>
+                    <span style="font-size:10px;font-weight:700;color:${typeCol(role)}">${typeLbl(role)}</span>
                   </td>
                   <td style="padding:9px 6px;text-align:center;color:var(--green);font-weight:700">${presentDays}</td>
                   <td style="padding:9px 6px;text-align:center;color:var(--red);font-weight:700">${absentDays||'—'}</td>
@@ -6005,6 +6049,459 @@ function renderReports(){
         </div>
       </div>`;
     }
+  // ═══ TAB: TRIPS ═══
+  } else if(repActiveTab==='trips'){
+    if(typeof window._tripRepType==='undefined') window._tripRepType='register';
+    if(typeof window._tripRepDriver==='undefined') window._tripRepDriver='all';
+    if(typeof window._tripRepCustomer==='undefined') window._tripRepCustomer='all';
+    if(typeof window._tripRepMaterial==='undefined') window._tripRepMaterial='all';
+    if(typeof window._tripRepDrillId==='undefined') window._tripRepDrillId=null;
+
+    const allTrips=(trips||[]).filter(t=>t.date>=range.from&&t.date<=range.to);
+    const reportType=window._tripRepType;
+    const drvOpts=`<option value="all">All Drivers</option>`+(drivers||[]).map(d=>`<option value="${d.id}"${d.id===window._tripRepDriver?' selected':''}>${d.name}</option>`).join('');
+    const custOpts=`<option value="all">All Customers</option>`+(customers||[]).map(c=>`<option value="${c.id}"${c.id===window._tripRepCustomer?' selected':''}>${c.name}</option>`).join('');
+    const matOpts=`<option value="all">All Materials</option>`+(materials||[]).map(m=>`<option value="${m.id}"${m.id===window._tripRepMaterial?' selected':''}>${m.name}</option>`).join('');
+
+    html=`
+    <!-- Report selector -->
+    <div style="margin:10px 14px 0">
+      <select id="trip-rep-type" onchange="window._tripRepType=this.value;window._tripRepDrillId=null;renderReports()"
+        style="width:100%;background:var(--bg2);border:1.5px solid var(--border);color:var(--white);
+               padding:10px 12px;border-radius:10px;font-size:13px;font-family:var(--fb)">
+        <option value="register"${reportType==='register'?' selected':''}>📋 Trip Register</option>
+        <option value="customers"${reportType==='customers'?' selected':''}>👥 Customer-wise Summary</option>
+        <option value="materials"${reportType==='materials'?' selected':''}>📦 Material-wise Summary</option>
+        <option value="incentives"${reportType==='incentives'?' selected':''}>💰 Driver Incentive Register</option>
+        <option value="dispatch"${reportType==='dispatch'?' selected':''}>🏗 Site Dispatch Log</option>
+        <option value="dues"${reportType==='dues'?' selected':''}>⚠️ Outstanding Dues</option>
+      </select>
+    </div>
+    <div style="height:8px"></div>`;
+
+    // ── REPORT 1: TRIP REGISTER ──
+    if(reportType==='register'){
+      let registerTrips=[...allTrips];
+      if(window._tripRepDriver!=='all') registerTrips=registerTrips.filter(t=>t.driverId===window._tripRepDriver);
+      if(window._tripRepCustomer!=='all') registerTrips=registerTrips.filter(t=>t.customerId===window._tripRepCustomer);
+      if(window._tripRepMaterial!=='all') registerTrips=registerTrips.filter(t=>t.materialId===window._tripRepMaterial);
+      registerTrips.sort((a,b)=>(b.ts||0)-(a.ts||0));
+
+      const totalTrips=registerTrips.reduce((a,t)=>a+(t.numTrips||1),0);
+      const totalRevenue=registerTrips.filter(t=>t.movementType==='external').reduce((a,t)=>a+(t.amount||0),0);
+      const totalIncentive=registerTrips.reduce((a,t)=>a+(t.driverIncentive||0),0);
+
+      html+=`
+      <!-- Filters -->
+      <div style="margin:0 14px 8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+        <select onchange="window._tripRepDriver=this.value;renderReports()" style="background:var(--bg2);border:1px solid var(--border);color:var(--white);padding:7px 8px;border-radius:6px;font-size:11px">${drvOpts}</select>
+        <select onchange="window._tripRepCustomer=this.value;renderReports()" style="background:var(--bg2);border:1px solid var(--border);color:var(--white);padding:7px 8px;border-radius:6px;font-size:11px">${custOpts}</select>
+        <select onchange="window._tripRepMaterial=this.value;renderReports()" style="background:var(--bg2);border:1px solid var(--border);color:var(--white);padding:7px 8px;border-radius:6px;font-size:11px">${matOpts}</select>
+      </div>
+
+      <!-- Summary -->
+      <div style="margin:0 14px 0;background:linear-gradient(135deg,rgba(255,179,0,.1),rgba(255,179,0,.02));border:1.5px solid var(--amber);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div style="text-align:center"><div style="font-family:var(--fh);font-size:20px;color:var(--white)">${totalTrips}</div><div style="font-size:9px;color:var(--muted);font-weight:700">TRIPS</div></div>
+        <div style="text-align:center"><div style="font-family:var(--fh);font-size:18px;color:var(--green)">${fmtINR(totalRevenue)}</div><div style="font-size:9px;color:var(--muted);font-weight:700">REVENUE</div></div>
+        <div style="text-align:center"><div style="font-family:var(--fh);font-size:18px;color:var(--amber)">${fmtINR(totalIncentive)}</div><div style="font-size:9px;color:var(--muted);font-weight:700">INCENTIVE</div></div>
+      </div>
+
+      <!-- List -->
+      ${registerTrips.length?registerTrips.map(t=>{
+        const veh=gV(t.vehicleId);
+        const drv=(drivers||[]).find(d=>d.id===t.driverId);
+        const cust=(customers||[]).find(c=>c.id===t.customerId);
+        const fromS=(sites||[]).find(s=>s.id===t.fromSiteId);
+        const toS=(sites||[]).find(s=>s.id===t.toSiteId);
+        const mat=(materials||[]).find(m=>m.id===t.materialId);
+        const isExt=t.movementType==='external';
+        const due=isExt?(t.amount||0)-(t.amountPaid||0):0;
+        const isExpanded=window._tripRepDrillId===t.id;
+        return `<div style="margin:6px 14px 0;background:var(--bg2);border:1px solid var(--border);border-left:3px solid ${isExt?'var(--green)':'var(--blue)'};border-radius:10px;overflow:hidden">
+          <div onclick="window._tripRepDrillId=${isExpanded?'null':"'"+t.id+"'"};renderReports()" style="padding:10px 14px;cursor:pointer">
+            <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
+              <div style="flex:1;min-width:0">
+                <div style="font-family:var(--fh);font-size:13px;color:var(--white)">${isExt?cust?.name||'?':toS?.name||'?'}</div>
+                <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">${fmtD(t.date)} · ${veh?.name||'?'} · ${drv?.name||'?'} · ${t.numTrips||1} trip${(t.numTrips||1)!==1?'s':''}</div>
+                ${mat?`<div style="font-size:11px;color:var(--white);font-weight:600;margin-top:2px">📦 ${mat.name}${t.quantity?` · ${fmt(t.quantity,1)} ${t.unit||mat.unit}`:''}</div>`:''}
+              </div>
+              <div style="text-align:right;flex-shrink:0">
+                ${isExt?`<div style="font-family:var(--fh);font-size:14px;color:var(--green)">${fmtINR(t.amount)}</div>${due>0?`<div style="font-size:10px;color:var(--red);font-weight:700">DUE ${fmtINR(due)}</div>`:`<div style="font-size:10px;color:var(--green);font-weight:700">PAID</div>`}`:`<div style="font-size:11px;color:var(--blue);font-weight:700">INTERNAL</div>`}
+              </div>
+            </div>
+          </div>
+          ${isExpanded?`<div style="padding:0 14px 12px;border-top:1px solid var(--border);background:var(--bg3)">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding-top:10px;font-size:11px">
+              <div><span style="color:var(--muted)">From:</span> <span style="color:var(--white)">${fromS?.name||'—'}</span></div>
+              <div><span style="color:var(--muted)">To:</span> <span style="color:var(--white)">${isExt?cust?.name:toS?.name||'—'}</span></div>
+              ${t.slipNo?`<div><span style="color:var(--muted)">Slip:</span> <span style="color:var(--white)">#${t.slipNo}</span></div>`:''}
+              ${t.rate?`<div><span style="color:var(--muted)">Rate:</span> <span style="color:var(--white)">₹${fmt(t.rate,0)}/${t.unit||''}</span></div>`:''}
+              ${t.driverIncentive?`<div><span style="color:var(--muted)">Incentive:</span> <span style="color:var(--amber);font-weight:700">₹${fmt(t.driverIncentive,0)}</span></div>`:''}
+              ${isExt&&t.amountPaid?`<div><span style="color:var(--muted)">Paid:</span> <span style="color:var(--green)">₹${fmt(t.amountPaid,0)}</span></div>`:''}
+              ${t.loggedByName?`<div><span style="color:var(--muted)">By:</span> <span style="color:var(--white)">${t.loggedByName}</span></div>`:''}
+              ${t.editedByName?`<div><span style="color:var(--muted)">Edited:</span> <span style="color:var(--blue)">${t.editedByName}</span></div>`:''}
+            </div>
+            ${t.remarks?`<div style="margin-top:8px;font-size:11px;color:var(--muted);font-style:italic">📝 ${t.remarks}</div>`:''}
+            ${canTripEdit(t)?`<div style="margin-top:10px;display:flex;gap:6px">
+              <button onclick="event.stopPropagation();openTripEntry('${t.id}')" style="flex:1;background:var(--bg2);border:1px solid var(--amber);color:var(--amber);padding:7px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">✏️ EDIT</button>
+              ${isExt&&due>0?`<button onclick="event.stopPropagation();markTripPaid('${t.id}')" style="flex:1;background:var(--bg2);border:1px solid var(--green);color:var(--green);padding:7px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">✓ MARK PAID</button>`:''}
+            </div>`:''}
+          </div>`:''}
+        </div>`;
+      }).join(''):'<div class="muted-txt" style="padding:40px;text-align:center">No trips in this period</div>'}`;
+
+    // ── REPORT 2: CUSTOMER-WISE SUMMARY ──
+    } else if(reportType==='customers'){
+      const drillId=window._tripRepDrillId;
+      const custMap={};
+      allTrips.filter(t=>t.movementType==='external').forEach(t=>{
+        if(!t.customerId) return;
+        if(!custMap[t.customerId]) custMap[t.customerId]={trips:[],qty:0,revenue:0,paid:0};
+        custMap[t.customerId].trips.push(t);
+        custMap[t.customerId].qty+=(t.quantity||0)*(t.numTrips||1);
+        custMap[t.customerId].revenue+=(t.amount||0);
+        custMap[t.customerId].paid+=(t.amountPaid||0);
+      });
+      const ranked=Object.entries(custMap).map(([id,v])=>({c:(customers||[]).find(c=>c.id===id),...v})).filter(x=>x.c).sort((a,b)=>b.revenue-a.revenue);
+
+      if(drillId){
+        // Drill-down: single customer detail
+        const row=ranked.find(x=>x.c.id===drillId);
+        if(row){
+          const c=row.c;
+          const due=row.revenue-row.paid;
+          const matMap={};
+          row.trips.forEach(t=>{
+            const m=(materials||[]).find(x=>x.id===t.materialId);
+            if(!m) return;
+            if(!matMap[m.id]) matMap[m.id]={name:m.name,unit:m.unit,qty:0,amt:0};
+            matMap[m.id].qty+=(t.quantity||0)*(t.numTrips||1);
+            matMap[m.id].amt+=(t.amount||0);
+          });
+          html+=`
+          <div style="margin:0 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 14px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+              <button onclick="window._tripRepDrillId=null;renderReports()" style="background:var(--bg3);border:1px solid var(--border);color:var(--amber);padding:5px 10px;border-radius:6px;font-size:12px;cursor:pointer">‹ BACK</button>
+              <div style="flex:1">
+                <div style="font-family:var(--fh);font-size:15px;color:var(--white)">${c.name}</div>
+                <div style="font-size:10px;color:var(--muted);font-weight:600">📱 ${c.phone||'No phone'}</div>
+              </div>
+              ${c.phone?`<a href="https://wa.me/91${c.phone.replace(/\D/g,'').slice(-10)}" target="_blank" style="background:rgba(0,200,83,.1);border:1px solid var(--green);color:var(--green);padding:5px 10px;border-radius:6px;font-size:11px;font-weight:700;text-decoration:none">💬</a>`:''}
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+              <div style="background:var(--bg3);border-radius:6px;padding:8px;text-align:center"><div style="font-family:var(--fh);font-size:14px;color:var(--white)">${row.trips.reduce((a,t)=>a+(t.numTrips||1),0)}</div><div style="font-size:9px;color:var(--muted);font-weight:700">TRIPS</div></div>
+              <div style="background:var(--bg3);border-radius:6px;padding:8px;text-align:center"><div style="font-family:var(--fh);font-size:14px;color:var(--green)">${fmtINR(row.revenue)}</div><div style="font-size:9px;color:var(--muted);font-weight:700">REVENUE</div></div>
+              <div style="background:${due>0?'rgba(255,61,61,.08)':'rgba(0,200,83,.08)'};border-radius:6px;padding:8px;text-align:center"><div style="font-family:var(--fh);font-size:14px;color:var(${due>0?'--red':'--green'})">${due>0?fmtINR(due):'PAID'}</div><div style="font-size:9px;color:var(${due>0?'--red':'--green'});font-weight:700">${due>0?'DUE':'CLEARED'}</div></div>
+            </div>
+          </div>
+
+          <div style="margin:8px 14px 0;font-family:var(--fh);font-size:11px;color:var(--muted);letter-spacing:.5px">📦 MATERIALS BREAKDOWN</div>
+          ${Object.values(matMap).sort((a,b)=>b.amt-a.amt).map(m=>`
+            <div style="margin:4px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;display:flex;justify-content:space-between">
+              <div><div style="font-family:var(--fh);font-size:12px;color:var(--white)">${m.name}</div><div style="font-size:10px;color:var(--muted)">${fmt(m.qty,1)} ${m.unit||''}</div></div>
+              <div style="font-family:var(--fh);color:var(--green)">${fmtINR(m.amt)}</div>
+            </div>`).join('')}
+
+          <div style="margin:10px 14px 0;font-family:var(--fh);font-size:11px;color:var(--muted);letter-spacing:.5px">📜 TRIPS THIS PERIOD</div>
+          ${row.trips.sort((a,b)=>b.date.localeCompare(a.date)).map(t=>{
+            const m=(materials||[]).find(x=>x.id===t.materialId);
+            const tDue=(t.amount||0)-(t.amountPaid||0);
+            return `<div style="margin:4px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 12px">
+              <div style="display:flex;justify-content:space-between;align-items:start">
+                <div style="flex:1;min-width:0">
+                  <div style="font-family:var(--fh);font-size:12px;color:var(--white)">${m?.name||'?'} · ${fmt(t.quantity,1)} ${t.unit} × ${t.numTrips}</div>
+                  <div style="font-size:10px;color:var(--muted)">${fmtD(t.date)}${t.slipNo?' · #'+t.slipNo:''}</div>
+                </div>
+                <div style="text-align:right">
+                  <div style="font-family:var(--fh);font-size:12px;color:var(--green)">${fmtINR(t.amount)}</div>
+                  ${tDue>0?`<button onclick="markTripPaid('${t.id}')" style="background:rgba(0,200,83,.1);border:1px solid var(--green);color:var(--green);padding:3px 8px;border-radius:5px;font-size:10px;font-weight:700;cursor:pointer;margin-top:2px">✓ MARK PAID</button>`:`<div style="font-size:10px;color:var(--green);font-weight:700">PAID</div>`}
+                </div>
+              </div>
+            </div>`;
+          }).join('')}`;
+        }
+      } else {
+        // Summary list
+        const totalRev=ranked.reduce((a,r)=>a+r.revenue,0);
+        const totalDue=ranked.reduce((a,r)=>a+(r.revenue-r.paid),0);
+        html+=`
+        <div style="margin:0 14px 0;background:var(--bg2);border:1.5px solid var(--green);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div style="text-align:center"><div style="font-family:var(--fh);font-size:18px;color:var(--green)">${fmtINR(totalRev)}</div><div style="font-size:9px;color:var(--muted);font-weight:700">TOTAL REVENUE</div></div>
+          <div style="text-align:center"><div style="font-family:var(--fh);font-size:18px;color:${totalDue>0?'var(--red)':'var(--green)'}">${fmtINR(totalDue)}</div><div style="font-size:9px;color:var(--muted);font-weight:700">OUTSTANDING</div></div>
+        </div>
+        ${ranked.length?ranked.map((r,i)=>{
+          const due=r.revenue-r.paid;
+          return `<div onclick="window._tripRepDrillId='${r.c.id}';renderReports()" style="margin:6px 14px 0;background:var(--bg2);border:1px solid var(--border);${due>0?'border-left:3px solid var(--red)':''};border-radius:10px;padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px">
+            <div style="font-family:var(--fh);color:${i<3?'var(--amber)':'var(--muted)'};min-width:24px">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-family:var(--fh);font-size:13px;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.c.name}</div>
+              <div style="font-size:11px;color:var(--muted);font-weight:600">${r.trips.reduce((a,t)=>a+(t.numTrips||1),0)} trips · ${fmt(r.qty,0)} units</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-family:var(--fh);font-size:13px;color:var(--green)">${fmtINR(r.revenue)}</div>
+              ${due>0?`<div style="font-size:10px;color:var(--red);font-weight:700">DUE ${fmtINR(due)}</div>`:`<div style="font-size:10px;color:var(--green);font-weight:700">✓</div>`}
+            </div>
+            <div style="color:var(--muted);font-size:18px">›</div>
+          </div>`;
+        }).join(''):'<div class="muted-txt" style="padding:40px;text-align:center">No customer trips in this period</div>'}`;
+      }
+
+    // ── REPORT 3: MATERIAL-WISE SUMMARY ──
+    } else if(reportType==='materials'){
+      const matMap={};
+      allTrips.filter(t=>t.materialId).forEach(t=>{
+        if(!matMap[t.materialId]) matMap[t.materialId]={trips:[],qty:0,revenue:0};
+        matMap[t.materialId].trips.push(t);
+        matMap[t.materialId].qty+=(t.quantity||0)*(t.numTrips||1);
+        if(t.movementType==='external') matMap[t.materialId].revenue+=(t.amount||0);
+      });
+      const ranked=Object.entries(matMap).map(([id,v])=>({m:(materials||[]).find(m=>m.id===id),...v})).filter(x=>x.m).sort((a,b)=>b.revenue-a.revenue);
+      const drillId=window._tripRepDrillId;
+
+      if(drillId){
+        const row=ranked.find(x=>x.m.id===drillId);
+        if(row){
+          // Customer breakdown for this material
+          const custBreak={};
+          row.trips.filter(t=>t.movementType==='external').forEach(t=>{
+            if(!t.customerId) return;
+            if(!custBreak[t.customerId]) custBreak[t.customerId]={qty:0,amt:0,trips:0};
+            custBreak[t.customerId].qty+=(t.quantity||0)*(t.numTrips||1);
+            custBreak[t.customerId].amt+=(t.amount||0);
+            custBreak[t.customerId].trips+=(t.numTrips||1);
+          });
+          const custList=Object.entries(custBreak).map(([id,v])=>({c:(customers||[]).find(c=>c.id===id),...v})).filter(x=>x.c).sort((a,b)=>b.amt-a.amt);
+          html+=`
+          <div style="margin:0 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 14px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+              <button onclick="window._tripRepDrillId=null;renderReports()" style="background:var(--bg3);border:1px solid var(--border);color:var(--amber);padding:5px 10px;border-radius:6px;font-size:12px;cursor:pointer">‹ BACK</button>
+              <div style="flex:1"><div style="font-family:var(--fh);font-size:15px;color:var(--white)">📦 ${row.m.name}</div></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+              <div style="background:var(--bg3);border-radius:6px;padding:8px;text-align:center"><div style="font-family:var(--fh);font-size:14px;color:var(--white)">${fmt(row.qty,1)}</div><div style="font-size:9px;color:var(--muted);font-weight:700">${row.m.unit?.toUpperCase()||'QTY'}</div></div>
+              <div style="background:var(--bg3);border-radius:6px;padding:8px;text-align:center"><div style="font-family:var(--fh);font-size:14px;color:var(--white)">${row.trips.reduce((a,t)=>a+(t.numTrips||1),0)}</div><div style="font-size:9px;color:var(--muted);font-weight:700">TRIPS</div></div>
+              <div style="background:var(--bg3);border-radius:6px;padding:8px;text-align:center"><div style="font-family:var(--fh);font-size:14px;color:var(--green)">${fmtINR(row.revenue)}</div><div style="font-size:9px;color:var(--muted);font-weight:700">REVENUE</div></div>
+            </div>
+          </div>
+          <div style="margin:8px 14px 0;font-family:var(--fh);font-size:11px;color:var(--muted);letter-spacing:.5px">👥 BUYERS</div>
+          ${custList.length?custList.map(({c,qty,amt,trips})=>`
+            <div onclick="window._tripRepType='customers';window._tripRepDrillId='${c.id}';renderReports()" style="margin:4px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer">
+              <div><div style="font-family:var(--fh);font-size:12px;color:var(--white)">${c.name}</div><div style="font-size:10px;color:var(--muted)">${fmt(qty,1)} ${row.m.unit||''} · ${trips} trip${trips!==1?'s':''}</div></div>
+              <div style="font-family:var(--fh);color:var(--green)">${fmtINR(amt)}</div>
+            </div>`).join(''):'<div class="muted-txt" style="padding:20px;text-align:center">No external sales</div>'}`;
+        }
+      } else {
+        html+=ranked.length?ranked.map((r,i)=>{
+          const avgRate=r.qty>0?r.revenue/r.qty:0;
+          return `<div onclick="window._tripRepDrillId='${r.m.id}';renderReports()" style="margin:6px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px">
+            <div style="font-family:var(--fh);color:${i<3?'var(--amber)':'var(--muted)'};min-width:24px">#${i+1}</div>
+            <div style="flex:1">
+              <div style="font-family:var(--fh);font-size:13px;color:var(--white)">📦 ${r.m.name}</div>
+              <div style="font-size:11px;color:var(--muted);font-weight:600">${fmt(r.qty,1)} ${r.m.unit||''} · ${r.trips.reduce((a,t)=>a+(t.numTrips||1),0)} trips${avgRate?` · avg ₹${fmt(avgRate,0)}/${r.m.unit||''}`:''}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-family:var(--fh);font-size:13px;color:var(--green)">${fmtINR(r.revenue)}</div>
+            </div>
+            <div style="color:var(--muted);font-size:18px">›</div>
+          </div>`;
+        }).join(''):'<div class="muted-txt" style="padding:40px;text-align:center">No trips in this period</div>';
+      }
+
+    // ── REPORT 4: DRIVER INCENTIVE REGISTER ──
+    } else if(reportType==='incentives'){
+      const drvMap={};
+      allTrips.forEach(t=>{
+        if(!t.driverId) return;
+        if(!drvMap[t.driverId]) drvMap[t.driverId]={trips:[],totalIncentive:0,tripCount:0};
+        drvMap[t.driverId].trips.push(t);
+        drvMap[t.driverId].totalIncentive+=(t.driverIncentive||0);
+        drvMap[t.driverId].tripCount+=(t.numTrips||1);
+      });
+      const ranked=Object.entries(drvMap).map(([id,v])=>({d:(drivers||[]).find(d=>d.id===id),...v})).filter(x=>x.d).sort((a,b)=>b.totalIncentive-a.totalIncentive);
+      const drillId=window._tripRepDrillId;
+
+      if(drillId){
+        const row=ranked.find(x=>x.d.id===drillId);
+        if(row){
+          // Day-wise breakdown
+          const dayMap={};
+          row.trips.forEach(t=>{
+            if(!dayMap[t.date]) dayMap[t.date]={trips:[],totalInc:0,tripCount:0};
+            dayMap[t.date].trips.push(t);
+            dayMap[t.date].totalInc+=(t.driverIncentive||0);
+            dayMap[t.date].tripCount+=(t.numTrips||1);
+          });
+          const days=Object.entries(dayMap).sort((a,b)=>b[0].localeCompare(a[0]));
+          html+=`
+          <div style="margin:0 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 14px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+              <button onclick="window._tripRepDrillId=null;renderReports()" style="background:var(--bg3);border:1px solid var(--border);color:var(--amber);padding:5px 10px;border-radius:6px;font-size:12px;cursor:pointer">‹ BACK</button>
+              <div style="flex:1"><div style="font-family:var(--fh);font-size:15px;color:var(--white)">👤 ${row.d.name}</div><div style="font-size:10px;color:var(--muted);font-weight:600">${(row.d.type||'driver').toUpperCase()}</div></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+              <div style="background:var(--bg3);border-radius:6px;padding:8px;text-align:center"><div style="font-family:var(--fh);font-size:18px;color:var(--white)">${row.tripCount}</div><div style="font-size:9px;color:var(--muted);font-weight:700">TRIPS</div></div>
+              <div style="background:var(--bg3);border-radius:6px;padding:8px;text-align:center"><div style="font-family:var(--fh);font-size:18px;color:var(--amber)">${fmtINR(row.totalIncentive)}</div><div style="font-size:9px;color:var(--muted);font-weight:700">TOTAL INCENTIVE</div></div>
+            </div>
+          </div>
+          <div style="margin:8px 14px 0;font-family:var(--fh);font-size:11px;color:var(--muted);letter-spacing:.5px">📅 DAILY BREAKDOWN</div>
+          ${days.map(([date,d])=>{
+            const isExpanded=window._tripRepDrillId2===date;
+            return `<div style="margin:4px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:8px;overflow:hidden">
+              <div onclick="window._tripRepDrillId2=${isExpanded?'null':"'"+date+"'"};renderReports()" style="padding:10px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+                <div><div style="font-family:var(--fh);font-size:12px;color:var(--white)">${fmtD(date)}</div><div style="font-size:10px;color:var(--muted)">${d.tripCount} trip${d.tripCount!==1?'s':''}</div></div>
+                <div style="text-align:right;display:flex;align-items:center;gap:8px"><span style="font-family:var(--fh);color:var(--amber)">${fmtINR(d.totalInc)}</span><span style="color:var(--muted)">${isExpanded?'▼':'▶'}</span></div>
+              </div>
+              ${isExpanded?`<div style="border-top:1px solid var(--border);background:var(--bg3);padding:8px 12px">
+                ${d.trips.map(t=>{
+                  const veh=gV(t.vehicleId);
+                  const fromS=(sites||[]).find(s=>s.id===t.fromSiteId);
+                  const toS=(sites||[]).find(s=>s.id===t.toSiteId);
+                  const cust=(customers||[]).find(c=>c.id===t.customerId);
+                  return `<div style="padding:6px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:start;font-size:11px">
+                    <div style="flex:1"><div style="color:var(--white)">${fromS?.name||'?'} → ${t.movementType==='external'?(cust?.name||'?'):(toS?.name||'?')}</div><div style="color:var(--muted)">${veh?.name||'?'} · ${t.numTrips||1} trip${(t.numTrips||1)!==1?'s':''}${t.slipNo?' · #'+t.slipNo:''}</div></div>
+                    <div style="font-family:var(--fh);color:var(--amber);font-size:12px">₹${fmt(t.driverIncentive||0,0)}</div>
+                  </div>`;
+                }).join('')}
+              </div>`:''}
+            </div>`;
+          }).join('')}`;
+        }
+      } else {
+        const totalIncentive=ranked.reduce((a,r)=>a+r.totalIncentive,0);
+        html+=`
+        <div style="margin:0 14px 0;background:var(--bg2);border:1.5px solid var(--amber);border-radius:12px;padding:12px 14px;text-align:center">
+          <div style="font-family:var(--fh);font-size:22px;color:var(--amber)">${fmtINR(totalIncentive)}</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:700">TOTAL INCENTIVE PAID THIS PERIOD</div>
+        </div>
+        ${ranked.length?ranked.map((r,i)=>`
+          <div onclick="window._tripRepDrillId='${r.d.id}';window._tripRepDrillId2=null;renderReports()" style="margin:6px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px">
+            <div style="font-family:var(--fh);color:${i<3?'var(--amber)':'var(--muted)'};min-width:24px">#${i+1}</div>
+            <div style="flex:1"><div style="font-family:var(--fh);font-size:13px;color:var(--white)">👤 ${r.d.name}</div><div style="font-size:11px;color:var(--muted);font-weight:600">${r.tripCount} trip${r.tripCount!==1?'s':''} · ${(r.d.type||'driver').toUpperCase()}</div></div>
+            <div style="font-family:var(--fh);font-size:13px;color:var(--amber)">${fmtINR(r.totalIncentive)}</div>
+            <div style="color:var(--muted);font-size:18px">›</div>
+          </div>`).join(''):'<div class="muted-txt" style="padding:40px;text-align:center">No incentive entries</div>'}`;
+      }
+
+    // ── REPORT 5: SITE DISPATCH LOG ──
+    } else if(reportType==='dispatch'){
+      const siteMap={};
+      allTrips.forEach(t=>{
+        if(!t.fromSiteId) return;
+        if(!siteMap[t.fromSiteId]) siteMap[t.fromSiteId]={trips:[],qty:0,revenue:0,materials:new Set()};
+        siteMap[t.fromSiteId].trips.push(t);
+        siteMap[t.fromSiteId].qty+=(t.quantity||0)*(t.numTrips||1);
+        if(t.movementType==='external') siteMap[t.fromSiteId].revenue+=(t.amount||0);
+        if(t.materialId) siteMap[t.fromSiteId].materials.add(t.materialId);
+      });
+      const ranked=Object.entries(siteMap).map(([id,v])=>({s:(sites||[]).find(s=>s.id===id),...v})).filter(x=>x.s).sort((a,b)=>b.qty-a.qty);
+      const drillId=window._tripRepDrillId;
+
+      if(drillId){
+        const row=ranked.find(x=>x.s.id===drillId);
+        if(row){
+          html+=`
+          <div style="margin:0 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 14px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+              <button onclick="window._tripRepDrillId=null;renderReports()" style="background:var(--bg3);border:1px solid var(--border);color:var(--amber);padding:5px 10px;border-radius:6px;font-size:12px;cursor:pointer">‹ BACK</button>
+              <div style="flex:1"><div style="font-family:var(--fh);font-size:15px;color:var(--white)">🏗 ${row.s.name}</div></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+              <div style="background:var(--bg3);border-radius:6px;padding:8px;text-align:center"><div style="font-family:var(--fh);font-size:14px;color:var(--white)">${row.trips.reduce((a,t)=>a+(t.numTrips||1),0)}</div><div style="font-size:9px;color:var(--muted);font-weight:700">TRIPS OUT</div></div>
+              <div style="background:var(--bg3);border-radius:6px;padding:8px;text-align:center"><div style="font-family:var(--fh);font-size:14px;color:var(--white)">${fmt(row.qty,0)}</div><div style="font-size:9px;color:var(--muted);font-weight:700">UNITS</div></div>
+              <div style="background:var(--bg3);border-radius:6px;padding:8px;text-align:center"><div style="font-family:var(--fh);font-size:14px;color:var(--green)">${fmtINR(row.revenue)}</div><div style="font-size:9px;color:var(--muted);font-weight:700">REVENUE</div></div>
+            </div>
+          </div>
+          <div style="margin:8px 14px 0;font-family:var(--fh);font-size:11px;color:var(--muted);letter-spacing:.5px">📜 DISPATCHES</div>
+          ${row.trips.sort((a,b)=>b.date.localeCompare(a.date)).map(t=>{
+            const veh=gV(t.vehicleId);
+            const drv=(drivers||[]).find(d=>d.id===t.driverId);
+            const cust=(customers||[]).find(c=>c.id===t.customerId);
+            const toS=(sites||[]).find(s=>s.id===t.toSiteId);
+            const m=(materials||[]).find(x=>x.id===t.materialId);
+            return `<div style="margin:4px 14px 0;background:var(--bg2);border:1px solid var(--border);border-left:3px solid ${t.movementType==='external'?'var(--green)':'var(--blue)'};border-radius:8px;padding:10px 12px">
+              <div style="display:flex;justify-content:space-between;align-items:start">
+                <div style="flex:1"><div style="font-family:var(--fh);font-size:12px;color:var(--white)">→ ${t.movementType==='external'?(cust?.name||'?'):(toS?.name||'?')}</div><div style="font-size:10px;color:var(--muted)">${fmtD(t.date)} · ${veh?.name||'?'} · ${drv?.name||'?'}${m?' · '+m.name:''}</div></div>
+                <div style="text-align:right">${t.movementType==='external'?`<div style="font-family:var(--fh);font-size:12px;color:var(--green)">${fmtINR(t.amount)}</div>`:'<div style="font-size:10px;color:var(--blue);font-weight:700">INTERNAL</div>'}<div style="font-size:10px;color:var(--muted)">${t.numTrips||1} trip${(t.numTrips||1)!==1?'s':''}</div></div>
+              </div>
+            </div>`;
+          }).join('')}`;
+        }
+      } else {
+        html+=ranked.length?ranked.map((r,i)=>`
+          <div onclick="window._tripRepDrillId='${r.s.id}';renderReports()" style="margin:6px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px">
+            <div style="font-size:24px">🏗</div>
+            <div style="flex:1"><div style="font-family:var(--fh);font-size:13px;color:var(--white)">${r.s.name}</div><div style="font-size:11px;color:var(--muted);font-weight:600">${r.trips.reduce((a,t)=>a+(t.numTrips||1),0)} trips · ${r.materials.size} material${r.materials.size!==1?'s':''}</div></div>
+            <div style="text-align:right"><div style="font-family:var(--fh);font-size:12px;color:var(--green)">${fmtINR(r.revenue)}</div><div style="font-size:10px;color:var(--muted)">${fmt(r.qty,0)} units</div></div>
+            <div style="color:var(--muted);font-size:18px">›</div>
+          </div>`).join(''):'<div class="muted-txt" style="padding:40px;text-align:center">No dispatches in this period</div>';
+      }
+
+    // ── REPORT 6: OUTSTANDING DUES ──
+    } else if(reportType==='dues'){
+      const today_=new Date();
+      const dueCustomers=[];
+      (customers||[]).forEach(c=>{
+        const cTrips=(trips||[]).filter(t=>t.customerId===c.id&&t.movementType==='external');
+        const totalAmt=cTrips.reduce((a,t)=>a+(t.amount||0),0);
+        const totalPaid=cTrips.reduce((a,t)=>a+(t.amountPaid||0),0);
+        const due=totalAmt-totalPaid;
+        if(due<=0) return;
+        // Find oldest unpaid trip
+        const unpaid=cTrips.filter(t=>(t.amount||0)-(t.amountPaid||0)>0).sort((a,b)=>a.date.localeCompare(b.date));
+        const oldestDate=unpaid[0]?.date;
+        const daysOld=oldestDate?Math.floor((today_-new Date(oldestDate))/(1000*60*60*24)):0;
+        dueCustomers.push({c,due,oldestDate,daysOld,trips:cTrips});
+      });
+      dueCustomers.sort((a,b)=>b.daysOld-a.daysOld);
+      const drillId=window._tripRepDrillId;
+
+      if(drillId){
+        const row=dueCustomers.find(x=>x.c.id===drillId);
+        if(row){
+          const c=row.c;
+          const unpaidTrips=row.trips.filter(t=>(t.amount||0)-(t.amountPaid||0)>0).sort((a,b)=>a.date.localeCompare(b.date));
+          html+=`
+          <div style="margin:0 14px 0;background:rgba(255,61,61,.05);border:1.5px solid var(--red);border-radius:12px;padding:12px 14px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+              <button onclick="window._tripRepDrillId=null;renderReports()" style="background:var(--bg3);border:1px solid var(--border);color:var(--amber);padding:5px 10px;border-radius:6px;font-size:12px;cursor:pointer">‹ BACK</button>
+              <div style="flex:1"><div style="font-family:var(--fh);font-size:15px;color:var(--white)">${c.name}</div><div style="font-size:10px;color:var(--muted)">📱 ${c.phone||'No phone'}</div></div>
+              ${c.phone?`<a href="tel:${c.phone}" style="background:rgba(0,200,83,.1);border:1px solid var(--green);color:var(--green);padding:5px 10px;border-radius:6px;font-size:11px;font-weight:700;text-decoration:none">📞</a><a href="https://wa.me/91${c.phone.replace(/\D/g,'').slice(-10)}" target="_blank" style="background:rgba(0,200,83,.1);border:1px solid var(--green);color:var(--green);padding:5px 10px;border-radius:6px;font-size:11px;font-weight:700;text-decoration:none">💬</a>`:''}
+            </div>
+            <div style="font-family:var(--fh);font-size:24px;color:var(--red);text-align:center;margin-top:10px">${fmtINR(row.due)}</div>
+            <div style="font-size:11px;color:var(--red);font-weight:700;text-align:center">OUTSTANDING · oldest invoice ${row.daysOld} days ago</div>
+          </div>
+          <div style="margin:8px 14px 0;font-family:var(--fh);font-size:11px;color:var(--muted);letter-spacing:.5px">UNPAID TRIPS</div>
+          ${unpaidTrips.map(t=>{
+            const tDue=(t.amount||0)-(t.amountPaid||0);
+            const m=(materials||[]).find(x=>x.id===t.materialId);
+            const days=Math.floor((today_-new Date(t.date))/(1000*60*60*24));
+            const ageColor=days>30?'var(--red)':days>15?'var(--amber)':'var(--muted)';
+            return `<div style="margin:4px 14px 0;background:var(--bg2);border:1px solid var(--border);border-left:3px solid ${ageColor};border-radius:8px;padding:10px 12px">
+              <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
+                <div style="flex:1"><div style="font-family:var(--fh);font-size:12px;color:var(--white)">${m?.name||'?'} · ${fmt(t.quantity,1)} ${t.unit}${t.numTrips>1?` × ${t.numTrips}`:''}</div><div style="font-size:10px;color:var(--muted)">${fmtD(t.date)} · ${days} day${days!==1?'s':''} ago${t.slipNo?' · #'+t.slipNo:''}</div></div>
+                <div style="text-align:right"><div style="font-family:var(--fh);font-size:13px;color:var(--red)">${fmtINR(tDue)}</div><button onclick="markTripPaid('${t.id}')" style="background:rgba(0,200,83,.1);border:1px solid var(--green);color:var(--green);padding:4px 8px;border-radius:5px;font-size:10px;font-weight:700;cursor:pointer;margin-top:3px">✓ MARK PAID</button></div>
+              </div>
+            </div>`;
+          }).join('')}`;
+        }
+      } else {
+        const totalDue=dueCustomers.reduce((a,r)=>a+r.due,0);
+        html+=`
+        <div style="margin:0 14px 0;background:rgba(255,61,61,.05);border:1.5px solid var(--red);border-radius:12px;padding:12px 14px;text-align:center">
+          <div style="font-family:var(--fh);font-size:22px;color:var(--red)">${fmtINR(totalDue)}</div>
+          <div style="font-size:10px;color:var(--red);font-weight:700">TOTAL OUTSTANDING · ${dueCustomers.length} customer${dueCustomers.length!==1?'s':''}</div>
+        </div>
+        ${dueCustomers.length?dueCustomers.map(r=>{
+          const ageColor=r.daysOld>30?'var(--red)':r.daysOld>15?'var(--amber)':'var(--muted)';
+          return `<div onclick="window._tripRepDrillId='${r.c.id}';renderReports()" style="margin:6px 14px 0;background:var(--bg2);border:1px solid var(--border);border-left:3px solid ${ageColor};border-radius:10px;padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px">
+            <div style="flex:1"><div style="font-family:var(--fh);font-size:13px;color:var(--white)">${r.c.name}</div><div style="font-size:11px;color:${ageColor};font-weight:700">${r.daysOld} days · oldest ${fmtD(r.oldestDate)}</div></div>
+            <div style="text-align:right"><div style="font-family:var(--fh);font-size:13px;color:var(--red)">${fmtINR(r.due)}</div></div>
+            <div style="color:var(--muted);font-size:18px">›</div>
+          </div>`;
+        }).join(''):'<div class="muted-txt" style="padding:40px;text-align:center">No outstanding dues 🎉</div>'}`;
+      }
+    }
+
   }
 
 
@@ -6354,8 +6851,9 @@ function exportRepPDF(){
       const latestM=[...(musters||[])].filter(x=>x.vehicleId===v.id&&days.includes(x.date)).sort((a,b)=>b.date.localeCompare(a.date))[0];
       const drvId=latestM?.driverId||v.driverId;
       const drv=(drivers||[]).find(d=>d.id===drvId);
-      const drvType=drv?.type||'driver';
-      return{v,presentDays,absentDays,drvName:drv?.name||v.driverName||'—',drvType};
+      const isDriverVehicle = vt => ['tipper','truck','dumper','car','tanker','tractor'].includes(vt);
+      const role=isDriverVehicle(v.type)?'driver':'operator';
+      return{v,presentDays,absentDays,drvName:drv?.name||v.driverName||'—',role};
     });
 
     if(!isMultiDay){
@@ -6363,9 +6861,9 @@ function exportRepPDF(){
       const getMuster=vid=>(musters||[]).find(m=>m.vehicleId===vid&&m.date===td);
       const present=vehRows.filter(({v})=>{const m=getMuster(v.id);return m&&m.status!=='absent';});
       const absent=vehRows.filter(({v})=>{const m=getMuster(v.id);return m&&m.status==='absent';});
-      const driversPresent=present.filter(x=>x.drvType==='driver'||x.drvType==='both').length;
-      const opsPresent=present.filter(x=>x.drvType==='operator'||x.drvType==='both').length;
-      const typeLblP=t=>t==='operator'?'Operator':t==='both'?'Drv+Op':'Driver';
+      const driversPresent=present.filter(x=>x.role==='driver').length;
+      const opsPresent=present.filter(x=>x.role==='operator').length;
+      const typeLblP=t=>t==='operator'?'Operator':'Driver';
 
       body=`
       ${header('MUSTER REPORT — '+fmtD(td))}
@@ -6384,11 +6882,11 @@ function exportRepPDF(){
       <table>
         <thead><tr><th>#</th><th>Vehicle</th><th>Driver / Operator</th><th>Type</th><th>Note</th></tr></thead>
         <tbody>
-          ${present.map(({v,drvName,drvType},i)=>{const m=getMuster(v.id);return`<tr>
+          ${present.map(({v,drvName,role},i)=>{const m=getMuster(v.id);return`<tr>
             <td>${i+1}</td>
             <td>${v.name}</td>
             <td>${m?.driverName||drvName}</td>
-            <td style="color:${drvType==='operator'?'#1565c0':'green'};font-weight:700">${typeLblP(drvType)}</td>
+            <td style="color:${role==='operator'?'#1565c0':'green'};font-weight:700">${typeLblP(role)}</td>
             <td>${m?.swap?'🔄 Swapped':''}</td>
           </tr>`;}).join('')}
         </tbody>
@@ -6399,9 +6897,9 @@ function exportRepPDF(){
       <table>
         <thead><tr><th>#</th><th>Vehicle</th><th>Driver / Operator</th><th>Type</th></tr></thead>
         <tbody>
-          ${absent.map(({v,drvName,drvType},i)=>`<tr>
+          ${absent.map(({v,drvName,role},i)=>`<tr>
             <td>${i+1}</td><td>${v.name}</td><td>${drvName}</td>
-            <td style="color:${drvType==='operator'?'#1565c0':'green'};font-weight:700">${typeLblP(drvType)}</td>
+            <td style="color:${role==='operator'?'#1565c0':'green'};font-weight:700">${typeLblP(role)}</td>
           </tr>`).join('')}
         </tbody>
       </table>`:''}
@@ -6412,8 +6910,8 @@ function exportRepPDF(){
       // Multi-day cumulative with driver/operator type column
       const withMuster=vehRows.filter(x=>x.presentDays>0||x.absentDays>0).sort((a,b)=>b.presentDays-a.presentDays);
       const typeLblP=t=>t==='operator'?'Operator':t==='both'?'Drv+Op':'Driver';
-      const totalDrvDays=withMuster.filter(x=>x.drvType==='driver'||x.drvType==='both').reduce((a,x)=>a+x.presentDays,0);
-      const totalOpDays=withMuster.filter(x=>x.drvType==='operator'||x.drvType==='both').reduce((a,x)=>a+x.presentDays,0);
+      const totalDrvDays=withMuster.filter(x=>x.role==='driver').reduce((a,x)=>a+x.presentDays,0);
+      const totalOpDays=withMuster.filter(x=>x.role==='operator').reduce((a,x)=>a+x.presentDays,0);
       body=`
       ${header('CUMULATIVE MUSTER — '+repFmtRange(range))}
       <div class="grid2" style="margin-bottom:20px">
@@ -6423,14 +6921,14 @@ function exportRepPDF(){
       <table>
         <thead><tr><th>#</th><th>Vehicle</th><th>Name</th><th>Type</th><th class="right">Present</th><th class="right">Absent</th><th class="right">Attendance %</th></tr></thead>
         <tbody>
-          ${withMuster.map(({v,presentDays,absentDays,drvName,drvType},i)=>{
+          ${withMuster.map(({v,presentDays,absentDays,drvName,role},i)=>{
             const pct=days.length>0?Math.round(presentDays/days.length*100):0;
             const col=pct>=80?'green':pct>=50?'#e65100':'#c62828';
             return`<tr>
               <td>${i+1}</td>
               <td>${v.name}</td>
               <td>${drvName}</td>
-              <td style="color:${drvType==='operator'?'#1565c0':'green'};font-weight:700">${typeLblP(drvType)}</td>
+              <td style="color:${role==='operator'?'#1565c0':'green'};font-weight:700">${typeLblP(role)}</td>
               <td class="right" style="color:green;font-weight:700">${presentDays}</td>
               <td class="right" style="color:#c62828;font-weight:700">${absentDays||'—'}</td>
               <td class="right" style="color:${col};font-weight:700">${pct}%</td>
