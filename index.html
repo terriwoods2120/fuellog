@@ -3064,6 +3064,10 @@ function openTripEntry(editId){
     if(!editing){alert('Trip not found');return;}
     if(!canTripEdit(editing)){alert('You can only edit same-day entries (Owner can edit anytime)');return;}
   }
+  // Reset state for fresh form
+  window._tripSlipChips = null; // will be re-initialized from editing data
+  window._tripSelDriverId = editing?.driverId || '';
+  window._tripSelVehId = editing?.vehicleId || '';
   document.getElementById('trip-entry-title').textContent=editing?'EDIT TRIP':'NEW TRIP';
   renderTripEntryForm(editing);
   show('scr-trip-entry');
@@ -3073,29 +3077,59 @@ function renderTripEntryForm(editing){
   const e=editing||{};
   const td=today();
   const dateVal=e.date||td;
-  const drvOpts=(drivers||[]).map(d=>`<option value="${d.id}"${d.id===e.driverId?' selected':''}>${d.name} (${d.type||'driver'})</option>`).join('');
-  const vehOpts=(fleet||[]).map(f=>`<option value="${f.id}"${f.id===e.vehicleId?' selected':''}>${f.name}</option>`).join('');
   const siteOpts=(sites||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
   const matOpts=(materials||[]).map(m=>`<option value="${m.id}"${m.id===e.materialId?' selected':''}>${m.name} (${m.unit})</option>`).join('');
   const custOpts=(customers||[]).map(c=>`<option value="${c.id}"${c.id===e.customerId?' selected':''}>${c.name} · ${c.phone||'no phone'}</option>`).join('');
   const movementType=e.movementType||'external';
 
+  // Initialize slip chips array from existing data
+  if(!Array.isArray(window._tripSlipChips)){
+    window._tripSlipChips = e.slipNos && Array.isArray(e.slipNos) ? [...e.slipNos] : (e.slipNo ? [e.slipNo] : []);
+  }
+
+  // Initialize driver and vehicle selections
+  const selDriver = (drivers||[]).find(d=>d.id===e.driverId);
+  const selVehicle = (fleet||[]).find(f=>f.id===e.vehicleId);
+  if(typeof window._tripSelDriverId==='undefined') window._tripSelDriverId=e.driverId||'';
+  if(typeof window._tripSelVehId==='undefined') window._tripSelVehId=e.vehicleId||'';
+
   document.getElementById('trip-entry-body').innerHTML=`
     <div class="f-r2">
       <div class="f-field"><label class="f-lbl">Date *</label><input class="f-inp" id="trip-date" type="date" value="${dateVal}" ${!isOwner()&&editing?'readonly':''}></div>
-      <div class="f-field"><label class="f-lbl">Slip Number</label><input class="f-inp" id="trip-slip" type="text" value="${e.slipNo||''}" placeholder="Optional"></div>
+      <div class="f-field"><label class="f-lbl">Number of Trips *</label><input class="f-inp" id="trip-count" type="number" inputmode="numeric" value="${e.numTrips||1}" min="1" oninput="updateTripAmount()"></div>
     </div>
 
-    <div class="f-field"><label class="f-lbl">Driver *</label>
-      <select class="f-inp" id="trip-driver" style="background:var(--bg3);color:var(--white)">
-        <option value="">Select driver...</option>${drvOpts}
-      </select>
+    <!-- Slip Numbers — chip input -->
+    <div class="f-field">
+      <label class="f-lbl">Slip Numbers (one per trip)</label>
+      <div id="trip-slip-chips" style="display:flex;flex-wrap:wrap;gap:6px;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;min-height:46px;align-items:center"></div>
+      <input id="trip-slip-input" type="text" placeholder="Type slip number, press Enter or comma..."
+        onkeydown="onSlipKeyDown(event)"
+        onpaste="setTimeout(()=>onSlipKeyDown({key:',', target:document.getElementById('trip-slip-input')}),50)"
+        style="width:100%;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);padding:9px 12px;border-radius:8px;font-size:13px;font-family:var(--fb);box-sizing:border-box;margin-top:6px;outline:none">
+      <div id="trip-slip-hint" style="margin-top:4px;font-size:10px;color:var(--muted);font-weight:600"></div>
     </div>
 
-    <div class="f-field"><label class="f-lbl">Vehicle *</label>
-      <select class="f-inp" id="trip-vehicle" style="background:var(--bg3);color:var(--white)">
-        <option value="">Select vehicle...</option>${vehOpts}
-      </select>
+    <!-- Driver — searchable picker -->
+    <div class="f-field">
+      <label class="f-lbl">Driver *</label>
+      <input id="trip-driver-search" type="text" placeholder="🔍 Type driver name..."
+        value="${selDriver?selDriver.name:''}"
+        oninput="onTripDriverSearch(this.value)"
+        autocomplete="off"
+        style="width:100%;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);padding:10px 12px;border-radius:10px;font-size:13px;font-family:var(--fb);box-sizing:border-box;outline:none">
+      <div id="trip-driver-results" style="display:none;margin-top:4px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;max-height:180px;overflow-y:auto"></div>
+    </div>
+
+    <!-- Vehicle — searchable picker -->
+    <div class="f-field">
+      <label class="f-lbl">Vehicle *</label>
+      <input id="trip-vehicle-search" type="text" placeholder="🔍 Type vehicle number..."
+        value="${selVehicle?selVehicle.name:''}"
+        oninput="onTripVehicleSearch(this.value)"
+        autocomplete="off"
+        style="width:100%;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);padding:10px 12px;border-radius:10px;font-size:13px;font-family:var(--fb);box-sizing:border-box;outline:none">
+      <div id="trip-vehicle-results" style="display:none;margin-top:4px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;max-height:180px;overflow-y:auto"></div>
     </div>
 
     <div class="f-field"><label class="f-lbl">Movement Type</label>
@@ -3159,13 +3193,12 @@ function renderTripEntryForm(editing){
       <label class="f-lbl">Amount Paid Now ₹</label><input class="f-inp" id="trip-paid" type="number" inputmode="decimal" value="${e.amountPaid||''}" placeholder="0">
     </div>`:''}
 
-    <div class="f-r2">
-      <div class="f-field"><label class="f-lbl">Number of Trips *</label><input class="f-inp" id="trip-count" type="number" inputmode="numeric" value="${e.numTrips||1}" min="1"></div>
-      <div class="f-field"><label class="f-lbl">Driver Incentive ₹ (total)</label><input class="f-inp" id="trip-incentive" type="number" inputmode="decimal" value="${e.driverIncentive||''}" placeholder="0"></div>
-    </div>
+    <div class="f-field"><label class="f-lbl">Driver Incentive ₹ (total)</label><input class="f-inp" id="trip-incentive" type="number" inputmode="decimal" value="${e.driverIncentive||''}" placeholder="0"></div>
 
     <div class="f-field"><label class="f-lbl">Remarks</label><textarea class="f-inp" id="trip-remarks" rows="2" style="resize:vertical">${e.remarks||''}</textarea></div>
   `;
+  // Render initial slip chips
+  renderSlipChips();
 }
 
 function _currentTripEdit(){
@@ -3174,9 +3207,9 @@ function _currentTripEdit(){
   const movementType=document.querySelector('input[name="trip-mtype"]:checked')?.value||'external';
   const live={
     date:document.getElementById('trip-date')?.value||today(),
-    slipNo:document.getElementById('trip-slip')?.value||'',
-    driverId:document.getElementById('trip-driver')?.value||'',
-    vehicleId:document.getElementById('trip-vehicle')?.value||'',
+    slipNos:[...(window._tripSlipChips||[])],
+    driverId:window._tripSelDriverId||'',
+    vehicleId:window._tripSelVehId||'',
     fromSiteId:document.getElementById('trip-from-site')?.value||'',
     toSiteId:document.getElementById('trip-to-site')?.value||'',
     customerId:document.getElementById('trip-customer')?.value||'',
@@ -3205,6 +3238,158 @@ function onTripMaterialChange(){
   if(rateInp&&!rateInp.value&&mat.rate) {rateInp.value=mat.rate; updateTripAmount();}
 }
 
+// Helper: format slip numbers (works with both old slipNo and new slipNos array)
+function _fmtSlips(t){
+  const arr = t.slipNos && Array.isArray(t.slipNos) && t.slipNos.length ? t.slipNos : (t.slipNo ? [t.slipNo] : []);
+  if(!arr.length) return '';
+  if(arr.length===1) return '#'+arr[0];
+  if(arr.length<=4) return arr.map(s=>'#'+s).join(' ');
+  return '#'+arr[0]+' … #'+arr[arr.length-1]+' ('+arr.length+' slips)';
+}
+
+// ── SLIP CHIPS ──
+function renderSlipChips(){
+  const chipsEl=document.getElementById('trip-slip-chips');
+  const hint=document.getElementById('trip-slip-hint');
+  if(!chipsEl) return;
+  const chips=window._tripSlipChips||[];
+  const numTrips=parseInt(document.getElementById('trip-count')?.value)||1;
+  if(chips.length===0){
+    chipsEl.innerHTML='<span style="color:var(--muted);font-size:11px;font-weight:600">No slip numbers added yet</span>';
+  } else {
+    chipsEl.innerHTML=chips.map((s,i)=>`
+      <span style="display:inline-flex;align-items:center;gap:4px;background:var(--amber);color:#111;font-family:var(--fh);font-size:12px;padding:4px 8px;border-radius:6px">
+        ${s}
+        <span onclick="removeSlipChip(${i})" style="cursor:pointer;font-weight:700;padding:0 2px">✕</span>
+      </span>
+    `).join('');
+  }
+  // Hint message
+  if(hint){
+    if(chips.length===0){
+      hint.textContent=`Will need ${numTrips} slip number${numTrips!==1?'s':''}`;
+      hint.style.color='var(--muted)';
+    } else if(chips.length<numTrips){
+      hint.textContent=`${chips.length} of ${numTrips} added — ${numTrips-chips.length} more needed`;
+      hint.style.color='var(--amber)';
+    } else if(chips.length===numTrips){
+      hint.textContent=`✓ ${chips.length} slip${chips.length!==1?'s':''} matches ${numTrips} trip${numTrips!==1?'s':''}`;
+      hint.style.color='var(--green)';
+    } else {
+      hint.textContent=`⚠ ${chips.length} slips but only ${numTrips} trips — adjust trip count or remove slips`;
+      hint.style.color='var(--red)';
+    }
+  }
+}
+
+function addSlipChip(value){
+  const v=String(value||'').trim();
+  if(!v) return;
+  if(!window._tripSlipChips) window._tripSlipChips=[];
+  // Avoid duplicates
+  if(window._tripSlipChips.includes(v)){
+    const inp=document.getElementById('trip-slip-input');
+    if(inp){inp.style.borderColor='var(--red)';setTimeout(()=>inp.style.borderColor='',500);}
+    return;
+  }
+  window._tripSlipChips.push(v);
+  const inp=document.getElementById('trip-slip-input');
+  if(inp) inp.value='';
+  renderSlipChips();
+}
+
+function removeSlipChip(idx){
+  if(!window._tripSlipChips) return;
+  window._tripSlipChips.splice(idx,1);
+  renderSlipChips();
+}
+
+function onSlipKeyDown(e){
+  if(e.key==='Enter'||e.key===','){
+    e.preventDefault?.();
+    const inp=e.target;
+    const val=inp.value.trim();
+    if(val.includes(',')){
+      // Split comma-separated
+      val.split(',').map(s=>s.trim()).filter(Boolean).forEach(s=>addSlipChip(s));
+    } else {
+      addSlipChip(val);
+    }
+    inp.value='';
+  } else if(e.key==='Backspace' && !e.target.value && window._tripSlipChips?.length){
+    // Remove last chip on backspace when input is empty
+    window._tripSlipChips.pop();
+    renderSlipChips();
+  }
+}
+
+// ── DRIVER SEARCH ──
+function onTripDriverSearch(query){
+  const q=query.toLowerCase().trim();
+  const resultsEl=document.getElementById('trip-driver-results');
+  if(!resultsEl) return;
+  // Clear selection if user is typing fresh
+  window._tripSelDriverId='';
+  if(!q){
+    resultsEl.style.display='none';
+    return;
+  }
+  const matches=(drivers||[]).filter(d=>d.name.toLowerCase().includes(q)).slice(0,10);
+  if(!matches.length){
+    resultsEl.innerHTML='<div style="padding:10px 12px;color:var(--muted);font-size:12px;font-weight:600">No driver matches "'+q+'"</div>';
+    resultsEl.style.display='block';
+    return;
+  }
+  resultsEl.innerHTML=matches.map(d=>`
+    <div onclick="selectTripDriver('${d.id}','${d.name.replace(/'/g,"\\'")}')" style="padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+      <span style="font-size:16px">👤</span>
+      <span style="flex:1;color:var(--white);font-size:13px;font-weight:600">${d.name}</span>
+      <span style="font-size:10px;color:var(--muted);font-weight:600;background:var(--bg3);padding:2px 6px;border-radius:4px">${(d.type||'driver').toUpperCase()}</span>
+    </div>`).join('');
+  resultsEl.style.display='block';
+}
+
+function selectTripDriver(id,name){
+  window._tripSelDriverId=id;
+  const inp=document.getElementById('trip-driver-search');
+  if(inp) inp.value=name;
+  const resultsEl=document.getElementById('trip-driver-results');
+  if(resultsEl) resultsEl.style.display='none';
+}
+
+// ── VEHICLE SEARCH ──
+function onTripVehicleSearch(query){
+  const q=query.toLowerCase().trim();
+  const resultsEl=document.getElementById('trip-vehicle-results');
+  if(!resultsEl) return;
+  window._tripSelVehId='';
+  if(!q){
+    resultsEl.style.display='none';
+    return;
+  }
+  const matches=(fleet||[]).filter(f=>f.name.toLowerCase().includes(q)).slice(0,10);
+  if(!matches.length){
+    resultsEl.innerHTML='<div style="padding:10px 12px;color:var(--muted);font-size:12px;font-weight:600">No vehicle matches "'+q+'"</div>';
+    resultsEl.style.display='block';
+    return;
+  }
+  resultsEl.innerHTML=matches.map(f=>`
+    <div onclick="selectTripVehicle('${f.id}','${f.name.replace(/'/g,"\\'")}')" style="padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+      <span style="font-size:16px">${vIco(f.type)}</span>
+      <span style="flex:1;color:var(--white);font-size:13px;font-weight:600">${f.name}</span>
+      <span style="font-size:10px;color:var(--muted);font-weight:600">${f.siteName||'Mobile'}</span>
+    </div>`).join('');
+  resultsEl.style.display='block';
+}
+
+function selectTripVehicle(id,name){
+  window._tripSelVehId=id;
+  const inp=document.getElementById('trip-vehicle-search');
+  if(inp) inp.value=name;
+  const resultsEl=document.getElementById('trip-vehicle-results');
+  if(resultsEl) resultsEl.style.display='none';
+}
+
 function updateTripAmount(){
   const qty=parseFloat(document.getElementById('trip-qty')?.value)||0;
   const rate=parseFloat(document.getElementById('trip-rate')?.value)||0;
@@ -3226,13 +3411,13 @@ async function saveTrip(){
   const orig=editId?trips.find(t=>t.id===editId):null;
   const movementType=document.querySelector('input[name="trip-mtype"]:checked')?.value||'external';
   const date=document.getElementById('trip-date').value||today();
-  const driverId=document.getElementById('trip-driver').value;
-  const vehicleId=document.getElementById('trip-vehicle').value;
+  const driverId=window._tripSelDriverId||'';
+  const vehicleId=window._tripSelVehId||'';
   const fromSiteId=document.getElementById('trip-from-site').value;
 
   // Validation
-  if(!driverId){alert('Select driver');return;}
-  if(!vehicleId){alert('Select vehicle');return;}
+  if(!driverId){alert('Select driver — type name and tap from list');return;}
+  if(!vehicleId){alert('Select vehicle — type number and tap from list');return;}
   if(!fromSiteId){alert('Select from site');return;}
 
   let toSiteId=null,customerId=null;
@@ -3251,11 +3436,15 @@ async function saveTrip(){
   const numTrips=parseInt(document.getElementById('trip-count').value)||1;
   if(numTrips<1){alert('Number of trips must be at least 1');return;}
 
+  // Slip numbers — stored as array
+  const slipNos=[...(window._tripSlipChips||[])];
+
   const trip={
     id:editId||uid(),
     ts:editId?orig.ts:Date.now(),
     date,
-    slipNo:document.getElementById('trip-slip').value.trim(),
+    slipNos,
+    slipNo:slipNos[0]||'',  // backward-compat: first slip as legacy field
     driverId,
     driverName:(drivers.find(d=>d.id===driverId)||{}).name||'',
     vehicleId,
@@ -3372,7 +3561,8 @@ function renderTripLog(){
              (drv?.name||'').toLowerCase().includes(q)||
              (cust?.name||'').toLowerCase().includes(q)||
              (mat?.name||'').toLowerCase().includes(q)||
-             (t.slipNo||'').toLowerCase().includes(q);
+             (t.slipNo||'').toLowerCase().includes(q)||
+             (t.slipNos||[]).some(s=>String(s).toLowerCase().includes(q));
     });
   }
   entries.sort((a,b)=>(b.ts||0)-(a.ts||0)||b.date.localeCompare(a.date));
@@ -3391,7 +3581,7 @@ function renderTripLog(){
       ${_tripRowHtml(t,false)}
       <div style="font-size:10px;color:var(--muted);font-weight:600;padding:0 4px;margin-top:-2px;margin-bottom:8px">
         ${fmtD(t.date)} · by ${t.loggedByName||'?'} ${editedBadge}
-        ${t.slipNo?` · slip #${t.slipNo}`:''}
+        ${(()=>{const s=_fmtSlips(t);return s?' · '+s:'';})()}
       </div>
     </div>`;
   }).join('')+'<div class="pad-bot"></div>';
@@ -3551,7 +3741,7 @@ function showCustomerDetail(custId){
         <div style="display:flex;justify-content:space-between;align-items:start;gap:10px">
           <div>
             <div style="font-family:var(--fh);font-size:12px;color:var(--white)">${m?.name||'?'} · ${fmt(t.quantity,1)} ${t.unit||''} × ${t.numTrips} trips</div>
-            <div style="font-size:10px;color:var(--muted);font-weight:600">${fmtD(t.date)} · ${veh?.name||'?'}${t.slipNo?' · #'+t.slipNo:''}</div>
+            <div style="font-size:10px;color:var(--muted);font-weight:600">${fmtD(t.date)} · ${veh?.name||'?'}${(()=>{const s=_fmtSlips(t);return s?' · '+s:'';})()}</div>
           </div>
           <div style="text-align:right">
             <div style="font-family:var(--fh);font-size:13px;color:var(--green)">${fmtINR(t.amount)}</div>
@@ -6210,7 +6400,7 @@ function renderReports(){
               <div style="display:flex;justify-content:space-between;align-items:start">
                 <div style="flex:1;min-width:0">
                   <div style="font-family:var(--fh);font-size:12px;color:var(--white)">${m?.name||'?'} · ${fmt(t.quantity,1)} ${t.unit} × ${t.numTrips}</div>
-                  <div style="font-size:10px;color:var(--muted)">${fmtD(t.date)}${t.slipNo?' · #'+t.slipNo:''}</div>
+                  <div style="font-size:10px;color:var(--muted)">${fmtD(t.date)}${(()=>{const s=_fmtSlips(t);return s?' · '+s:'';})()}</div>
                 </div>
                 <div style="text-align:right">
                   <div style="font-family:var(--fh);font-size:12px;color:var(--green)">${fmtINR(t.amount)}</div>
@@ -6358,7 +6548,7 @@ function renderReports(){
                   const toS=(sites||[]).find(s=>s.id===t.toSiteId);
                   const cust=(customers||[]).find(c=>c.id===t.customerId);
                   return `<div style="padding:6px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:start;font-size:11px">
-                    <div style="flex:1"><div style="color:var(--white)">${fromS?.name||'?'} → ${t.movementType==='external'?(cust?.name||'?'):(toS?.name||'?')}</div><div style="color:var(--muted)">${veh?.name||'?'} · ${t.numTrips||1} trip${(t.numTrips||1)!==1?'s':''}${t.slipNo?' · #'+t.slipNo:''}</div></div>
+                    <div style="flex:1"><div style="color:var(--white)">${fromS?.name||'?'} → ${t.movementType==='external'?(cust?.name||'?'):(toS?.name||'?')}</div><div style="color:var(--muted)">${veh?.name||'?'} · ${t.numTrips||1} trip${(t.numTrips||1)!==1?'s':''}${(()=>{const s=_fmtSlips(t);return s?' · '+s:'';})()}</div></div>
                     <div style="font-family:var(--fh);color:var(--amber);font-size:12px">₹${fmt(t.driverIncentive||0,0)}</div>
                   </div>`;
                 }).join('')}
@@ -6478,7 +6668,7 @@ function renderReports(){
             const ageColor=days>30?'var(--red)':days>15?'var(--amber)':'var(--muted)';
             return `<div style="margin:4px 14px 0;background:var(--bg2);border:1px solid var(--border);border-left:3px solid ${ageColor};border-radius:8px;padding:10px 12px">
               <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
-                <div style="flex:1"><div style="font-family:var(--fh);font-size:12px;color:var(--white)">${m?.name||'?'} · ${fmt(t.quantity,1)} ${t.unit}${t.numTrips>1?` × ${t.numTrips}`:''}</div><div style="font-size:10px;color:var(--muted)">${fmtD(t.date)} · ${days} day${days!==1?'s':''} ago${t.slipNo?' · #'+t.slipNo:''}</div></div>
+                <div style="flex:1"><div style="font-family:var(--fh);font-size:12px;color:var(--white)">${m?.name||'?'} · ${fmt(t.quantity,1)} ${t.unit}${t.numTrips>1?` × ${t.numTrips}`:''}</div><div style="font-size:10px;color:var(--muted)">${fmtD(t.date)} · ${days} day${days!==1?'s':''} ago${(()=>{const s=_fmtSlips(t);return s?' · '+s:'';})()}</div></div>
                 <div style="text-align:right"><div style="font-family:var(--fh);font-size:13px;color:var(--red)">${fmtINR(tDue)}</div><button onclick="markTripPaid('${t.id}')" style="background:rgba(0,200,83,.1);border:1px solid var(--green);color:var(--green);padding:4px 8px;border-radius:5px;font-size:10px;font-weight:700;cursor:pointer;margin-top:3px">✓ MARK PAID</button></div>
               </div>
             </div>`;
