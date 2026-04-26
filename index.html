@@ -8550,10 +8550,15 @@ async function fbInit(){
   if(data){
     FB_KEYS.forEach(k => {
       const localKey = SK[k] || ('fl7_' + k);
-      // Firebase stores arrays as objects when keys are numeric — convert back
       let val = data[k];
-      if(val === null || val === undefined) val = [];
-      else if(!Array.isArray(val) && typeof val === 'object') val = Object.values(val);
+      // If Firebase returns null/empty for this key, prefer localStorage
+      // This prevents a failed Firebase write from wiping local data on reload
+      if(val === null || val === undefined){
+        try{ val = JSON.parse(localStorage.getItem(localKey)||'[]'); }
+        catch(e){ val = []; }
+      } else if(!Array.isArray(val) && typeof val === 'object'){
+        val = Object.values(val);
+      }
       localStorage.setItem(localKey, JSON.stringify(val));
       // Update in-memory variables immediately
       if(k==='users') users=val;
