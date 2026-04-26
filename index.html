@@ -1405,11 +1405,17 @@ function _updateSyncBadge(){
       el.style.display = 'none';
     }
   }
-  // Also update fb-status if present
+  // Also update fb-status — must reset when queue is empty too
   const st = document.getElementById('fb-status');
-  if(st && q.length > 0){
-    st.innerHTML = '⚠ ' + q.length + ' pending';
-    st.style.color = 'var(--red)';
+  if(st){
+    if(q.length > 0){
+      st.innerHTML = '⚠ ' + q.length + ' pending';
+      st.style.color = 'var(--red)';
+    } else {
+      // Reset to normal state when queue clears
+      st.innerHTML = (typeof fbOnline !== 'undefined' && fbOnline) ? '✓' : '⟳';
+      st.style.color = (typeof fbOnline !== 'undefined' && fbOnline) ? 'var(--green)' : 'var(--muted)';
+    }
   }
 }
 
@@ -3105,7 +3111,8 @@ function renderTripEntryForm(editing){
       <div id="trip-slip-chips" style="display:flex;flex-wrap:wrap;gap:6px;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;min-height:46px;align-items:center"></div>
       <input id="trip-slip-input" type="text" placeholder="Type slip number, press Enter or comma..."
         onkeydown="onSlipKeyDown(event)"
-        onpaste="setTimeout(()=>onSlipKeyDown({key:',', target:document.getElementById('trip-slip-input')}),50)"
+        onpaste="onSlipPaste(event)"
+        onblur="commitPendingSlip()"
         style="width:100%;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);padding:9px 12px;border-radius:8px;font-size:13px;font-family:var(--fb);box-sizing:border-box;margin-top:6px;outline:none">
       <div id="trip-slip-hint" style="margin-top:4px;font-size:10px;color:var(--muted);font-weight:600"></div>
     </div>
@@ -3238,9 +3245,32 @@ function onTripMaterialChange(){
   if(rateInp&&!rateInp.value&&mat.rate) {rateInp.value=mat.rate; updateTripAmount();}
 }
 
+// Normalize a trip object — Firebase converts arrays with numeric keys to objects.
+// This converts slipNos back to a proper array regardless of how it arrived.
+function _normalizeTrip(t){
+  if(!t) return t;
+  if(t.slipNos && !Array.isArray(t.slipNos)){
+    if(typeof t.slipNos==='object'){
+      // Convert {0:'101',1:'102'} back to ['101','102']
+      t.slipNos = Object.keys(t.slipNos).sort((a,b)=>parseInt(a)-parseInt(b)).map(k=>t.slipNos[k]).filter(v=>v!=null && v!=='');
+    } else {
+      t.slipNos = [];
+    }
+  }
+  return t;
+}
+
+// Normalize trips loaded from localStorage at app start (function is defined now)
+if(Array.isArray(trips)) trips=trips.map(_normalizeTrip);
+
 // Helper: format slip numbers (works with both old slipNo and new slipNos array)
 function _fmtSlips(t){
-  const arr = t.slipNos && Array.isArray(t.slipNos) && t.slipNos.length ? t.slipNos : (t.slipNo ? [t.slipNo] : []);
+  // Handle Firebase coming back as object instead of array
+  let arr = t.slipNos;
+  if(arr && !Array.isArray(arr) && typeof arr==='object'){
+    arr = Object.keys(arr).sort((a,b)=>parseInt(a)-parseInt(b)).map(k=>arr[k]);
+  }
+  arr = arr && Array.isArray(arr) && arr.length ? arr : (t.slipNo ? [t.slipNo] : []);
   if(!arr.length) return '';
   if(arr.length===1) return '#'+arr[0];
   if(arr.length<=4) return arr.map(s=>'#'+s).join(' ');
@@ -3305,21 +3335,54 @@ function removeSlipChip(idx){
 }
 
 function onSlipKeyDown(e){
+  // Handle paste via separate handler
+  if(e.type==='paste') return; // paste is handled by onSlipPaste
+
   if(e.key==='Enter'||e.key===','){
-    e.preventDefault?.();
+    if(typeof e.preventDefault==='function') e.preventDefault();
+    if(typeof e.stopPropagation==='function') e.stopPropagation();
     const inp=e.target;
-    const val=inp.value.trim();
+    let val=inp.value;
+    // Strip the comma if it's in the value
+    if(val.endsWith(',')) val=val.slice(0,-1);
+    val=val.trim();
+    if(!val) return false;
     if(val.includes(',')){
-      // Split comma-separated
       val.split(',').map(s=>s.trim()).filter(Boolean).forEach(s=>addSlipChip(s));
     } else {
       addSlipChip(val);
     }
     inp.value='';
+    return false;
   } else if(e.key==='Backspace' && !e.target.value && window._tripSlipChips?.length){
-    // Remove last chip on backspace when input is empty
     window._tripSlipChips.pop();
     renderSlipChips();
+  }
+}
+
+// Dedicated paste handler — splits multiple slips on paste
+function onSlipPaste(e){
+  setTimeout(()=>{
+    const inp=document.getElementById('trip-slip-input');
+    if(!inp) return;
+    const val=(inp.value||'').trim();
+    if(!val) return;
+    // If pasted text contains comma/space/newline, split it
+    if(/[,\s\n]/.test(val)){
+      val.split(/[,\s\n]+/).map(s=>s.trim()).filter(Boolean).forEach(s=>addSlipChip(s));
+      inp.value='';
+    }
+  },50);
+}
+
+// Commit any pending text in input as chip (called before save)
+function commitPendingSlip(){
+  const inp=document.getElementById('trip-slip-input');
+  if(!inp) return;
+  const val=(inp.value||'').trim();
+  if(val){
+    addSlipChip(val);
+    inp.value='';
   }
 }
 
@@ -3407,6 +3470,8 @@ function onTripPaymentChange(){
 }
 
 async function saveTrip(){
+  // Commit any unconfirmed text in slip input as a chip
+  commitPendingSlip();
   const editId=_tripEntryState.editId;
   const orig=editId?trips.find(t=>t.id===editId):null;
   const movementType=document.querySelector('input[name="trip-mtype"]:checked')?.value||'external';
@@ -3562,7 +3627,7 @@ function renderTripLog(){
              (cust?.name||'').toLowerCase().includes(q)||
              (mat?.name||'').toLowerCase().includes(q)||
              (t.slipNo||'').toLowerCase().includes(q)||
-             (t.slipNos||[]).some(s=>String(s).toLowerCase().includes(q));
+             (Array.isArray(t.slipNos)?t.slipNos:Object.values(t.slipNos||{})).some(s=>String(s).toLowerCase().includes(q));
     });
   }
   entries.sort((a,b)=>(b.ts||0)-(a.ts||0)||b.date.localeCompare(a.date));
@@ -6283,10 +6348,19 @@ function renderReports(){
 
       html+=`
       <!-- Filters -->
-      <div style="margin:0 14px 8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
-        <select onchange="window._tripRepDriver=this.value;renderReports()" style="background:var(--bg2);border:1px solid var(--border);color:var(--white);padding:7px 8px;border-radius:6px;font-size:11px">${drvOpts}</select>
-        <select onchange="window._tripRepCustomer=this.value;renderReports()" style="background:var(--bg2);border:1px solid var(--border);color:var(--white);padding:7px 8px;border-radius:6px;font-size:11px">${custOpts}</select>
-        <select onchange="window._tripRepMaterial=this.value;renderReports()" style="background:var(--bg2);border:1px solid var(--border);color:var(--white);padding:7px 8px;border-radius:6px;font-size:11px">${matOpts}</select>
+      <div style="margin:0 14px 8px">
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+          <span style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px;width:60px">DRIVER</span>
+          <select onchange="window._tripRepDriver=this.value;renderReports()" style="flex:1;min-width:0;background:var(--bg2);border:1px solid var(--border);color:var(--white);padding:7px 8px;border-radius:6px;font-size:12px;font-family:var(--fb)">${drvOpts}</select>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+          <span style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px;width:60px">CUSTOMER</span>
+          <select onchange="window._tripRepCustomer=this.value;renderReports()" style="flex:1;min-width:0;background:var(--bg2);border:1px solid var(--border);color:var(--white);padding:7px 8px;border-radius:6px;font-size:12px;font-family:var(--fb)">${custOpts}</select>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px;width:60px">MATERIAL</span>
+          <select onchange="window._tripRepMaterial=this.value;renderReports()" style="flex:1;min-width:0;background:var(--bg2);border:1px solid var(--border);color:var(--white);padding:7px 8px;border-radius:6px;font-size:12px;font-family:var(--fb)">${matOpts}</select>
+        </div>
       </div>
 
       <!-- Summary -->
@@ -8763,7 +8837,7 @@ async function fbInit(){
       else if(k==='musters') musters=val;
       else if(k==='checklistTemplates') checklistTemplates=val;
       else if(k==='checklistRecords') checklistRecords=val;
-      else if(k==='trips') trips=val;
+      else if(k==='trips') trips=(val||[]).map(_normalizeTrip);
       else if(k==='customers') customers=val;
       else if(k==='materials') materials=val;
     });
@@ -8786,7 +8860,7 @@ async function fbInit(){
         else if(k==='musters') musters=val;
         else if(k==='checklistTemplates') checklistTemplates=val;
         else if(k==='checklistRecords') checklistRecords=val;
-      else if(k==='trips') trips=val;
+      else if(k==='trips') trips=(val||[]).map(_normalizeTrip);
       else if(k==='customers') customers=val;
       else if(k==='materials') materials=val;
       }catch(e){}
@@ -8883,7 +8957,7 @@ function restoreBackup(){
             else if(k==='musters')musters=val;
             else if(k==='checklistTemplates')checklistTemplates=val;
             else if(k==='checklistRecords')checklistRecords=val;
-            else if(k==='trips')trips=val;
+            else if(k==='trips')trips=(val||[]).map(_normalizeTrip);
             else if(k==='customers')customers=val;
             else if(k==='materials')materials=val;
           });
@@ -8939,7 +9013,7 @@ async function refreshData(){
         else if(k==='musters') musters=val;
         else if(k==='checklistTemplates') checklistTemplates=val;
         else if(k==='checklistRecords') checklistRecords=val;
-      else if(k==='trips') trips=val;
+      else if(k==='trips') trips=(val||[]).map(_normalizeTrip);
       else if(k==='customers') customers=val;
       else if(k==='materials') materials=val;
       });
