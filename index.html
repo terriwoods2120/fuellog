@@ -5582,7 +5582,7 @@ function renderReports(){
     if(closingStock<500)alerts.push({c:'red',t:'Low bowser stock',s:fmt(closingStock,0)+' L remaining'});
     if(pendingDips.length>0)alerts.push({c:'amber',t:pendingDips.length+' dip gauge(s) pending',s:'Verify to close discrepancies'});
     const mismatches=allDisbs.filter(d=>d.meterMismatch).length;
-    if(mismatches>0)alerts.push({c:'red',t:mismatches+' meter mismatch(es)',s:'Check bowser readings'});
+    if(mismatches>0)alerts.push({c:'red',t:mismatches+' meter mismatch(es) — tap to review below',s:'Check bowser meter readings · entries need correction',scroll:'mismatch-section'});
 
     html=`
     <!-- Header -->
@@ -5595,15 +5595,78 @@ function renderReports(){
 
     <!-- Alerts -->
     ${alerts.length?`<div style="margin:10px 14px 0">${alerts.map(a=>`
-      <div style="background:${a.c==='red'?'rgba(255,61,61,.1)':'rgba(255,179,0,.1)'};
+      <div onclick="${a.scroll?`document.getElementById('${a.scroll}')?.scrollIntoView({behavior:'smooth',block:'start'})`:''};"
+           style="background:${a.c==='red'?'rgba(255,61,61,.1)':'rgba(255,179,0,.1)'};
                   border:1px solid var(${a.c==='red'?'--red':'--amber'});border-radius:10px;
-                  padding:10px 14px;margin-bottom:6px;display:flex;align-items:center;gap:10px">
+                  padding:10px 14px;margin-bottom:6px;display:flex;align-items:center;gap:10px;
+                  ${a.scroll?'cursor:pointer':''}">
         <span style="font-size:16px">${a.c==='red'?'⚠️':'⏳'}</span>
         <div style="flex:1">
           <div style="font-family:var(--fh);font-size:13px;color:var(${a.c==='red'?'--red':'--amber'})">${a.t}</div>
           <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:1px">${a.s}</div>
         </div>
+        ${a.scroll?`<div style="color:var(--muted);font-size:16px">↓</div>`:''}
       </div>`).join('')}</div>`:''}
+
+    <!-- Meter Mismatches — prominent if any exist -->
+    ${(()=>{
+      const mm=allDisbs.filter(d=>d.meterMismatch);
+      if(!mm.length) return '';
+      return `<div id="mismatch-section" class="rep-card" style="margin-top:10px;border:2px solid var(--red)">
+        <div class="rep-hd" style="color:var(--red);background:rgba(255,61,61,.06)">
+          ⚠️ METER MISMATCHES (${mm.length}) — REQUIRES ATTENTION
+        </div>
+        <div style="padding:8px 14px;font-size:11px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border)">
+          Mismatch = difference between meter before/after does not match litres dispensed (tolerance ±1L)
+        </div>
+        ${mm.map(d=>{
+          const veh=gV(d.vehicleId);
+          const mBefore=d.meterBefore||0;
+          const mAfter=d.meterAfter||0;
+          const mDiff=mAfter-mBefore;
+          const gap=Math.abs(mDiff-d.litres);
+          const timeStr=d.ts?new Date(d.ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}):'';
+          return `<div style="padding:12px 14px;border-top:1px solid var(--border);background:rgba(255,61,61,.04)">
+            <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
+              <div style="flex:1">
+                <div style="font-family:var(--fh);font-size:14px;color:var(--red)">${veh?.name||'Unknown Vehicle'}</div>
+                <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:3px">
+                  ${fmtD(d.date)}${timeStr?' · '+timeStr:''} · by ${d.loggedByName||'?'}
+                </div>
+              </div>
+              <span style="font-size:11px;color:var(--red);font-weight:700;background:rgba(255,61,61,.1);padding:3px 8px;border-radius:6px;flex-shrink:0">⚠ MISMATCH</span>
+            </div>
+            <!-- Breakdown showing what doesn't add up -->
+            <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+              <div style="background:var(--bg3);border-radius:6px;padding:8px;text-align:center">
+                <div style="font-family:var(--fh);font-size:14px;color:var(--white)">${fmt(mBefore,1)}</div>
+                <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:2px">METER BEFORE</div>
+              </div>
+              <div style="background:var(--bg3);border-radius:6px;padding:8px;text-align:center">
+                <div style="font-family:var(--fh);font-size:14px;color:var(--white)">${fmt(mAfter,1)}</div>
+                <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:2px">METER AFTER</div>
+              </div>
+              <div style="background:var(--bg3);border-radius:6px;padding:8px;text-align:center">
+                <div style="font-family:var(--fh);font-size:14px;color:var(--amber)">${fmt(d.litres,1)} L</div>
+                <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:2px">LITRES ENTERED</div>
+              </div>
+            </div>
+            <div style="margin-top:8px;background:rgba(255,61,61,.08);border:1px solid rgba(255,61,61,.3);border-radius:6px;padding:8px 12px;font-size:12px">
+              <span style="color:var(--muted)">Meter diff:</span> <span style="color:var(--white);font-weight:700">${fmt(mDiff,1)} L</span>
+              &nbsp;·&nbsp;
+              <span style="color:var(--muted)">Litres entered:</span> <span style="color:var(--white);font-weight:700">${fmt(d.litres,1)} L</span>
+              &nbsp;·&nbsp;
+              <span style="color:var(--red);font-weight:700">Gap: ${fmt(gap,1)} L</span>
+              ${mDiff<0?'&nbsp;·&nbsp;<span style="color:var(--red);font-weight:700">⚠ Meter went backward</span>':''}
+            </div>
+            ${d.remarks?`<div style="margin-top:6px;font-size:11px;color:var(--muted);font-style:italic">📝 ${d.remarks}</div>`:''}
+            ${(isOwner()||isAdmin())?`<div style="margin-top:8px">
+              <button onclick="openEditModal('disb','${d.id}')" style="background:var(--bg2);border:1.5px solid var(--amber);color:var(--amber);padding:7px 14px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">✏️ EDIT THIS ENTRY</button>
+            </div>`:''}
+          </div>`;
+        }).join('')}
+      </div>`;
+    })()}
 
     <!-- Stock Movement -->
     <div class="rep-card" style="margin-top:10px">
