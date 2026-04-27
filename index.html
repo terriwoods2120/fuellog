@@ -2565,6 +2565,8 @@ function renderDashboard(dash,alerts){
   const fuelledPct=totalVeh>0?Math.round(fuelled/totalVeh*100):0;
   const pending=disbs.filter(d=>(d.source==='can'||d.destType==='can')&&d.dipStatus==='pending').length;
   const mismatch=disbs.filter(d=>d.dipMatch===false||d.meterMismatch).length;
+  const dipMismatch=disbs.filter(d=>d.dipMatch===false).length;
+  const meterMismatch=disbs.filter(d=>d.meterMismatch).length;
   const bal=isOwner()?purchases.reduce((a,p)=>a+(p.amount-p.paid),0):0;
 
   // Update ops badge
@@ -2673,11 +2675,23 @@ function renderDashboard(dash,alerts){
     </div>`;
   }
   if(mismatch>0){
+    const label=meterMismatch>0&&dipMismatch>0
+      ? `${mismatch} READING DISCREPANC${mismatch>1?'IES':'Y'}`
+      : meterMismatch>0
+        ? `${meterMismatch} METER MISMATCH${meterMismatch>1?'ES':''}`
+        : `${dipMismatch} DIP GAUGE MISMATCH${dipMismatch>1?'ES':''}`;
+    const sub=meterMismatch>0&&dipMismatch>0
+      ? `${meterMismatch} meter · ${dipMismatch} dip gauge — tap to review`
+      : meterMismatch>0
+        ? 'Meter before/after doesn\'t match litres — tap to review'
+        : 'Dip gauge verification failed — tap to review';
     alertHtml+=`<div class="dash-alert" style="background:rgba(255,61,61,.06);border:2px solid var(--red);cursor:pointer" onclick="show('scr-reports');repTab('daily')">
       <div class="dash-alert-row">
         <div style="font-size:24px">⚠️</div>
-        <div style="flex:1"><div style="font-family:var(--fh);font-size:14px;color:var(--red)">${mismatch} METER MISMATCH${mismatch>1?'ES':''}</div>
-        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">Tap to review in Daily Ops report</div></div>
+        <div style="flex:1">
+          <div style="font-family:var(--fh);font-size:14px;color:var(--red)">${label}</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">${sub}</div>
+        </div>
         <div style="color:var(--red);font-size:18px">›</div>
       </div>
     </div>`;
@@ -5582,7 +5596,10 @@ function renderReports(){
     if(closingStock<500)alerts.push({c:'red',t:'Low bowser stock',s:fmt(closingStock,0)+' L remaining'});
     if(pendingDips.length>0)alerts.push({c:'amber',t:pendingDips.length+' dip gauge(s) pending',s:'Verify to close discrepancies'});
     const mismatches=allDisbs.filter(d=>d.meterMismatch).length;
-    if(mismatches>0)alerts.push({c:'red',t:mismatches+' meter mismatch(es) — tap to review below',s:'Check bowser meter readings · entries need correction',scroll:'mismatch-section'});
+    const dipMismatches=allDisbs.filter(d=>d.dipMatch===false).length;
+    const totalMismatches=allDisbs.filter(d=>d.meterMismatch||d.dipMatch===false).length;
+    if(mismatches>0) alerts.push({c:'red',t:mismatches+' meter mismatch(es) — tap to review below',s:'Meter before/after doesn\'t match litres entered',scroll:'mismatch-section'});
+    if(dipMismatches>0) alerts.push({c:'red',t:dipMismatches+' dip gauge mismatch(es) — tap to review below',s:'Dip gauge verification failed — check actual vs recorded',scroll:'mismatch-section'});
 
     html=`
     <!-- Header -->
@@ -5610,34 +5627,42 @@ function renderReports(){
 
     <!-- Meter Mismatches — prominent if any exist -->
     ${(()=>{
-      const mm=allDisbs.filter(d=>d.meterMismatch);
+      const mm=allDisbs.filter(d=>d.meterMismatch||d.dipMatch===false);
       if(!mm.length) return '';
+      const meterCount=mm.filter(d=>d.meterMismatch).length;
+      const dipCount=mm.filter(d=>d.dipMatch===false).length;
       return `<div id="mismatch-section" class="rep-card" style="margin-top:10px;border:2px solid var(--red)">
         <div class="rep-hd" style="color:var(--red);background:rgba(255,61,61,.06)">
-          ⚠️ METER MISMATCHES (${mm.length}) — REQUIRES ATTENTION
+          ⚠️ READING DISCREPANCIES (${mm.length}) — REQUIRES ATTENTION
         </div>
-        <div style="padding:8px 14px;font-size:11px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border)">
-          Mismatch = difference between meter before/after does not match litres dispensed (tolerance ±1L)
+        <div style="padding:8px 14px;font-size:11px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border);display:flex;gap:12px">
+          ${meterCount>0?`<span style="color:var(--red)">🔢 ${meterCount} meter mismatch${meterCount>1?'es':''}</span>`:''}
+          ${dipCount>0?`<span style="color:var(--red)">💧 ${dipCount} dip gauge mismatch${dipCount>1?'es':''}</span>`:''}
         </div>
         ${mm.map(d=>{
           const veh=gV(d.vehicleId);
+          const isMeter=d.meterMismatch;
+          const isDip=d.dipMatch===false;
           const mBefore=d.meterBefore||0;
           const mAfter=d.meterAfter||0;
           const mDiff=mAfter-mBefore;
-          const gap=Math.abs(mDiff-d.litres);
+          const gap=isMeter?Math.abs(mDiff-d.litres):0;
           const timeStr=d.ts?new Date(d.ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}):'';
           return `<div style="padding:12px 14px;border-top:1px solid var(--border);background:rgba(255,61,61,.04)">
-            <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
+            <div style="display:flex;justify-content:space-between;align-items:start;gap:8px;margin-bottom:8px">
               <div style="flex:1">
                 <div style="font-family:var(--fh);font-size:14px;color:var(--red)">${veh?.name||'Unknown Vehicle'}</div>
                 <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:3px">
-                  ${fmtD(d.date)}${timeStr?' · '+timeStr:''} · by ${d.loggedByName||'?'}
+                  ${fmtD(d.date)}${timeStr?' · '+timeStr:''} · ${fmt(d.litres,1)}L · by ${d.loggedByName||'?'}
                 </div>
               </div>
-              <span style="font-size:11px;color:var(--red);font-weight:700;background:rgba(255,61,61,.1);padding:3px 8px;border-radius:6px;flex-shrink:0">⚠ MISMATCH</span>
+              <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+                ${isMeter?`<span style="font-size:10px;color:var(--red);font-weight:700;background:rgba(255,61,61,.1);padding:2px 8px;border-radius:5px">🔢 METER</span>`:''}
+                ${isDip?`<span style="font-size:10px;color:var(--red);font-weight:700;background:rgba(255,61,61,.1);padding:2px 8px;border-radius:5px">💧 DIP GAUGE</span>`:''}
+              </div>
             </div>
-            <!-- Breakdown showing what doesn't add up -->
-            <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+            ${isMeter?`
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px">
               <div style="background:var(--bg3);border-radius:6px;padding:8px;text-align:center">
                 <div style="font-family:var(--fh);font-size:14px;color:var(--white)">${fmt(mBefore,1)}</div>
                 <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:2px">METER BEFORE</div>
@@ -5651,18 +5676,19 @@ function renderReports(){
                 <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:2px">LITRES ENTERED</div>
               </div>
             </div>
-            <div style="margin-top:8px;background:rgba(255,61,61,.08);border:1px solid rgba(255,61,61,.3);border-radius:6px;padding:8px 12px;font-size:12px">
-              <span style="color:var(--muted)">Meter diff:</span> <span style="color:var(--white);font-weight:700">${fmt(mDiff,1)} L</span>
-              &nbsp;·&nbsp;
-              <span style="color:var(--muted)">Litres entered:</span> <span style="color:var(--white);font-weight:700">${fmt(d.litres,1)} L</span>
-              &nbsp;·&nbsp;
-              <span style="color:var(--red);font-weight:700">Gap: ${fmt(gap,1)} L</span>
-              ${mDiff<0?'&nbsp;·&nbsp;<span style="color:var(--red);font-weight:700">⚠ Meter went backward</span>':''}
-            </div>
-            ${d.remarks?`<div style="margin-top:6px;font-size:11px;color:var(--muted);font-style:italic">📝 ${d.remarks}</div>`:''}
-            ${(isOwner()||isAdmin())?`<div style="margin-top:8px">
-              <button onclick="openEditModal('disb','${d.id}')" style="background:var(--bg2);border:1.5px solid var(--amber);color:var(--amber);padding:7px 14px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">✏️ EDIT THIS ENTRY</button>
+            <div style="background:rgba(255,61,61,.08);border:1px solid rgba(255,61,61,.3);border-radius:6px;padding:8px 12px;font-size:12px;margin-bottom:8px">
+              Meter diff: <b>${fmt(mDiff,1)}L</b> · Litres entered: <b>${fmt(d.litres,1)}L</b> · 
+              <span style="color:var(--red);font-weight:700">Gap: ${fmt(gap,1)}L</span>
+              ${mDiff<0?' · <span style="color:var(--red);font-weight:700">⚠ Meter went backward</span>':''}
             </div>`:''}
+            ${isDip?`
+            <div style="background:rgba(255,61,61,.08);border:1px solid rgba(255,61,61,.3);border-radius:6px;padding:8px 12px;font-size:12px;margin-bottom:8px">
+              💧 <span style="color:var(--red);font-weight:700">Dip gauge reading did not match dispensed quantity</span> — verify actual tank level
+            </div>`:''}
+            ${d.remarks?`<div style="font-size:11px;color:var(--muted);font-style:italic;margin-bottom:8px">📝 ${d.remarks}</div>`:''}
+            ${(isOwner()||isAdmin())?`
+              <button onclick="openEditModal('disb','${d.id}')" style="background:var(--bg2);border:1.5px solid var(--amber);color:var(--amber);padding:7px 14px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">✏️ EDIT THIS ENTRY</button>
+            `:''}
           </div>`;
         }).join('')}
       </div>`;
