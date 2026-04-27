@@ -1441,7 +1441,9 @@ async function _fbWrite(key, value){
           if(fbData && typeof fbData==='object'){
             const fbArr = Array.isArray(fbData) ? fbData : Object.values(fbData).filter(Boolean);
             const localIds = new Set(value.map(e=>e&&e.id).filter(Boolean));
-            const missing = fbArr.filter(e=>e&&e.id&&!localIds.has(e.id));
+            // Get tombstone IDs — these were intentionally deleted, do NOT resurrect
+            const tombstoneIds = _getTombstones(key);
+            const missing = fbArr.filter(e=>e&&e.id&&!localIds.has(e.id)&&!tombstoneIds.has(e.id));
             if(missing.length>0){
               writeValue = [...value,...missing];
               // Update local too so we don't lose them on this device
@@ -1454,6 +1456,9 @@ async function _fbWrite(key, value){
               else if(key==='trips') trips=writeValue.map(_normalizeTrip);
               console.log('[Merge] '+key+': preserved '+missing.length+' remote entries');
             }
+            // Log any tombstoned IDs we're suppressing (helps debugging)
+            const suppressed = fbArr.filter(e=>e&&e.id&&tombstoneIds.has(e.id)).length;
+            if(suppressed>0) console.log('[Merge] '+key+': suppressed '+suppressed+' deleted entries (tombstones)');
           }
         }
       } catch(me){ /* merge failed — proceed with local */ }
@@ -1470,6 +1475,45 @@ async function _fbWrite(key, value){
   } catch(e){
     return false;
   }
+}
+
+// ════════════════════════════════════════
+// TOMBSTONE SYSTEM
+// Tracks intentionally-deleted entry IDs so the merge logic doesn't resurrect them.
+// Tombstones expire after 7 days (long enough for all devices to sync the deletion).
+// ════════════════════════════════════════
+function _recordDeletion(key, id){
+  if(!id) return;
+  try {
+    const raw = localStorage.getItem('fl7_tombstones') || '{}';
+    const all = JSON.parse(raw);
+    if(!all[key]) all[key] = {};
+    all[key][id] = Date.now();
+    localStorage.setItem('fl7_tombstones', JSON.stringify(all));
+  } catch(e){ /* ignore */ }
+}
+
+function _getTombstones(key){
+  try {
+    const raw = localStorage.getItem('fl7_tombstones') || '{}';
+    const all = JSON.parse(raw);
+    if(!all[key]) return new Set();
+    // Purge expired tombstones (older than 7 days)
+    const now = Date.now();
+    const cutoff = 7 * 24 * 60 * 60 * 1000;
+    const ids = new Set();
+    let purged = false;
+    Object.keys(all[key]).forEach(id=>{
+      if(now - all[key][id] < cutoff){
+        ids.add(id);
+      } else {
+        delete all[key][id];
+        purged = true;
+      }
+    });
+    if(purged) localStorage.setItem('fl7_tombstones', JSON.stringify(all));
+    return ids;
+  } catch(e){ return new Set(); }
 }
 
 // Process the sync queue — retry all pending writes
@@ -2564,9 +2608,9 @@ function renderDashboard(dash,alerts){
   const totalVeh=fleet.length;
   const fuelledPct=totalVeh>0?Math.round(fuelled/totalVeh*100):0;
   const pending=disbs.filter(d=>(d.source==='can'||d.destType==='can')&&d.dipStatus==='pending').length;
-  const mismatch=disbs.filter(d=>d.dipMatch===false||d.meterMismatch).length;
-  const dipMismatch=disbs.filter(d=>d.dipMatch===false).length;
-  const meterMismatch=disbs.filter(d=>d.meterMismatch).length;
+  const mismatch=disbs.filter(d=>(d.dipMatch===false||d.meterMismatch)&&!d.resolutionType).length;
+  const dipMismatch=disbs.filter(d=>d.dipMatch===false&&!d.resolutionType).length;
+  const meterMismatch=disbs.filter(d=>d.meterMismatch&&!d.resolutionType).length;
   const bal=isOwner()?purchases.reduce((a,p)=>a+(p.amount-p.paid),0):0;
 
   // Update ops badge
@@ -2873,10 +2917,10 @@ function deleteFuelEntry(type,id){
   if(!isOwner()){alert('Owner only');return;}
   showConfirm('Delete this entry? This cannot be undone.',function(){
     if(type==='disb'){
-      disbs=disbs.filter(x=>x.id!==id);
+      _recordDeletion('disbs',id);disbs=disbs.filter(x=>x.id!==id);
       sv('disbs',disbs);
     } else {
-      pumpFills=(pumpFills||[]).filter(x=>x.id!==id);
+      _recordDeletion('pumpFills',id);pumpFills=(pumpFills||[]).filter(x=>x.id!==id);
       sv('pumpFills',pumpFills);
     }
     renderFuelLog();
@@ -4771,7 +4815,7 @@ function delPurchase(id){
   if(!canDelEntry()){alert('Only Owner can delete');return;}
   const p=purchases.find(x=>x.id===id);
   showConfirm('Delete purchase from "'+p?.vendor+'"?',()=>{
-    purchases=purchases.filter(p=>p.id!==id);sv('purchases',purchases);renderPurchases();
+    _recordDeletion('purchases',id);purchases=purchases.filter(p=>p.id!==id);sv('purchases',purchases);renderPurchases();
     flash('DELETED!','Purchase entry removed');
   });
 }
@@ -5406,7 +5450,7 @@ function delReading(id){
   const r=readings.find(x=>x.id===id);
   const veh=gV(r?.vehicleId);
   showConfirm('Delete reading for "'+veh?.name+'"?',()=>{
-    readings=readings.filter(x=>x.id!==id);sv('readings',readings);renderReports();
+    _recordDeletion('readings',id);readings=readings.filter(x=>x.id!==id);sv('readings',readings);renderReports();
     flash('DELETED!','Reading removed');
   });
 }
@@ -5595,9 +5639,9 @@ function renderReports(){
     const alerts=[];
     if(closingStock<500)alerts.push({c:'red',t:'Low bowser stock',s:fmt(closingStock,0)+' L remaining'});
     if(pendingDips.length>0)alerts.push({c:'amber',t:pendingDips.length+' dip gauge(s) pending',s:'Verify to close discrepancies'});
-    const mismatches=allDisbs.filter(d=>d.meterMismatch).length;
-    const dipMismatches=allDisbs.filter(d=>d.dipMatch===false).length;
-    const totalMismatches=allDisbs.filter(d=>d.meterMismatch||d.dipMatch===false).length;
+    const mismatches=allDisbs.filter(d=>d.meterMismatch&&!d.resolutionType).length;
+    const dipMismatches=allDisbs.filter(d=>d.dipMatch===false&&!d.resolutionType).length;
+    const totalMismatches=allDisbs.filter(d=>(d.meterMismatch||d.dipMatch===false)&&!d.resolutionType).length;
     if(mismatches>0) alerts.push({c:'red',t:mismatches+' meter mismatch(es) — tap to review below',s:'Meter before/after doesn\'t match litres entered',scroll:'mismatch-section'});
     if(dipMismatches>0) alerts.push({c:'red',t:dipMismatches+' dip gauge mismatch(es) — tap to review below',s:'Dip gauge verification failed — check actual vs recorded',scroll:'mismatch-section'});
 
@@ -5627,7 +5671,7 @@ function renderReports(){
 
     <!-- Meter Mismatches — prominent if any exist -->
     ${(()=>{
-      const mm=allDisbs.filter(d=>d.meterMismatch||d.dipMatch===false);
+      const mm=allDisbs.filter(d=>(d.meterMismatch||d.dipMatch===false)&&!d.resolutionType);
       if(!mm.length) return '';
       const meterCount=mm.filter(d=>d.meterMismatch).length;
       const dipCount=mm.filter(d=>d.dipMatch===false).length;
@@ -6018,6 +6062,7 @@ function renderReports(){
         <option value="efficiency"${reportType==='efficiency'?' selected':''}>📊 Fleet Efficiency Ranking (km/L)</option>
         <option value="consumers"${reportType==='consumers'?' selected':''}>🏆 Top 10 Fuel Consumers</option>
         <option value="machine"${reportType==='machine'?' selected':''}>⚙️ Machine Hours Efficiency (L/hr)</option>
+        ${(isOwner()||isAdmin())?`<option value="theft"${reportType==='theft'?' selected':''}>🚨 Fuel Theft Register</option>`:''}
       </select>
     </div>
     ${reportType==='summary'?`
@@ -6256,6 +6301,98 @@ function renderReports(){
             </table>
           </div>
         </div>`;
+      }
+    } else if(reportType==='theft' && (isOwner()||isAdmin())){
+      // 🚨 FUEL THEFT REGISTER (Owner/Admin only)
+      const theftEntries = allDisbs.filter(d=>d.resolutionType==='theft');
+      const totalIncidents = theftEntries.length;
+      const totalStolen = theftEntries.reduce((a,d)=>a+(d.stolenQty||0),0);
+      // Use latest fuel rate to estimate ₹ value
+      const latestRate = (purchases||[]).slice().sort((a,b)=>(b.ts||0)-(a.ts||0))[0]?.rate || 95;
+      const totalValue = totalStolen * latestRate;
+
+      if(!totalIncidents){
+        html += `<div style="margin:14px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:30px;text-align:center;color:var(--muted)">
+          ✓ No theft incidents recorded in this period
+          <div style="font-size:11px;margin-top:8px">Theft entries appear here when mismatches are marked as theft from the Daily Ops report.</div>
+        </div>`;
+      } else {
+        // Pattern analysis
+        const drvMap={}, supMap={};
+        theftEntries.forEach(d=>{
+          if(d.responsibleDriverId){
+            if(!drvMap[d.responsibleDriverId]) drvMap[d.responsibleDriverId]={name:d.responsibleDriverName,count:0,total:0};
+            drvMap[d.responsibleDriverId].count++;
+            drvMap[d.responsibleDriverId].total+=(d.stolenQty||0);
+          }
+          if(d.responsibleSupervisorId){
+            if(!supMap[d.responsibleSupervisorId]) supMap[d.responsibleSupervisorId]={name:d.responsibleSupervisorName,count:0,total:0};
+            supMap[d.responsibleSupervisorId].count++;
+            supMap[d.responsibleSupervisorId].total+=(d.stolenQty||0);
+          }
+        });
+        const drvRanked = Object.values(drvMap).sort((a,b)=>b.count-a.count);
+        const supRanked = Object.values(supMap).sort((a,b)=>b.count-a.count);
+
+        html += `
+        <!-- Summary -->
+        <div style="margin:0 14px 0;background:rgba(255,61,61,.05);border:1.5px solid var(--red);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+          <div style="text-align:center"><div style="font-family:var(--fh);font-size:20px;color:var(--red)">${totalIncidents}</div><div style="font-size:9px;color:var(--muted);font-weight:700">INCIDENTS</div></div>
+          <div style="text-align:center"><div style="font-family:var(--fh);font-size:20px;color:var(--red)">${fmt(totalStolen,1)} L</div><div style="font-size:9px;color:var(--muted);font-weight:700">STOLEN</div></div>
+          <div style="text-align:center"><div style="font-family:var(--fh);font-size:18px;color:var(--red)">${fmtINR(totalValue)}</div><div style="font-size:9px;color:var(--muted);font-weight:700">VALUE @ ₹${fmt(latestRate,0)}/L</div></div>
+        </div>
+
+        <!-- Pattern: Drivers with multiple incidents -->
+        ${drvRanked.length?`
+        <div style="margin:10px 14px 0;font-family:var(--fh);font-size:11px;color:var(--muted);letter-spacing:.5px">⚠️ DRIVERS / OPERATORS BY INCIDENT COUNT</div>
+        ${drvRanked.map(d=>`
+          <div style="margin:4px 14px 0;background:var(--bg2);border:1px solid var(--border);${d.count>=3?'border-left:3px solid var(--red)':d.count>=2?'border-left:3px solid var(--amber)':''};border-radius:8px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-family:var(--fh);font-size:12px;color:var(--white)">👤 ${d.name}</div>
+              <div style="font-size:10px;color:var(--muted);font-weight:600">${d.count} incident${d.count!==1?'s':''} · ${fmt(d.total,1)} L</div>
+            </div>
+            ${d.count>=3?'<span style="background:rgba(255,61,61,.15);color:var(--red);font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px">⚠ REPEAT OFFENDER</span>':d.count>=2?'<span style="background:rgba(255,179,0,.15);color:var(--amber);font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px">⚠ MULTIPLE</span>':''}
+          </div>`).join('')}
+        `:''}
+
+        <!-- Pattern: Supervisors -->
+        ${supRanked.length?`
+        <div style="margin:10px 14px 0;font-family:var(--fh);font-size:11px;color:var(--muted);letter-spacing:.5px">⚠️ SUPERVISORS BY INCIDENT COUNT</div>
+        ${supRanked.map(s=>`
+          <div style="margin:4px 14px 0;background:var(--bg2);border:1px solid var(--border);${s.count>=3?'border-left:3px solid var(--red)':s.count>=2?'border-left:3px solid var(--amber)':''};border-radius:8px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-family:var(--fh);font-size:12px;color:var(--white)">👔 ${s.name}</div>
+              <div style="font-size:10px;color:var(--muted);font-weight:600">${s.count} incident${s.count!==1?'s':''} under their watch · ${fmt(s.total,1)} L</div>
+            </div>
+            ${s.count>=3?'<span style="background:rgba(255,61,61,.15);color:var(--red);font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px">⚠ REPEAT</span>':''}
+          </div>`).join('')}
+        `:''}
+
+        <!-- All theft entries chronological -->
+        <div style="margin:10px 14px 0;font-family:var(--fh);font-size:11px;color:var(--muted);letter-spacing:.5px">📜 ALL THEFT ENTRIES (NEWEST FIRST)</div>
+        ${[...theftEntries].sort((a,b)=>(b.resolvedAt||0)-(a.resolvedAt||0)).map(d=>{
+          const v = gV(d.vehicleId);
+          const value = (d.stolenQty||0)*latestRate;
+          return `<div style="margin:6px 14px 0;background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--red);border-radius:8px;padding:10px 12px">
+            <div style="display:flex;justify-content:space-between;align-items:start;gap:8px;margin-bottom:6px">
+              <div style="flex:1">
+                <div style="font-family:var(--fh);font-size:13px;color:var(--white)">${vIco(v?.type)} ${v?.name||'?'}</div>
+                <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">${fmtD(d.date)} · ${fmt(d.litres,1)}L dispensed · entry by ${d.loggedByName||'?'}</div>
+              </div>
+              <div style="text-align:right">
+                <div style="font-family:var(--fh);font-size:14px;color:var(--red)">${fmt(d.stolenQty||0,1)} L</div>
+                <div style="font-size:10px;color:var(--muted);font-weight:700">${fmtINR(value)}</div>
+              </div>
+            </div>
+            <div style="font-size:11px;color:var(--white);background:var(--bg3);padding:6px 10px;border-radius:6px;margin-bottom:6px">
+              👤 <b>Driver:</b> ${d.responsibleDriverName||'—'}
+              ${d.responsibleSupervisorName?'<br>👔 <b>Supervisor:</b> '+d.responsibleSupervisorName:''}
+            </div>
+            ${d.theftRemarks?`<div style="font-size:11px;color:var(--muted);font-style:italic;background:var(--bg3);padding:6px 10px;border-radius:6px;margin-bottom:6px">"${d.theftRemarks}"</div>`:''}
+            <div style="font-size:10px;color:var(--muted)">Marked by ${d.resolvedByName||'?'} · ${d.resolvedAt?new Date(d.resolvedAt).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''}</div>
+            <button onclick="openEditModal('disb','${d.id}')" style="margin-top:6px;background:var(--bg3);border:1px solid var(--amber);color:var(--amber);padding:5px 10px;border-radius:5px;font-size:10px;font-weight:700;cursor:pointer">VIEW / RECLASSIFY ›</button>
+          </div>`;
+        }).join('')}`;
       }
     }
   // ═══ TAB: MUSTER REPORT ═══
@@ -6923,10 +7060,10 @@ function deleteEntry(type,id){
   if(!isOwner()){alert('Only Owner can delete entries');return;}
   showConfirm('Delete this entry? This cannot be undone.',function(){
     if(type==='disb'){
-      disbs=disbs.filter(x=>x.id!==id);
+      _recordDeletion('disbs',id);disbs=disbs.filter(x=>x.id!==id);
       sv('disbs',disbs);
     } else if(type==='pumpFill'){
-      pumpFills=pumpFills.filter(x=>x.id!==id);
+      _recordDeletion('pumpFills',id);pumpFills=pumpFills.filter(x=>x.id!==id);
       sv('pumpFills',pumpFills);
     }
     renderReports();
@@ -7616,13 +7753,13 @@ function delEntry(id,type){
   if(type==='pf'){
     const e=(pumpFills||[]).find(x=>x.id===id);
     showConfirm('Delete pump fill entry?',()=>{
-      pumpFills=pumpFills.filter(x=>x.id!==id);sv('pumpFills',pumpFills);renderReports();
+      _recordDeletion('pumpFills',id);pumpFills=pumpFills.filter(x=>x.id!==id);sv('pumpFills',pumpFills);renderReports();
       flash('DELETED!','Entry removed');
     });
   } else {
     const d=disbs.find(x=>x.id===id);const veh=gV(d?.vehicleId);
     showConfirm('Delete disbursement for "'+veh?.name+'"?',()=>{
-      disbs=disbs.filter(x=>x.id!==id);sv('disbs',disbs);renderReports();
+      _recordDeletion('disbs',id);disbs=disbs.filter(x=>x.id!==id);sv('disbs',disbs);renderReports();
       flash('DELETED!','Disbursement removed');
     });
   }
@@ -9432,6 +9569,282 @@ function closeEditModal(){
   if(returnTo==='fuel-log') renderFuelLog();
 }
 
+// ════════════════════════════════════════
+// MISMATCH RESOLUTION SYSTEM
+// Two paths: (1) Correct measurement, (2) Mark as theft
+// ════════════════════════════════════════
+
+function setResolutionMode(mode){
+  window._resMode = mode;
+  // Update button styles
+  const cb=document.getElementById('res-btn-correct');
+  const tb=document.getElementById('res-btn-theft');
+  if(cb){
+    cb.style.background = mode==='corrected'?'rgba(0,200,83,.15)':'var(--bg3)';
+    cb.style.borderColor = mode==='corrected'?'var(--green)':'var(--border)';
+    cb.style.color = mode==='corrected'?'var(--green)':'var(--white)';
+  }
+  if(tb){
+    tb.style.background = mode==='theft'?'rgba(255,61,61,.15)':'var(--bg3)';
+    tb.style.borderColor = mode==='theft'?'var(--red)':'var(--border)';
+    tb.style.color = mode==='theft'?'var(--red)':'var(--white)';
+  }
+  // Render appropriate section
+  const modal = document.getElementById('edit-modal');
+  const id = modal?.dataset?.disbId;
+  if(!id) return;
+  const d = disbs.find(x=>x.id===id);
+  if(d) renderResolutionSection(d);
+}
+
+function renderResolutionSection(d){
+  const sec = document.getElementById('res-section');
+  if(!sec) return;
+  const mode = window._resMode;
+  const veh = gV(d.vehicleId);
+  const calib = veh?.calibration || null;
+  const gap = d.diff != null ? Math.abs(d.diff) : 0;
+
+  if(mode==='corrected'){
+    sec.innerHTML = `
+      <div style="background:rgba(0,200,83,.05);border:1.5px solid var(--green);border-radius:10px;padding:12px;margin-bottom:10px">
+        <div style="font-family:var(--fh);font-size:11px;color:var(--green);letter-spacing:.5px;margin-bottom:8px">✏️ CORRECT THE DIP READINGS</div>
+        <div class="f-r2">
+          <div class="f-field"><label class="f-lbl">Dip Before (cm)</label>
+            <input class="f-inp" id="res-dip-b" type="number" step="0.1" value="${d.gaugeBefore||''}" oninput="recalcDip()">
+            <div style="font-size:10px;color:var(--muted);margin-top:2px">Was: ${fmt(d.gaugeBefore||0,1)} cm</div>
+          </div>
+          <div class="f-field"><label class="f-lbl">Dip After (cm)</label>
+            <input class="f-inp" id="res-dip-a" type="number" step="0.1" value="${d.gaugeAfter||''}" oninput="recalcDip()">
+            <div style="font-size:10px;color:var(--muted);margin-top:2px">Was: ${fmt(d.gaugeAfter||0,1)} cm</div>
+          </div>
+        </div>
+        <div id="res-dip-calc" style="margin-top:8px;padding:8px;background:var(--bg3);border-radius:6px;font-size:11px;color:var(--muted)"></div>
+        <div class="f-field" style="margin-top:8px"><label class="f-lbl">Correction Remarks (optional)</label>
+          <textarea class="f-inp" id="res-corr-rem" rows="2" placeholder="Why was original reading wrong?">${d.correctionRemarks||''}</textarea>
+        </div>
+        <button onclick="resolveCorrected()" type="button" style="margin-top:8px;width:100%;background:var(--green);color:#111;border:none;padding:12px;border-radius:8px;font-family:var(--fh);font-size:13px;cursor:pointer">
+          ✓ RECALCULATE & MARK RESOLVED
+        </button>
+      </div>
+    `;
+    recalcDip();
+  } else if(mode==='theft'){
+    // Pre-suggest assigned driver of the vehicle
+    const assignedDrv = veh?.driverId ? (drivers||[]).find(x=>x.id===veh.driverId) : null;
+    if(!window._theftDriverId && assignedDrv) window._theftDriverId = assignedDrv.id;
+    const drvName = window._theftDriverId ? ((drivers||[]).find(x=>x.id===window._theftDriverId)?.name||'') : '';
+    const supName = window._theftSupervisorId ? ((users||[]).find(x=>x.id===window._theftSupervisorId)?.name||'') : '';
+
+    sec.innerHTML = `
+      <div style="background:rgba(255,61,61,.05);border:1.5px solid var(--red);border-radius:10px;padding:12px;margin-bottom:10px">
+        <div style="font-family:var(--fh);font-size:11px;color:var(--red);letter-spacing:.5px;margin-bottom:8px">🚨 MARK AS FUEL THEFT — Original readings will NOT change</div>
+
+        <div class="f-field">
+          <label class="f-lbl">Quantity Stolen (L)</label>
+          <input class="f-inp" id="res-stolen" type="number" step="0.1" value="${d.stolenQty||fmt(gap,1)}" placeholder="${fmt(gap,1)}">
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">Auto-filled from gap, edit if needed</div>
+        </div>
+
+        <div class="f-field" style="margin-top:8px">
+          <label class="f-lbl">Responsible Driver / Operator</label>
+          <input id="res-drv-search" type="text" placeholder="🔍 Type to search drivers..."
+            value="${drvName}" autocomplete="off"
+            oninput="onTheftDriverSearch(this.value)"
+            style="width:100%;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);padding:9px 12px;border-radius:8px;font-size:13px;font-family:var(--fb);box-sizing:border-box;outline:none">
+          <div id="res-drv-results" style="display:none;margin-top:4px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;max-height:160px;overflow-y:auto"></div>
+          ${assignedDrv?`<div style="font-size:10px;color:var(--muted);margin-top:4px">Assigned to vehicle: ${assignedDrv.name}</div>`:''}
+        </div>
+
+        <div class="f-field" style="margin-top:8px">
+          <label class="f-lbl">Responsible Site Supervisor (optional)</label>
+          <input id="res-sup-search" type="text" placeholder="🔍 Type to search supervisors..."
+            value="${supName}" autocomplete="off"
+            oninput="onTheftSupervisorSearch(this.value)"
+            style="width:100%;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);padding:9px 12px;border-radius:8px;font-size:13px;font-family:var(--fb);box-sizing:border-box;outline:none">
+          <div id="res-sup-results" style="display:none;margin-top:4px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;max-height:160px;overflow-y:auto"></div>
+          ${supName?'':'<div style="font-size:10px;color:var(--muted);margin-top:4px">Leave blank if no supervisor implicated</div>'}
+        </div>
+
+        <div class="f-field" style="margin-top:8px">
+          <label class="f-lbl">Theft Remarks <span style="color:var(--red)">*</span></label>
+          <textarea class="f-inp" id="res-theft-rem" rows="3" placeholder="Brief explanation — required" style="resize:vertical">${d.theftRemarks||''}</textarea>
+        </div>
+
+        <button onclick="resolveTheft()" type="button" style="margin-top:10px;width:100%;background:var(--red);color:#fff;border:none;padding:12px;border-radius:8px;font-family:var(--fh);font-size:13px;cursor:pointer">
+          🚨 MARK AS THEFT & SAVE
+        </button>
+      </div>
+    `;
+  } else {
+    sec.innerHTML='';
+  }
+}
+
+function recalcDip(){
+  const before = parseFloat(document.getElementById('res-dip-b')?.value);
+  const after = parseFloat(document.getElementById('res-dip-a')?.value);
+  const calcEl = document.getElementById('res-dip-calc');
+  if(!calcEl) return;
+  const modal = document.getElementById('edit-modal');
+  const id = modal?.dataset?.disbId;
+  const d = disbs.find(x=>x.id===id);
+  if(!d) return;
+  const veh = gV(d.vehicleId);
+  const calib = veh?.calibration || null;
+
+  if(isNaN(before) || isNaN(after)){
+    calcEl.innerHTML='<span style="color:var(--muted)">Enter both readings to see calculation</span>';
+    return;
+  }
+  const cm = after - before;
+  if(!calib){
+    calcEl.innerHTML=`Rise: <b>${fmt(cm,1)} cm</b> · No calibration set — cannot calculate litres`;
+    calcEl.style.color='var(--amber)';
+    return;
+  }
+  const calcLtr = cm * calib;
+  const newDiff = d.litres - calcLtr;
+  const newOk = Math.abs(newDiff) <= 2;
+  calcEl.innerHTML = `
+    Rise: <b>${fmt(cm,1)} cm</b> · Calc: <b>${fmt(calcLtr,1)} L</b> · Entered: <b>${fmt(d.litres,1)} L</b>
+    · <span style="color:${newOk?'var(--green)':'var(--red)'};font-weight:700">${newOk?'✓ MATCH':'Gap '+fmt(Math.abs(newDiff),1)+'L'}</span>
+  `;
+  calcEl.style.color='var(--white)';
+}
+
+function onTheftDriverSearch(q){
+  const r = document.getElementById('res-drv-results');
+  if(!r) return;
+  window._theftDriverId='';
+  q = (q||'').toLowerCase().trim();
+  if(!q){r.style.display='none';return;}
+  const matches = (drivers||[]).filter(d=>d.name.toLowerCase().includes(q)).slice(0,8);
+  if(!matches.length){r.innerHTML='<div style="padding:8px;color:var(--muted);font-size:11px">No match</div>';r.style.display='block';return;}
+  r.innerHTML = matches.map(d=>`
+    <div onclick="selectTheftDriver('${d.id}','${d.name.replace(/'/g,"\\'")}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:12px;color:var(--white)">
+      👤 ${d.name} <span style="color:var(--muted);font-size:10px">· ${(d.type||'driver').toUpperCase()}</span>
+    </div>`).join('');
+  r.style.display='block';
+}
+function selectTheftDriver(id,name){
+  window._theftDriverId=id;
+  const inp=document.getElementById('res-drv-search');
+  if(inp) inp.value=name;
+  const r=document.getElementById('res-drv-results');
+  if(r) r.style.display='none';
+}
+
+function onTheftSupervisorSearch(q){
+  const r = document.getElementById('res-sup-results');
+  if(!r) return;
+  window._theftSupervisorId='';
+  q = (q||'').toLowerCase().trim();
+  if(!q){r.style.display='none';return;}
+  // Supervisors = users with manager/admin/owner role
+  const supList = (users||[]).filter(u=>['manager','admin','owner'].includes(u.role));
+  const matches = supList.filter(u=>u.name.toLowerCase().includes(q)).slice(0,8);
+  if(!matches.length){r.innerHTML='<div style="padding:8px;color:var(--muted);font-size:11px">No match</div>';r.style.display='block';return;}
+  r.innerHTML = matches.map(u=>`
+    <div onclick="selectTheftSupervisor('${u.id}','${u.name.replace(/'/g,"\\'")}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:12px;color:var(--white)">
+      👔 ${u.name} <span style="color:var(--muted);font-size:10px">· ${(u.role||'').toUpperCase()}</span>
+    </div>`).join('');
+  r.style.display='block';
+}
+function selectTheftSupervisor(id,name){
+  window._theftSupervisorId=id;
+  const inp=document.getElementById('res-sup-search');
+  if(inp) inp.value=name;
+  const r=document.getElementById('res-sup-results');
+  if(r) r.style.display='none';
+}
+
+async function resolveCorrected(){
+  const modal = document.getElementById('edit-modal');
+  const id = modal?.dataset?.disbId;
+  const idx = disbs.findIndex(x=>x.id===id);
+  if(idx<0){alert('Entry not found');return;}
+  const before = parseFloat(document.getElementById('res-dip-b').value);
+  const after = parseFloat(document.getElementById('res-dip-a').value);
+  if(isNaN(before)||isNaN(after)){alert('Enter both dip readings');return;}
+  const veh = gV(disbs[idx].vehicleId);
+  const calib = veh?.calibration || null;
+  const cm = after - before;
+  const calcLtr = calib ? cm * calib : null;
+  const newDiff = calcLtr != null ? disbs[idx].litres - calcLtr : null;
+  const newOk = newDiff != null ? Math.abs(newDiff) <= 2 : null;
+
+  const orig = {...disbs[idx]};
+  disbs[idx] = {
+    ...disbs[idx],
+    gaugeBefore: before,
+    gaugeAfter: after,
+    gaugeIncreaseCm: cm,
+    gaugeIncreaseLtr: calcLtr,
+    diff: newDiff,
+    dipMatch: newOk,
+    resolutionType: 'corrected',
+    correctionRemarks: document.getElementById('res-corr-rem').value || '',
+    resolvedBy: sess.userId,
+    resolvedByName: sess.name,
+    resolvedAt: Date.now(),
+    editedBy: sess.userId,
+    editedByName: sess.name,
+    editedAt: Date.now()
+  };
+  // Clear theft fields if previously theft
+  delete disbs[idx].stolenQty;
+  delete disbs[idx].responsibleDriverId;
+  delete disbs[idx].responsibleDriverName;
+  delete disbs[idx].responsibleSupervisorId;
+  delete disbs[idx].responsibleSupervisorName;
+  delete disbs[idx].theftRemarks;
+
+  sv('disbs', disbs);
+  flash(newOk?'RESOLVED ✓':'CORRECTED', newOk?'Dip readings now match':'Saved with new readings');
+  modal.style.display='none';
+  if(typeof renderReports==='function') renderReports();
+  if(typeof renderHomeTab==='function'){const homeEl=document.querySelector('.home-content');if(homeEl) renderHomeTab(homeEl);}
+}
+
+async function resolveTheft(){
+  const modal = document.getElementById('edit-modal');
+  const id = modal?.dataset?.disbId;
+  const idx = disbs.findIndex(x=>x.id===id);
+  if(idx<0){alert('Entry not found');return;}
+  const stolen = parseFloat(document.getElementById('res-stolen').value);
+  if(isNaN(stolen)||stolen<=0){alert('Enter stolen quantity');return;}
+  if(!window._theftDriverId){alert('Select responsible driver/operator');return;}
+  const remarks = document.getElementById('res-theft-rem').value.trim();
+  if(!remarks){alert('Theft remarks are mandatory — explain briefly');return;}
+
+  const drv = (drivers||[]).find(x=>x.id===window._theftDriverId);
+  const sup = window._theftSupervisorId ? (users||[]).find(x=>x.id===window._theftSupervisorId) : null;
+
+  disbs[idx] = {
+    ...disbs[idx],
+    resolutionType: 'theft',
+    stolenQty: stolen,
+    responsibleDriverId: window._theftDriverId,
+    responsibleDriverName: drv?.name || '',
+    responsibleSupervisorId: window._theftSupervisorId || null,
+    responsibleSupervisorName: sup?.name || null,
+    theftRemarks: remarks,
+    resolvedBy: sess.userId,
+    resolvedByName: sess.name,
+    resolvedAt: Date.now()
+    // dip/meter readings UNCHANGED on purpose
+  };
+  // Clear corrected remarks if previously corrected
+  delete disbs[idx].correctionRemarks;
+
+  sv('disbs', disbs);
+  flash('🚨 THEFT RECORDED', `${fmt(stolen,1)}L flagged · ${drv?.name||'?'}`);
+  modal.style.display='none';
+  if(typeof renderReports==='function') renderReports();
+  if(typeof renderHomeTab==='function'){const homeEl=document.querySelector('.home-content');if(homeEl) renderHomeTab(homeEl);}
+}
+
 function openEditModal(type,id){
   editCtx={type,id};
   const modal=document.getElementById('edit-modal');
@@ -9490,7 +9903,108 @@ function openEditModal(type,id){
     const veh=gV(d.vehicleId);
     const vehOptions=fleet.map(f=>`<option value="${f.id}"${f.id===d.vehicleId?' selected':''}>${f.name}</option>`).join('');
     document.getElementById('edit-modal-title').textContent='EDIT DISBURSEMENT';
+
+    const hasMeterMismatch=d.meterMismatch;
+    const hasDipMismatch=d.dipMatch===false;
+    const isMismatch=hasMeterMismatch||hasDipMismatch;
+    const alreadyResolved=d.resolutionType;
+    const canResolve=(isOwner()||isAdmin())&&isMismatch;
+
+    // Reset resolution mode state
+    window._resMode = alreadyResolved || null; // 'corrected' | 'theft' | null
+    window._theftDriverId = '';
+    window._theftSupervisorId = '';
+
+    // Build insight panel
+    const insightPanel=isMismatch?`
+      <div style="margin-bottom:12px;background:rgba(255,61,61,.08);border:2px solid var(--red);border-radius:10px;padding:12px">
+        <div style="font-family:var(--fh);font-size:12px;color:var(--red);letter-spacing:.5px;margin-bottom:8px">
+          ⚠️ ${hasMeterMismatch&&hasDipMismatch?'METER + DIP GAUGE MISMATCH':hasMeterMismatch?'METER MISMATCH':'DIP GAUGE MISMATCH'}
+          ${alreadyResolved?` · ALREADY RESOLVED AS ${alreadyResolved.toUpperCase()}`:''}
+        </div>
+        ${hasMeterMismatch?`
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px">
+          <div style="background:var(--bg3);border-radius:6px;padding:8px;text-align:center">
+            <div style="font-family:var(--fh);font-size:14px;color:var(--white)">${fmt(d.meterBefore||0,1)}</div>
+            <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:2px">METER BEFORE</div>
+          </div>
+          <div style="background:var(--bg3);border-radius:6px;padding:8px;text-align:center">
+            <div style="font-family:var(--fh);font-size:14px;color:var(--white)">${fmt(d.meterAfter||0,1)}</div>
+            <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:2px">METER AFTER</div>
+          </div>
+          <div style="background:var(--bg3);border-radius:6px;padding:8px;text-align:center">
+            <div style="font-family:var(--fh);font-size:14px;color:var(--amber)">${fmt(d.litres,1)} L</div>
+            <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:2px">LITRES</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--red);font-weight:700;background:rgba(255,61,61,.1);padding:6px 10px;border-radius:6px;margin-bottom:${hasDipMismatch?'8':'0'}px">
+          Meter diff: ${fmt((d.meterAfter||0)-(d.meterBefore||0),1)}L · Gap: ${fmt(Math.abs(((d.meterAfter||0)-(d.meterBefore||0))-d.litres),1)}L
+        </div>`:''}
+        ${hasDipMismatch?`
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px">
+          <div style="background:var(--bg3);border-radius:6px;padding:6px;text-align:center">
+            <div style="font-family:var(--fh);font-size:13px;color:var(--white)">${fmt(d.gaugeBefore||0,1)} cm</div>
+            <div style="font-size:9px;color:var(--muted);font-weight:700">DIP BEFORE</div>
+          </div>
+          <div style="background:var(--bg3);border-radius:6px;padding:6px;text-align:center">
+            <div style="font-family:var(--fh);font-size:13px;color:var(--white)">${fmt(d.gaugeAfter||0,1)} cm</div>
+            <div style="font-size:9px;color:var(--muted);font-weight:700">DIP AFTER</div>
+          </div>
+          <div style="background:var(--bg3);border-radius:6px;padding:6px;text-align:center">
+            <div style="font-family:var(--fh);font-size:13px;color:var(--white)">${fmt(d.gaugeIncreaseCm||0,1)} cm</div>
+            <div style="font-size:9px;color:var(--muted);font-weight:700">RISE</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+          <div style="background:var(--bg3);border-radius:6px;padding:6px;text-align:center">
+            <div style="font-family:var(--fh);font-size:13px;color:${veh?.calibration?'var(--white)':'var(--muted)'}">${veh?.calibration?veh.calibration+' L/cm':'Not set'}</div>
+            <div style="font-size:9px;color:var(--muted);font-weight:700">CALIB</div>
+          </div>
+          <div style="background:var(--bg3);border-radius:6px;padding:6px;text-align:center">
+            <div style="font-family:var(--fh);font-size:13px;color:var(--amber)">${d.gaugeIncreaseLtr!=null?fmt(d.gaugeIncreaseLtr,1)+' L':'—'}</div>
+            <div style="font-size:9px;color:var(--muted);font-weight:700">CALC FROM DIP</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--red);font-weight:700;background:rgba(255,61,61,.1);padding:6px 10px;border-radius:6px">
+          Dip says ${d.gaugeIncreaseLtr!=null?fmt(d.gaugeIncreaseLtr,1)+'L':'—'} · Entered ${fmt(d.litres,1)}L · Gap ${d.diff!=null?fmt(Math.abs(d.diff),1)+'L':'—'}
+          ${d.dipTakenByName?` · Verified by ${d.dipTakenByName}`:''}
+        </div>`:''}
+        ${alreadyResolved?`
+        <div style="margin-top:10px;padding:8px;background:var(--bg3);border-radius:6px">
+          <div style="font-size:10px;color:var(--muted);font-weight:700;margin-bottom:3px">RESOLUTION ON RECORD</div>
+          ${alreadyResolved==='theft'?`
+            <div style="font-size:12px;color:var(--white)">🚨 Marked as THEFT — ${fmt(d.stolenQty||0,1)}L</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">
+              ${d.responsibleDriverName?'Driver: '+d.responsibleDriverName:''}
+              ${d.responsibleSupervisorName?' · Supervisor: '+d.responsibleSupervisorName:''}
+            </div>
+            ${d.theftRemarks?`<div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:4px">"${d.theftRemarks}"</div>`:''}
+          `:`
+            <div style="font-size:12px;color:var(--white)">✏️ Measurement Corrected</div>
+            ${d.correctionRemarks?`<div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:4px">"${d.correctionRemarks}"</div>`:''}
+          `}
+          <div style="font-size:10px;color:var(--muted);margin-top:4px">By ${d.resolvedByName||'?'} · ${d.resolvedAt?new Date(d.resolvedAt).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''}</div>
+        </div>`:''}
+      </div>
+
+      ${canResolve?`
+      <div style="margin-bottom:12px">
+        <div style="font-family:var(--fh);font-size:11px;color:var(--muted);letter-spacing:.5px;margin-bottom:6px">${alreadyResolved?'CHANGE RESOLUTION':'HOW DO YOU WANT TO RESOLVE THIS?'}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button id="res-btn-correct" onclick="setResolutionMode('corrected')" type="button" style="background:${window._resMode==='corrected'?'rgba(0,200,83,.15)':'var(--bg3)'};border:2px solid ${window._resMode==='corrected'?'var(--green)':'var(--border)'};color:${window._resMode==='corrected'?'var(--green)':'var(--white)'};padding:12px 8px;border-radius:8px;font-family:var(--fh);font-size:12px;cursor:pointer;text-align:center">
+            ✏️ CORRECT<br>MEASUREMENT
+          </button>
+          <button id="res-btn-theft" onclick="setResolutionMode('theft')" type="button" style="background:${window._resMode==='theft'?'rgba(255,61,61,.15)':'var(--bg3)'};border:2px solid ${window._resMode==='theft'?'var(--red)':'var(--border)'};color:${window._resMode==='theft'?'var(--red)':'var(--white)'};padding:12px 8px;border-radius:8px;font-family:var(--fh);font-size:12px;cursor:pointer;text-align:center">
+            🚨 MARK AS<br>THEFT
+          </button>
+        </div>
+      </div>
+      <div id="res-section"></div>
+      `:''}
+    `:'';
+
     body.innerHTML=`
+      ${insightPanel}
       <div class="f-field"><label class="f-lbl">Vehicle</label>
         <select class="f-inp" id="ed-veh" style="color:var(--white);background:var(--bg3)">
           ${vehOptions}
@@ -9505,6 +10019,12 @@ function openEditModal(type,id){
       <div class="f-field"><label class="f-lbl">Operator</label><input class="f-inp" id="ed-op" value="${d.operator||''}" type="text"></div>
       <div class="f-field"><label class="f-lbl">Remarks</label><input class="f-inp" id="ed-rem" value="${d.remarks||''}" type="text"></div>`;
     modal.dataset.editType='disb';modal.dataset.disbId=id;
+    // If pre-existing resolution, render that section
+    if(window._resMode){
+      window._theftDriverId=d.responsibleDriverId||'';
+      window._theftSupervisorId=d.responsibleSupervisorId||'';
+      renderResolutionSection(d);
+    }
   } else if(type==='pumpFill'){
     const p=(pumpFills||[]).find(x=>x.id===id);if(!p)return;
     if(!canEditEntry(p)){alert('You can only edit your own same-day entries');return;}
