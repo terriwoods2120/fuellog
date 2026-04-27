@@ -1419,7 +1419,10 @@ function _updateSyncBadge(){
   }
 }
 
-// Actual Firebase PUT with verification — returns true on success
+// Keys containing transactional records — must MERGE, never overwrite with fewer entries
+const MERGE_KEYS = new Set(['disbs','pumpFills','purchases','readings','musters','trips','checklistRecords']);
+
+// Actual Firebase PUT with merge protection
 async function _fbWrite(key, value){
   if(typeof FB_URL === 'undefined' || typeof FB_KEY === 'undefined') return false;
   try {
@@ -1427,18 +1430,43 @@ async function _fbWrite(key, value){
     const authParam = token ? 'auth='+token : 'auth='+FB_KEY;
     const ctrl = new AbortController();
     const to = setTimeout(()=>ctrl.abort(), 10000);
+
+    // For transactional keys: read Firebase first, merge any entries not in local
+    let writeValue = value;
+    if(MERGE_KEYS.has(key) && Array.isArray(value)){
+      try {
+        const readR = await fetch(FB_URL+'/fuellog/'+key+'.json?'+authParam);
+        if(readR.ok){
+          let fbData = await readR.json();
+          if(fbData && typeof fbData==='object'){
+            const fbArr = Array.isArray(fbData) ? fbData : Object.values(fbData).filter(Boolean);
+            const localIds = new Set(value.map(e=>e&&e.id).filter(Boolean));
+            const missing = fbArr.filter(e=>e&&e.id&&!localIds.has(e.id));
+            if(missing.length>0){
+              writeValue = [...value,...missing];
+              // Update local too so we don't lose them on this device
+              const localKey = SK[key]||('fl7_'+key);
+              localStorage.setItem(localKey, JSON.stringify(writeValue));
+              if(key==='disbs') disbs=writeValue;
+              else if(key==='pumpFills') pumpFills=writeValue;
+              else if(key==='purchases') purchases=writeValue;
+              else if(key==='musters') musters=writeValue;
+              else if(key==='trips') trips=writeValue.map(_normalizeTrip);
+              console.log('[Merge] '+key+': preserved '+missing.length+' remote entries');
+            }
+          }
+        }
+      } catch(me){ /* merge failed — proceed with local */ }
+    }
+
     const r = await fetch(FB_URL+'/fuellog/'+key+'.json?'+authParam, {
       method: 'PUT',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify(value),
+      body: JSON.stringify(writeValue),
       signal: ctrl.signal
     });
     clearTimeout(to);
-    if(!r.ok) return false;
-    // VERIFY: read it back to confirm write succeeded
-    const verify = await fetch(FB_URL+'/fuellog/'+key+'.json?'+authParam+'&shallow=false');
-    if(!verify.ok) return false;
-    return true;
+    return r.ok;
   } catch(e){
     return false;
   }
@@ -2645,11 +2673,11 @@ function renderDashboard(dash,alerts){
     </div>`;
   }
   if(mismatch>0){
-    alertHtml+=`<div class="dash-alert" style="background:rgba(255,61,61,.06);border:2px solid var(--red);cursor:pointer" onclick="bnavTab('reports')">
+    alertHtml+=`<div class="dash-alert" style="background:rgba(255,61,61,.06);border:2px solid var(--red);cursor:pointer" onclick="show('scr-reports');repTab('daily')">
       <div class="dash-alert-row">
         <div style="font-size:24px">⚠️</div>
         <div style="flex:1"><div style="font-family:var(--fh);font-size:14px;color:var(--red)">${mismatch} METER MISMATCH${mismatch>1?'ES':''}</div>
-        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">Tap to review in Reports</div></div>
+        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">Tap to review in Daily Ops report</div></div>
         <div style="color:var(--red);font-size:18px">›</div>
       </div>
     </div>`;
@@ -2952,19 +2980,28 @@ function canTripEdit(t){
 
 // Default materials (initial seed)
 function _seedMaterials(){
-  if(materials.length===0){
-    materials=[
-      {id:uid(),name:'Sand',unit:'brass',rate:null,notes:'River sand / wash sand'},
-      {id:uid(),name:'Aggregate / Khadi',unit:'brass',rate:null,notes:''},
-      {id:uid(),name:'Crushed Stone',unit:'brass',rate:null,notes:''},
-      {id:uid(),name:'GSB',unit:'brass',rate:null,notes:'Granular sub base'},
-      {id:uid(),name:'Murum',unit:'brass',rate:null,notes:''},
-      {id:uid(),name:'WBM Metal',unit:'brass',rate:null,notes:''},
-      {id:uid(),name:'Paver Blocks',unit:'sqft',rate:null,notes:''},
-      {id:uid(),name:'RMC',unit:'cum',rate:null,notes:'Ready Mix Concrete'},
-    ];
-    sv('materials',materials);
-  }
+  // Never seed if user already has materials in Firebase or localStorage
+  // Check both localStorage (fast) and in-memory array
+  const localMats = (() => {
+    try { return JSON.parse(localStorage.getItem('fl7_materials')||'[]'); } catch(e){ return []; }
+  })();
+  // If EITHER in-memory or localStorage has materials, never seed
+  if(materials.length > 0 || localMats.length > 0) return;
+  // Also check the seeded flag
+  if(localStorage.getItem('fl7_materialsSeeded') === '1') return;
+  // Only seed if truly first time on this device AND no materials anywhere
+  materials=[
+    {id:uid(),name:'Sand',unit:'brass',rate:null,notes:'River sand / wash sand'},
+    {id:uid(),name:'Aggregate / Khadi',unit:'brass',rate:null,notes:''},
+    {id:uid(),name:'Crushed Stone',unit:'brass',rate:null,notes:''},
+    {id:uid(),name:'GSB',unit:'brass',rate:null,notes:'Granular sub base'},
+    {id:uid(),name:'Murum',unit:'brass',rate:null,notes:''},
+    {id:uid(),name:'WBM Metal',unit:'brass',rate:null,notes:''},
+    {id:uid(),name:'Paver Blocks',unit:'sqft',rate:null,notes:''},
+    {id:uid(),name:'RMC',unit:'cum',rate:null,notes:'Ready Mix Concrete'},
+  ];
+  sv('materials',materials);
+  localStorage.setItem('fl7_materialsSeeded', '1');
 }
 
 // ── TRIPS TAB (bottom nav) ──
@@ -2973,7 +3010,6 @@ function renderTripsTab(el){
     el.innerHTML='<div class="muted-txt" style="padding:40px;text-align:center">Access restricted</div>';
     return;
   }
-  _seedMaterials();
   const td=today();
   const todayTrips=trips.filter(t=>t.date===td);
   const todayCount=todayTrips.reduce((a,t)=>a+(t.numTrips||1),0);
@@ -3062,7 +3098,6 @@ let _tripEntryState={editId:null};
 
 function openTripEntry(editId){
   if(!canTripEnter()){alert('Only Owner or Manager can enter trips');return;}
-  _seedMaterials();
   _tripEntryState={editId:editId||null};
   let editing=null;
   if(editId){
@@ -3541,9 +3576,21 @@ async function saveTrip(){
   if(editId){
     const idx=trips.findIndex(t=>t.id===editId);
     if(idx===-1){alert('Trip not found');return;}
+    // Build change log
+    const changes=[];
+    if(orig.driverId!==trip.driverId) changes.push({field:'Driver',oldVal:orig.driverName||orig.driverId,newVal:trip.driverName});
+    if(orig.vehicleId!==trip.vehicleId){const ov=gV(orig.vehicleId);const nv=gV(trip.vehicleId);changes.push({field:'Vehicle',oldVal:ov?.name||'?',newVal:nv?.name||'?'});}
+    if(orig.quantity!==trip.quantity) changes.push({field:'Qty',oldVal:orig.quantity,newVal:trip.quantity});
+    if(orig.rate!==trip.rate) changes.push({field:'Rate',oldVal:orig.rate,newVal:trip.rate});
+    if(orig.amount!==trip.amount) changes.push({field:'Amount',oldVal:orig.amount,newVal:trip.amount});
+    if(orig.numTrips!==trip.numTrips) changes.push({field:'Trips',oldVal:orig.numTrips,newVal:trip.numTrips});
+    if(orig.paymentStatus!==trip.paymentStatus) changes.push({field:'Payment',oldVal:orig.paymentStatus,newVal:trip.paymentStatus});
+    if(orig.driverIncentive!==trip.driverIncentive) changes.push({field:'Incentive',oldVal:orig.driverIncentive,newVal:trip.driverIncentive});
+    if(orig.date!==trip.date) changes.push({field:'Date',oldVal:orig.date,newVal:trip.date});
     trip.editedBy=sess.userId;
     trip.editedByName=sess.name;
     trip.editedAt=Date.now();
+    trip._changes=changes;
     trips[idx]=trip;
     flash('UPDATED','Trip updated');
   } else {
@@ -3822,7 +3869,6 @@ function showCustomerDetail(custId){
 
 // ── MATERIALS ──
 function showMaterials(){
-  _seedMaterials();
   show('scr-materials');
   renderMaterials();
 }
@@ -3881,6 +3927,7 @@ function saveMaterial(){
     flash('ADDED','Material added');
   }
   sv('materials',materials);
+  localStorage.setItem('fl7_materialsSeeded', '1'); // prevent default seeding
   _matFormEditId=null;
   show('scr-materials');
   renderMaterials();
@@ -6398,14 +6445,24 @@ function renderReports(){
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding-top:10px;font-size:11px">
               <div><span style="color:var(--muted)">From:</span> <span style="color:var(--white)">${fromS?.name||'—'}</span></div>
               <div><span style="color:var(--muted)">To:</span> <span style="color:var(--white)">${isExt?cust?.name:toS?.name||'—'}</span></div>
-              ${t.slipNo?`<div><span style="color:var(--muted)">Slip:</span> <span style="color:var(--white)">#${t.slipNo}</span></div>`:''}
+              ${_fmtSlips(t)?`<div style="grid-column:1/-1"><span style="color:var(--muted)">Slips:</span> <span style="color:var(--white);font-weight:600">${_fmtSlips(t)}</span></div>`:''}
               ${t.rate?`<div><span style="color:var(--muted)">Rate:</span> <span style="color:var(--white)">₹${fmt(t.rate,0)}/${t.unit||''}</span></div>`:''}
               ${t.driverIncentive?`<div><span style="color:var(--muted)">Incentive:</span> <span style="color:var(--amber);font-weight:700">₹${fmt(t.driverIncentive,0)}</span></div>`:''}
               ${isExt&&t.amountPaid?`<div><span style="color:var(--muted)">Paid:</span> <span style="color:var(--green)">₹${fmt(t.amountPaid,0)}</span></div>`:''}
-              ${t.loggedByName?`<div><span style="color:var(--muted)">By:</span> <span style="color:var(--white)">${t.loggedByName}</span></div>`:''}
-              ${t.editedByName?`<div><span style="color:var(--muted)">Edited:</span> <span style="color:var(--blue)">${t.editedByName}</span></div>`:''}
             </div>
-            ${t.remarks?`<div style="margin-top:8px;font-size:11px;color:var(--muted);font-style:italic">📝 ${t.remarks}</div>`:''}
+            ${t.remarks?`<div style="margin-top:6px;font-size:11px;color:var(--muted);font-style:italic">📝 ${t.remarks}</div>`:''}
+            <!-- Audit trail -->
+            <div style="margin-top:8px;padding:8px;background:var(--bg2);border-radius:6px;border:1px solid var(--border)">
+              <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px;margin-bottom:4px">AUDIT TRAIL</div>
+              <div style="font-size:11px;color:var(--muted)">
+                🟢 Created by <span style="color:var(--white);font-weight:600">${t.loggedByName||'?'}</span>
+                ${t.ts?`· ${new Date(t.ts).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}`:''}</div>
+              ${t.editedByName?`<div style="font-size:11px;color:var(--blue);margin-top:3px">
+                ✏ Edited by <span style="font-weight:600">${t.editedByName}</span>
+                ${t.editedAt?`· ${new Date(t.editedAt).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}`:''}</div>`:''}
+              ${t._changes&&t._changes.length?`<div style="margin-top:4px;font-size:10px;color:var(--muted)">
+                Changed: ${t._changes.map(c=>`${c.field}: <span style="color:var(--red)">${c.oldVal}</span> → <span style="color:var(--green)">${c.newVal}</span>`).join(' · ')}</div>`:''}
+            </div>
             ${canTripEdit(t)?`<div style="margin-top:10px;display:flex;gap:6px">
               <button onclick="event.stopPropagation();openTripEntry('${t.id}')" style="flex:1;background:var(--bg2);border:1px solid var(--amber);color:var(--amber);padding:7px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">✏️ EDIT</button>
               ${isExt&&due>0?`<button onclick="event.stopPropagation();markTripPaid('${t.id}')" style="flex:1;background:var(--bg2);border:1px solid var(--green);color:var(--green);padding:7px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">✓ MARK PAID</button>`:''}
@@ -7341,19 +7398,121 @@ function exportRepPDF(){
       </table>`}
       <div class="footer">Machine Efficiency · ${repFmtRange(range)} · Chiddarwar Construction Co. Pvt. Ltd.</div>`;
     }
+  } else if(repActiveTab==='trips'){
+    const allTrips=(trips||[]).filter(t=>t.date>=range.from&&t.date<=range.to);
+    const reportType=window._tripRepType||'register';
+    const totalTrips=allTrips.reduce((a,t)=>a+(t.numTrips||1),0);
+    const totalRevenue=allTrips.filter(t=>t.movementType==='external').reduce((a,t)=>a+(t.amount||0),0);
+    const totalIncentive=allTrips.reduce((a,t)=>a+(t.driverIncentive||0),0);
+    const totalDue=(customers||[]).reduce((a,c)=>{
+      const cTrips=allTrips.filter(t=>t.customerId===c.id&&t.movementType==='external');
+      return a+cTrips.reduce((b,t)=>b+(t.amount||0)-(t.amountPaid||0),0);
+    },0);
+
+    let tripBody=`${header('TRIPS REPORT — '+repFmtRange(range))}
+    <div class="grid4" style="margin-bottom:20px">
+      <div class="cell"><div class="val">${totalTrips}</div><div class="lbl">Total Trips</div></div>
+      <div class="cell green"><div class="val" style="color:green">${fmtINR(totalRevenue)}</div><div class="lbl">Revenue</div></div>
+      <div class="cell"><div class="val">${fmtINR(totalIncentive)}</div><div class="lbl">Incentive Paid</div></div>
+      <div class="cell red"><div class="val" style="color:#c62828">${fmtINR(totalDue)}</div><div class="lbl">Outstanding</div></div>
+    </div>`;
+
+    // Trip Register
+    tripBody+=`<h2>Trip Register</h2>
+    <table>
+      <thead><tr><th>Date</th><th>Slip</th><th>Driver</th><th>Vehicle</th><th>From</th><th>To / Customer</th><th>Material</th><th>Qty</th><th class="right">Amount</th><th>Status</th></tr></thead>
+      <tbody>
+        ${[...allTrips].sort((a,b)=>b.date.localeCompare(a.date)).map(t=>{
+          const veh=gV(t.vehicleId);
+          const drv=(drivers||[]).find(d=>d.id===t.driverId);
+          const fromS=(sites||[]).find(s=>s.id===t.fromSiteId);
+          const toS=(sites||[]).find(s=>s.id===t.toSiteId);
+          const cust=(customers||[]).find(c=>c.id===t.customerId);
+          const mat=(materials||[]).find(m=>m.id===t.materialId);
+          const slips=_fmtSlips(t)||'—';
+          const isExt=t.movementType==='external';
+          const due=(t.amount||0)-(t.amountPaid||0);
+          return`<tr>
+            <td>${fmtD(t.date)}</td>
+            <td style="font-size:10px">${slips}</td>
+            <td>${drv?.name||'—'}</td>
+            <td>${veh?.name||'—'}</td>
+            <td>${fromS?.name||'—'}</td>
+            <td>${isExt?(cust?.name||'?'):(toS?.name||'—')}</td>
+            <td>${mat?.name||'—'}</td>
+            <td>${t.quantity?fmt(t.quantity,1)+' '+t.unit:'—'}${t.numTrips>1?' × '+t.numTrips:''}</td>
+            <td class="right">${isExt?fmtINR(t.amount):'—'}</td>
+            <td style="font-size:10px;color:${isExt?(due>0?'#c62828':'green'):'#666'}">${isExt?(due>0?'DUE '+fmtINR(due):'PAID'):'INTERNAL'}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+      <tfoot><tr class="tfoot"><td colspan="8">TOTAL</td><td class="right">${fmtINR(totalRevenue)}</td><td></td></tr></tfoot>
+    </table>
+
+    <h2>Customer-wise Summary</h2>
+    <table>
+      <thead><tr><th>Customer</th><th>Phone</th><th class="right">Trips</th><th class="right">Revenue</th><th class="right">Paid</th><th class="right">Outstanding</th></tr></thead>
+      <tbody>
+        ${(()=>{
+          const custMap={};
+          allTrips.filter(t=>t.movementType==='external'&&t.customerId).forEach(t=>{
+            if(!custMap[t.customerId]) custMap[t.customerId]={trips:0,revenue:0,paid:0};
+            custMap[t.customerId].trips+=(t.numTrips||1);
+            custMap[t.customerId].revenue+=(t.amount||0);
+            custMap[t.customerId].paid+=(t.amountPaid||0);
+          });
+          return Object.entries(custMap).map(([id,v])=>{
+            const c=(customers||[]).find(x=>x.id===id);
+            const due=v.revenue-v.paid;
+            return`<tr>
+              <td><b>${c?.name||'?'}</b></td>
+              <td>${c?.phone||'—'}</td>
+              <td class="right">${v.trips}</td>
+              <td class="right">${fmtINR(v.revenue)}</td>
+              <td class="right" style="color:green">${fmtINR(v.paid)}</td>
+              <td class="right" style="color:${due>0?'#c62828':'green'};font-weight:700">${due>0?fmtINR(due):'✓ CLEARED'}</td>
+            </tr>`;
+          }).sort().join('');
+        })()}
+      </tbody>
+    </table>
+
+    <h2>Driver Incentive Summary</h2>
+    <table>
+      <thead><tr><th>Driver</th><th class="right">Trips</th><th class="right">Total Incentive</th></tr></thead>
+      <tbody>
+        ${(()=>{
+          const drvMap={};
+          allTrips.forEach(t=>{
+            if(!t.driverId) return;
+            if(!drvMap[t.driverId]) drvMap[t.driverId]={trips:0,inc:0};
+            drvMap[t.driverId].trips+=(t.numTrips||1);
+            drvMap[t.driverId].inc+=(t.driverIncentive||0);
+          });
+          return Object.entries(drvMap).map(([id,v])=>{
+            const d=(drivers||[]).find(x=>x.id===id);
+            return`<tr><td>${d?.name||'?'}</td><td class="right">${v.trips}</td><td class="right" style="font-weight:700">${fmtINR(v.inc)}</td></tr>`;
+          }).join('');
+        })()}
+      </tbody>
+      <tfoot><tr class="tfoot"><td>TOTAL</td><td></td><td class="right">${fmtINR(totalIncentive)}</td></tr></tfoot>
+    </table>
+    <div class="footer">Trips Report · ${repFmtRange(range)} · Chiddarwar Construction Co. Pvt. Ltd.</div>`;
+    body=tripBody;
+
   } else {
     body=`${header('REPORT')}
-    <div style="padding:40px;text-align:center;color:#999">Switch to Daily Ops, Financial or Muster tab and tap 📄 to export.</div>`;
+    <div style="padding:40px;text-align:center;color:#999">Switch to Daily Ops, Financial, Trips or Muster tab and tap 📄 to export.</div>`;
   }
 
   const printBar=`<div style="background:#111;padding:10px 20px;display:flex;gap:10px;align-items:center;border-bottom:3px solid #ffb300;position:sticky;top:0;z-index:100" class="no-print">
     <button onclick="window.close()" style="background:#333;color:#ffb300;border:none;padding:10px 18px;font-size:14px;font-weight:700;border-radius:8px;cursor:pointer">‹ BACK TO APP</button>
     <button onclick="window.print()" style="background:#ffb300;color:#111;border:none;padding:10px 18px;font-size:14px;font-weight:700;border-radius:8px;cursor:pointer">🖨 PRINT / SAVE PDF</button>
-    <span style="color:#777;font-size:13px;font-weight:700;margin-left:auto">${repActiveTab==='daily'?'📋 Daily Operations':repActiveTab==='financial'?'💰 Financial Summary':repActiveTab==='vehicle'?'🚚 Vehicle Report':'👷 Muster Report'} · ${repFmtRange(range)}</span>
+    <span style="color:#777;font-size:13px;font-weight:700;margin-left:auto">${repActiveTab==='daily'?'📋 Daily Operations':repActiveTab==='financial'?'💰 Financial Summary':repActiveTab==='vehicle'?'🚚 Vehicle Report':repActiveTab==='trips'?'📦 Trips Report':'👷 Muster Report'} · ${repFmtRange(range)}</span>
   </div>`;
 
   let html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
-  <title>FuelLog ${repActiveTab==='daily'?'Daily Ops':repActiveTab==='financial'?'Financial':repActiveTab==='vehicle'?'Vehicle':'Muster'} — ${repFmtRange(range)}</title>
+  <title>FuelLog ${repActiveTab==='daily'?'Daily Ops':repActiveTab==='financial'?'Financial':repActiveTab==='vehicle'?'Vehicle':repActiveTab==='trips'?'Trips':'Muster'} — ${repFmtRange(range)}</title>
   <style>${CSS}.no-print{display:flex!important;}@media print{.no-print{display:none!important;}}</style>
   </head><body>${printBar}${body}</body></html>`;
 
@@ -8842,6 +9001,8 @@ async function fbInit(){
       else if(k==='materials') materials=val;
     });
     console.log('Loaded from Firebase — disbs:',disbs.length,'fleet:',fleet.length,'users:',users.length);
+    // Only seed default materials if Firebase confirms none exist
+    if(materials.length===0) _seedMaterials();
   } else {
     // Firebase unavailable — load from localStorage so session restore works
     FB_KEYS.forEach(k=>{
@@ -8865,6 +9026,8 @@ async function fbInit(){
       else if(k==='materials') materials=val;
       }catch(e){}
     });
+    // Seed only if localStorage also had no materials
+    if(materials.length===0) _seedMaterials();
   }
 
   // Remove loading overlay
