@@ -3869,6 +3869,7 @@ function saveCustomer(){
 // ── LUMP SUM PAYMENT FROM CUSTOMER ──
 // Applies payment chronologically oldest-first across outstanding trips
 function recordLumpSumPayment(custId){
+  const fmtINR=n=>'₹'+Number(Math.round(n||0)).toLocaleString('en-IN');
   const c = customers.find(x=>x.id===custId);
   if(!c){alert('Customer not found');return;}
 
