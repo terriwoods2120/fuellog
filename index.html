@@ -3222,14 +3222,28 @@ function renderTripEntryForm(editing){
     </div>
 
     <!-- Vehicle — searchable picker -->
-    <div class="f-field">
-      <label class="f-lbl">Vehicle *</label>
-      <input id="trip-vehicle-search" type="text" placeholder="🔍 Type vehicle number..."
-        value="${selVehicle?selVehicle.name:''}"
-        oninput="onTripVehicleSearch(this.value)"
-        autocomplete="off"
-        style="width:100%;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);padding:10px 12px;border-radius:10px;font-size:13px;font-family:var(--fb);box-sizing:border-box;outline:none">
-      <div id="trip-vehicle-results" style="display:none;margin-top:4px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;max-height:180px;overflow-y:auto"></div>
+    <div class="f-field" id="trip-vehicle-field">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <label class="f-lbl" style="margin:0">Vehicle ${movementType==='internal'?'*':''}</label>
+        ${movementType==='external'?`
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--muted);font-weight:600">
+          <input type="checkbox" id="trip-own-vehicle" ${e.customerOwnVehicle?'checked':''}
+            onchange="window._tripSelVehId='';document.getElementById('trip-vehicle-search').value='';document.getElementById('trip-vehicle-field').querySelector('.veh-picker').style.display=this.checked?'none':'block';document.getElementById('trip-cust-veh-no').style.display=this.checked?'block':'none'"
+            style="width:14px;height:14px;accent-color:var(--amber)">
+          Customer's own vehicle
+        </label>`:''}
+      </div>
+      <div class="veh-picker" style="${e.customerOwnVehicle&&movementType==='external'?'display:none':''}">
+        <input id="trip-vehicle-search" type="text" placeholder="🔍 Type vehicle number..."
+          value="${selVehicle?selVehicle.name:''}"
+          oninput="onTripVehicleSearch(this.value)"
+          autocomplete="off"
+          style="width:100%;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);padding:10px 12px;border-radius:10px;font-size:13px;font-family:var(--fb);box-sizing:border-box;outline:none">
+        <div id="trip-vehicle-results" style="display:none;margin-top:4px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;max-height:180px;overflow-y:auto"></div>
+      </div>
+      <input id="trip-cust-veh-no" type="text" placeholder="Customer vehicle number (optional)"
+        value="${e.customerVehicleNo||''}"
+        style="width:100%;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);padding:10px 12px;border-radius:10px;font-size:13px;font-family:var(--fb);box-sizing:border-box;outline:none;display:${e.customerOwnVehicle&&movementType==='external'?'block':'none'}">
     </div>
 
     <div class="f-field"><label class="f-lbl">Movement Type</label>
@@ -3575,7 +3589,10 @@ async function saveTrip(){
 
   // Validation
   if(!driverId){alert('Select driver — type name and tap from list');return;}
-  if(!vehicleId){alert('Select vehicle — type number and tap from list');return;}
+  const customerOwnVehicle = movementType==='external' && document.getElementById('trip-own-vehicle')?.checked;
+  const customerVehicleNo = document.getElementById('trip-cust-veh-no')?.value?.trim()||'';
+
+  if(!vehicleId && !customerOwnVehicle){alert('Select vehicle — or check "Customer\'s own vehicle"');return;}
   if(!fromSiteId){alert('Select from site');return;}
 
   let toSiteId=null,customerId=null;
@@ -3612,6 +3629,8 @@ async function saveTrip(){
     customerId,
     materialId,
     materialName:(materials.find(m=>m.id===materialId)||{}).name||'',
+    customerOwnVehicle: customerOwnVehicle||false,
+    customerVehicleNo: customerOwnVehicle ? customerVehicleNo : '',
     quantity:parseFloat(document.getElementById('trip-qty').value)||0,
     unit:document.getElementById('trip-unit').value.trim(),
     rate:movementType==='external'?(parseFloat(document.getElementById('trip-rate').value)||0):0,
@@ -3847,6 +3866,118 @@ function saveCustomer(){
   renderCustomers();
 }
 
+// ── LUMP SUM PAYMENT FROM CUSTOMER ──
+// Applies payment chronologically oldest-first across outstanding trips
+function recordLumpSumPayment(custId){
+  const c = customers.find(x=>x.id===custId);
+  if(!c){alert('Customer not found');return;}
+
+  // Get all unpaid/partial trips sorted oldest first
+  const unpaidTrips = (trips||[])
+    .filter(t=>t.customerId===custId && t.movementType==='external' && (t.amount||0)-(t.amountPaid||0)>0)
+    .sort((a,b)=>a.date.localeCompare(b.date));
+
+  if(!unpaidTrips.length){alert('No outstanding amounts for '+c.name);return;}
+
+  const totalDue = unpaidTrips.reduce((a,t)=>a+(t.amount||0)-(t.amountPaid||0),0);
+
+  // Show payment entry panel in customer detail
+  const content = document.getElementById('cust-detail-content');
+  if(!content) return;
+
+  // Insert payment panel at top
+  const panel = document.createElement('div');
+  panel.id='lump-pay-panel';
+  panel.style.cssText='margin:10px 14px 0;background:rgba(0,200,83,.05);border:2px solid var(--green);border-radius:12px;padding:14px';
+  panel.innerHTML=`
+    <div style="font-family:var(--fh);font-size:12px;color:var(--green);letter-spacing:.5px;margin-bottom:10px">💰 RECORD PAYMENT — ${c.name}</div>
+    <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:10px">
+      Total outstanding: <span style="color:var(--red);font-weight:700">${fmtINR(totalDue)}</span> across ${unpaidTrips.length} trip${unpaidTrips.length!==1?'s':''}
+    </div>
+    <div style="margin-bottom:10px">
+      <label style="font-size:11px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px">AMOUNT RECEIVED ₹</label>
+      <input id="lump-amt" type="number" inputmode="decimal" placeholder="${Math.round(totalDue)}"
+        style="width:100%;background:var(--bg3);border:2px solid var(--green);color:var(--white);padding:12px;border-radius:8px;font-size:16px;font-family:var(--fh);box-sizing:border-box;outline:none">
+    </div>
+    <div style="margin-bottom:10px">
+      <label style="font-size:11px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px">DATE RECEIVED</label>
+      <input id="lump-date" type="date" value="${today()}"
+        style="width:100%;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);padding:10px;border-radius:8px;font-size:13px;box-sizing:border-box;outline:none">
+    </div>
+    <div style="margin-bottom:10px">
+      <label style="font-size:11px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px">REMARKS (optional)</label>
+      <input id="lump-rem" type="text" placeholder="e.g. NEFT, cheque no., cash..."
+        style="width:100%;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);padding:10px;border-radius:8px;font-size:13px;font-family:var(--fb);box-sizing:border-box;outline:none">
+    </div>
+    <div id="lump-preview" style="margin-bottom:10px;font-size:11px;color:var(--muted)"></div>
+    <div style="display:flex;gap:8px">
+      <button onclick="applyLumpSumPayment('${custId}')" style="flex:2;background:var(--green);color:#111;border:none;padding:12px;border-radius:8px;font-family:var(--fh);font-size:13px;cursor:pointer">✓ APPLY PAYMENT</button>
+      <button onclick="document.getElementById('lump-pay-panel').remove()" style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--muted);padding:12px;border-radius:8px;font-family:var(--fh);font-size:12px;cursor:pointer">CANCEL</button>
+    </div>
+  `;
+  content.insertBefore(panel, content.firstChild);
+  document.getElementById('lump-amt').focus();
+
+  // Live preview as user types
+  document.getElementById('lump-amt').addEventListener('input', function(){
+    const amt = parseFloat(this.value)||0;
+    const preview = document.getElementById('lump-preview');
+    if(!preview||amt<=0) return;
+    let remaining = amt;
+    let tripsAffected=0, tripsCleared=0;
+    unpaidTrips.forEach(t=>{
+      if(remaining<=0) return;
+      const due = (t.amount||0)-(t.amountPaid||0);
+      if(remaining>=due){remaining-=due;tripsCleared++;}
+      else {remaining=0;}
+      tripsAffected++;
+    });
+    preview.innerHTML=`Will apply to ${tripsAffected} trip${tripsAffected!==1?'s':''} · ${tripsCleared} fully cleared · ${remaining>0?fmtINR(remaining)+' excess (will be noted)':'all allocated'}`;
+    preview.style.color = amt>totalDue?'var(--amber)':'var(--green)';
+  });
+}
+
+async function applyLumpSumPayment(custId){
+  const amt = parseFloat(document.getElementById('lump-amt')?.value)||0;
+  const payDate = document.getElementById('lump-date')?.value || today();
+  const rem = document.getElementById('lump-rem')?.value||'';
+  if(!amt||amt<=0){alert('Enter amount received');return;}
+
+  const c = customers.find(x=>x.id===custId);
+  const unpaidTrips = (trips||[])
+    .filter(t=>t.customerId===custId && t.movementType==='external' && (t.amount||0)-(t.amountPaid||0)>0)
+    .sort((a,b)=>a.date.localeCompare(b.date));
+
+  let remaining = amt;
+  let updatedCount = 0;
+
+  unpaidTrips.forEach(t=>{
+    if(remaining<=0) return;
+    const idx = trips.findIndex(x=>x.id===t.id);
+    if(idx<0) return;
+    const due = (t.amount||0)-(t.amountPaid||0);
+    const applying = Math.min(remaining, due);
+    trips[idx].amountPaid = (trips[idx].amountPaid||0) + applying;
+    trips[idx].paymentStatus = trips[idx].amountPaid >= trips[idx].amount ? 'paid' : 'partial';
+    trips[idx].editedBy = sess.userId;
+    trips[idx].editedByName = sess.name;
+    trips[idx].editedAt = Date.now();
+    if(!trips[idx]._payments) trips[idx]._payments=[];
+    trips[idx]._payments.push({amt:applying, date:payDate, rem, by:sess.name, ts:Date.now()});
+    remaining -= applying;
+    updatedCount++;
+  });
+
+  sv('trips', trips);
+  document.getElementById('lump-pay-panel')?.remove();
+  const msg = remaining>0
+    ? `${fmtINR(amt)} applied · ${fmtINR(remaining)} excess (all trips cleared)`
+    : `${fmtINR(amt)} applied across ${updatedCount} trip${updatedCount!==1?'s':''}`;
+  flash('💰 PAYMENT RECORDED', msg);
+  // Refresh customer detail
+  showCustomerDetail(custId);
+}
+
 function showCustomerDetail(custId){
   const c=customers.find(x=>x.id===custId);
   if(!c) return;
@@ -3888,6 +4019,9 @@ function showCustomerDetail(custId){
         <a href="https://wa.me/91${c.phone.replace(/\D/g,'').slice(-10)}" target="_blank" style="flex:1;background:var(--bg3);border:1px solid var(--green);color:var(--green);padding:8px;border-radius:8px;text-align:center;font-size:12px;font-weight:700;text-decoration:none">💬 WHATSAPP</a>
         <button onclick="openCustomerForm('${c.id}')" style="flex:1;background:var(--bg3);border:1px solid var(--amber);color:var(--amber);padding:8px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">✏️ EDIT</button>
       </div>`:''}
+      ${due>0?`<button onclick="recordLumpSumPayment('${c.id}')" style="margin-top:8px;width:100%;background:linear-gradient(135deg,rgba(0,200,83,.15),rgba(0,200,83,.05));border:2px solid var(--green);color:var(--green);padding:12px;border-radius:10px;font-family:var(--fh);font-size:13px;cursor:pointer">
+        💰 RECORD PAYMENT FROM CUSTOMER
+      </button>`:''}
     </div>
 
     ${matList.length?`
@@ -3911,7 +4045,7 @@ function showCustomerDetail(custId){
         <div style="display:flex;justify-content:space-between;align-items:start;gap:10px">
           <div>
             <div style="font-family:var(--fh);font-size:12px;color:var(--white)">${m?.name||'?'} · ${fmt(t.quantity,1)} ${t.unit||''} × ${t.numTrips} trips</div>
-            <div style="font-size:10px;color:var(--muted);font-weight:600">${fmtD(t.date)} · ${veh?.name||'?'}${(()=>{const s=_fmtSlips(t);return s?' · '+s:'';})()}</div>
+            <div style="font-size:10px;color:var(--muted);font-weight:600">${fmtD(t.date)} · ${t.customerOwnVehicle?('Cust. veh'+(t.customerVehicleNo?' '+t.customerVehicleNo:'')):veh?.name||'?'}${(()=>{const s=_fmtSlips(t);return s?' · '+s:'';})()}</div>
           </div>
           <div style="text-align:right">
             <div style="font-family:var(--fh);font-size:13px;color:var(--green)">${fmtINR(t.amount)}</div>
@@ -7623,6 +7757,38 @@ function exportRepPDF(){
         </tbody>
       </table>`}
       <div class="footer">Machine Efficiency · ${repFmtRange(range)} · Chiddarwar Construction Co. Pvt. Ltd.</div>`;
+    } else if(reportType==='theft' && (isOwner()||isAdmin())){
+      const theftEntries=allDisbs.filter(d=>d.resolutionType==='theft');
+      const totalStolen=theftEntries.reduce((a,d)=>a+(d.stolenQty||0),0);
+      const latestRate=(purchases||[]).slice().sort((a,b)=>(b.ts||0)-(a.ts||0))[0]?.rate||95;
+      const drvMap={},supMap={};
+      theftEntries.forEach(d=>{
+        if(d.responsibleDriverId){if(!drvMap[d.responsibleDriverId])drvMap[d.responsibleDriverId]={name:d.responsibleDriverName,count:0,total:0};drvMap[d.responsibleDriverId].count++;drvMap[d.responsibleDriverId].total+=(d.stolenQty||0);}
+        if(d.responsibleSupervisorId){if(!supMap[d.responsibleSupervisorId])supMap[d.responsibleSupervisorId]={name:d.responsibleSupervisorName,count:0,total:0};supMap[d.responsibleSupervisorId].count++;supMap[d.responsibleSupervisorId].total+=(d.stolenQty||0);}
+      });
+      body=`${header('🚨 FUEL THEFT REGISTER — CONFIDENTIAL')}
+      <div class="grid3" style="margin-bottom:20px">
+        <div class="cell red"><div class="val" style="color:#c62828">${theftEntries.length}</div><div class="lbl">Incidents</div></div>
+        <div class="cell red"><div class="val" style="color:#c62828">${fmt(totalStolen,1)} L</div><div class="lbl">Total Stolen</div></div>
+        <div class="cell red"><div class="val" style="color:#c62828">${fmtINR(totalStolen*latestRate)}</div><div class="lbl">Est. Value</div></div>
+      </div>
+      ${Object.values(drvMap).length?`<h2>Drivers by Incident Count</h2>
+      <table><thead><tr><th>Driver</th><th class="right">Incidents</th><th class="right">Total Stolen</th><th>Flag</th></tr></thead>
+      <tbody>${Object.values(drvMap).sort((a,b)=>b.count-a.count).map(d=>`
+        <tr><td><b>${d.name}</b></td><td class="right">${d.count}</td><td class="right" style="color:#c62828">${fmt(d.total,1)} L</td><td style="color:${d.count>=3?'#c62828':d.count>=2?'#e65100':'green'};font-weight:700">${d.count>=3?'⚠ REPEAT OFFENDER':d.count>=2?'Multiple':'—'}</td></tr>`).join('')}
+      </tbody></table>`:''}
+      ${Object.values(supMap).length?`<h2>Supervisors by Incident Count</h2>
+      <table><thead><tr><th>Supervisor</th><th class="right">Incidents</th><th class="right">Total Under Watch</th></tr></thead>
+      <tbody>${Object.values(supMap).sort((a,b)=>b.count-a.count).map(s=>`
+        <tr><td><b>${s.name}</b></td><td class="right">${s.count}</td><td class="right" style="color:#c62828">${fmt(s.total,1)} L</td></tr>`).join('')}
+      </tbody></table>`:''}
+      <h2>All Theft Entries</h2>
+      <table><thead><tr><th>Date</th><th>Vehicle</th><th class="right">Stolen L</th><th class="right">Value</th><th>Driver</th><th>Supervisor</th><th>Remarks</th></tr></thead>
+      <tbody>${[...theftEntries].sort((a,b)=>(b.resolvedAt||0)-(a.resolvedAt||0)).map(d=>{
+        const v=gV(d.vehicleId);
+        return`<tr><td>${fmtD(d.date)}</td><td><b>${v?.name||'?'}</b></td><td class="right" style="color:#c62828;font-weight:700">${fmt(d.stolenQty||0,1)}</td><td class="right">${fmtINR((d.stolenQty||0)*latestRate)}</td><td>${d.responsibleDriverName||'—'}</td><td>${d.responsibleSupervisorName||'—'}</td><td style="font-size:10px;color:#666">${d.theftRemarks||''}</td></tr>`;
+      }).join('')}</tbody></table>
+      <div class="footer">🚨 CONFIDENTIAL — Fuel Theft Register · ${repFmtRange(range)} · Chiddarwar Construction Co. Pvt. Ltd.</div>`;
     }
   } else if(repActiveTab==='trips'){
     const allTrips=(trips||[]).filter(t=>t.date>=range.from&&t.date<=range.to);
@@ -7635,100 +7801,133 @@ function exportRepPDF(){
       return a+cTrips.reduce((b,t)=>b+(t.amount||0)-(t.amountPaid||0),0);
     },0);
 
-    let tripBody=`${header('TRIPS REPORT — '+repFmtRange(range))}
-    <div class="grid4" style="margin-bottom:20px">
-      <div class="cell"><div class="val">${totalTrips}</div><div class="lbl">Total Trips</div></div>
-      <div class="cell green"><div class="val" style="color:green">${fmtINR(totalRevenue)}</div><div class="lbl">Revenue</div></div>
-      <div class="cell"><div class="val">${fmtINR(totalIncentive)}</div><div class="lbl">Incentive Paid</div></div>
-      <div class="cell red"><div class="val" style="color:#c62828">${fmtINR(totalDue)}</div><div class="lbl">Outstanding</div></div>
+    const tripCSS=`<style>body{font-family:Arial;padding:20px;font-size:11px;color:#111}
+      .header{border-bottom:3px solid #e65100;padding-bottom:10px;margin-bottom:16px}
+      h1{font-size:20px;color:#e65100}h2{font-size:12px;font-weight:700;text-transform:uppercase;color:#e65100;border-bottom:1px solid #eee;padding-bottom:4px;margin:16px 0 8px}
+      table{width:100%;border-collapse:collapse;margin-bottom:12px}
+      th{background:#f5f5f5;padding:6px 8px;text-align:left;font-size:9px;text-transform:uppercase;border-bottom:2px solid #ddd}
+      td{padding:6px 8px;border-bottom:1px solid #eee}
+      .right{text-align:right}.footer{margin-top:16px;font-size:9px;color:#999;border-top:1px solid #eee;padding-top:8px;text-align:center}
+      .kpi{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #ddd;border-radius:4px;overflow:hidden;margin-bottom:16px}
+      .kpi-cell{padding:10px;border-right:1px solid #ddd;background:#fff8e1}.kpi-cell:last-child{border-right:none}
+      .kpi-val{font-size:16px;font-weight:700;color:#e65100}.kpi-lbl{font-size:8px;color:#999;text-transform:uppercase;margin-top:2px}
+      .kpi-cell.green{background:#e8f5e9}.kpi-cell.red{background:#ffebee}
+      @media print{body{padding:10px}}</style>`;
+
+    const tripHeader=`<div class="header"><h1>📦 TRIPS — ${
+      reportType==='register'?'TRIP REGISTER':reportType==='customers'?'CUSTOMER-WISE SUMMARY':reportType==='materials'?'MATERIAL-WISE SUMMARY':reportType==='incentives'?'DRIVER INCENTIVE REGISTER':reportType==='dispatch'?'SITE DISPATCH LOG':'OUTSTANDING DUES'
+    }</h1><div style="color:#666;font-size:10px;margin-top:4px">Chiddarwar Construction Co. Pvt. Ltd. · Period: ${repFmtRange(range)} · Generated: ${new Date().toLocaleString('en-IN')}</div></div>`;
+
+    const tripPrintBar=`<div style="background:#111;padding:8px 16px;display:flex;gap:8px;align-items:center;position:sticky;top:0;z-index:100" class="no-print">
+      <button onclick="window.close()" style="background:#333;color:#ffb300;border:none;padding:8px 14px;font-size:13px;font-weight:700;border-radius:6px;cursor:pointer">‹ BACK</button>
+      <button onclick="window.print()" style="background:#ffb300;color:#111;border:none;padding:8px 14px;font-size:13px;font-weight:700;border-radius:6px;cursor:pointer">🖨 PRINT/PDF</button>
     </div>`;
 
-    // Trip Register
-    tripBody+=`<h2>Trip Register</h2>
-    <table>
-      <thead><tr><th>Date</th><th>Slip</th><th>Driver</th><th>Vehicle</th><th>From</th><th>To / Customer</th><th>Material</th><th>Qty</th><th class="right">Amount</th><th>Status</th></tr></thead>
-      <tbody>
-        ${[...allTrips].sort((a,b)=>b.date.localeCompare(a.date)).map(t=>{
-          const veh=gV(t.vehicleId);
-          const drv=(drivers||[]).find(d=>d.id===t.driverId);
-          const fromS=(sites||[]).find(s=>s.id===t.fromSiteId);
-          const toS=(sites||[]).find(s=>s.id===t.toSiteId);
-          const cust=(customers||[]).find(c=>c.id===t.customerId);
-          const mat=(materials||[]).find(m=>m.id===t.materialId);
-          const slips=_fmtSlips(t)||'—';
-          const isExt=t.movementType==='external';
-          const due=(t.amount||0)-(t.amountPaid||0);
-          return`<tr>
-            <td>${fmtD(t.date)}</td>
-            <td style="font-size:10px">${slips}</td>
-            <td>${drv?.name||'—'}</td>
-            <td>${veh?.name||'—'}</td>
-            <td>${fromS?.name||'—'}</td>
-            <td>${isExt?(cust?.name||'?'):(toS?.name||'—')}</td>
-            <td>${mat?.name||'—'}</td>
-            <td>${t.quantity?fmt(t.quantity,1)+' '+t.unit:'—'}${t.numTrips>1?' × '+t.numTrips:''}</td>
-            <td class="right">${isExt?fmtINR(t.amount):'—'}</td>
-            <td style="font-size:10px;color:${isExt?(due>0?'#c62828':'green'):'#666'}">${isExt?(due>0?'DUE '+fmtINR(due):'PAID'):'INTERNAL'}</td>
-          </tr>`;
-        }).join('')}
-      </tbody>
-      <tfoot><tr class="tfoot"><td colspan="8">TOTAL</td><td class="right">${fmtINR(totalRevenue)}</td><td></td></tr></tfoot>
-    </table>
+    let tripBody = tripHeader;
 
-    <h2>Customer-wise Summary</h2>
-    <table>
-      <thead><tr><th>Customer</th><th>Phone</th><th class="right">Trips</th><th class="right">Revenue</th><th class="right">Paid</th><th class="right">Outstanding</th></tr></thead>
-      <tbody>
-        ${(()=>{
-          const custMap={};
-          allTrips.filter(t=>t.movementType==='external'&&t.customerId).forEach(t=>{
-            if(!custMap[t.customerId]) custMap[t.customerId]={trips:0,revenue:0,paid:0};
-            custMap[t.customerId].trips+=(t.numTrips||1);
-            custMap[t.customerId].revenue+=(t.amount||0);
-            custMap[t.customerId].paid+=(t.amountPaid||0);
-          });
-          return Object.entries(custMap).map(([id,v])=>{
-            const c=(customers||[]).find(x=>x.id===id);
-            const due=v.revenue-v.paid;
-            return`<tr>
-              <td><b>${c?.name||'?'}</b></td>
-              <td>${c?.phone||'—'}</td>
-              <td class="right">${v.trips}</td>
-              <td class="right">${fmtINR(v.revenue)}</td>
-              <td class="right" style="color:green">${fmtINR(v.paid)}</td>
-              <td class="right" style="color:${due>0?'#c62828':'green'};font-weight:700">${due>0?fmtINR(due):'✓ CLEARED'}</td>
-            </tr>`;
-          }).sort().join('');
-        })()}
-      </tbody>
-    </table>
+    // KPI summary for all report types
+    tripBody += `<div class="kpi">
+      <div class="kpi-cell"><div class="kpi-val">${totalTrips}</div><div class="kpi-lbl">Total Trips</div></div>
+      <div class="kpi-cell green"><div class="kpi-val" style="color:green">${fmtINR(totalRevenue)}</div><div class="kpi-lbl">Revenue</div></div>
+      <div class="kpi-cell"><div class="kpi-val">${fmtINR(totalIncentive)}</div><div class="kpi-lbl">Incentive</div></div>
+      <div class="kpi-cell red"><div class="kpi-val" style="color:#c62828">${fmtINR(totalDue)}</div><div class="kpi-lbl">Outstanding</div></div>
+    </div>`;
 
-    <h2>Driver Incentive Summary</h2>
-    <table>
-      <thead><tr><th>Driver</th><th class="right">Trips</th><th class="right">Total Incentive</th></tr></thead>
-      <tbody>
-        ${(()=>{
-          const drvMap={};
-          allTrips.forEach(t=>{
-            if(!t.driverId) return;
-            if(!drvMap[t.driverId]) drvMap[t.driverId]={trips:0,inc:0};
-            drvMap[t.driverId].trips+=(t.numTrips||1);
-            drvMap[t.driverId].inc+=(t.driverIncentive||0);
-          });
-          return Object.entries(drvMap).map(([id,v])=>{
-            const d=(drivers||[]).find(x=>x.id===id);
-            return`<tr><td>${d?.name||'?'}</td><td class="right">${v.trips}</td><td class="right" style="font-weight:700">${fmtINR(v.inc)}</td></tr>`;
-          }).join('');
-        })()}
+    if(reportType==='register'){
+      let regTrips=[...allTrips];
+      if(window._tripRepDriver!=='all') regTrips=regTrips.filter(t=>t.driverId===window._tripRepDriver);
+      if(window._tripRepCustomer!=='all') regTrips=regTrips.filter(t=>t.customerId===window._tripRepCustomer);
+      if(window._tripRepMaterial!=='all') regTrips=regTrips.filter(t=>t.materialId===window._tripRepMaterial);
+      regTrips.sort((a,b)=>b.date.localeCompare(a.date));
+      tripBody+=`<h2>Trip Register (${regTrips.length} entries)</h2>
+      <table><thead><tr><th>Date</th><th>Slip</th><th>Driver</th><th>Vehicle</th><th>From</th><th>To / Customer</th><th>Material</th><th>Qty</th><th class="right">Amount</th><th>Status</th></tr></thead>
+      <tbody>${regTrips.map(t=>{
+        const v=gV(t.vehicleId); const drv=(drivers||[]).find(d=>d.id===t.driverId);
+        const fromS=(sites||[]).find(s=>s.id===t.fromSiteId); const toS=(sites||[]).find(s=>s.id===t.toSiteId);
+        const cust=(customers||[]).find(c=>c.id===t.customerId); const mat=(materials||[]).find(m=>m.id===t.materialId);
+        const isExt=t.movementType==='external'; const due=(t.amount||0)-(t.amountPaid||0);
+        return`<tr><td>${fmtD(t.date)}</td><td style="font-size:9px">${_fmtSlips(t)||'—'}</td><td>${drv?.name||'—'}</td>
+          <td>${t.customerOwnVehicle?('Cust.'+(t.customerVehicleNo?' '+t.customerVehicleNo:'')):v?.name||'—'}</td>
+          <td>${fromS?.name||'—'}</td><td>${isExt?cust?.name||'?':toS?.name||'—'}</td>
+          <td>${mat?.name||'—'}</td><td>${t.quantity?fmt(t.quantity,1)+' '+t.unit:'—'}${t.numTrips>1?' ×'+t.numTrips:''}</td>
+          <td class="right" style="font-weight:700">${isExt?fmtINR(t.amount):'—'}</td>
+          <td style="font-size:9px;color:${isExt?(due>0?'#c62828':'green'):'#999'}">${isExt?(due>0?'DUE '+fmtINR(due):'PAID'):'INT'}</td></tr>`;
+      }).join('')}</tbody>
+      <tfoot><tr style="background:#fff8e1;font-weight:700"><td colspan="8">TOTAL</td><td class="right">${fmtINR(totalRevenue)}</td><td></td></tr></tfoot></table>`;
+
+    } else if(reportType==='customers'){
+      const custMap={};
+      allTrips.filter(t=>t.movementType==='external'&&t.customerId).forEach(t=>{
+        if(!custMap[t.customerId])custMap[t.customerId]={trips:0,revenue:0,paid:0};
+        custMap[t.customerId].trips+=(t.numTrips||1);custMap[t.customerId].revenue+=(t.amount||0);custMap[t.customerId].paid+=(t.amountPaid||0);
+      });
+      tripBody+=`<h2>Customer-wise Summary</h2>
+      <table><thead><tr><th>#</th><th>Customer</th><th>Phone</th><th class="right">Trips</th><th class="right">Revenue</th><th class="right">Paid</th><th class="right">Outstanding</th></tr></thead>
+      <tbody>${Object.entries(custMap).map(([id,v])=>{const c=(customers||[]).find(x=>x.id===id);const due=v.revenue-v.paid;return`<tr><td></td><td><b>${c?.name||'?'}</b></td><td>${c?.phone||'—'}</td><td class="right">${v.trips}</td><td class="right">${fmtINR(v.revenue)}</td><td class="right" style="color:green">${fmtINR(v.paid)}</td><td class="right" style="color:${due>0?'#c62828':'green'};font-weight:700">${due>0?fmtINR(due):'✓'}</td></tr>`;}).join('')}
+      </tbody></table>`;
+
+    } else if(reportType==='materials'){
+      const matMap={};
+      allTrips.filter(t=>t.materialId).forEach(t=>{
+        if(!matMap[t.materialId])matMap[t.materialId]={qty:0,revenue:0,trips:0};
+        matMap[t.materialId].qty+=(t.quantity||0)*(t.numTrips||1);
+        if(t.movementType==='external')matMap[t.materialId].revenue+=(t.amount||0);
+        matMap[t.materialId].trips+=(t.numTrips||1);
+      });
+      tripBody+=`<h2>Material-wise Summary</h2>
+      <table><thead><tr><th>#</th><th>Material</th><th class="right">Qty</th><th class="right">Trips</th><th class="right">Revenue</th></tr></thead>
+      <tbody>${Object.entries(matMap).sort((a,b)=>b[1].revenue-a[1].revenue).map(([id,v],i)=>{const m=(materials||[]).find(x=>x.id===id);return`<tr><td>${i+1}</td><td><b>${m?.name||'?'}</b></td><td class="right">${fmt(v.qty,1)} ${m?.unit||''}</td><td class="right">${v.trips}</td><td class="right" style="font-weight:700">${fmtINR(v.revenue)}</td></tr>`;}).join('')}
+      </tbody></table>`;
+
+    } else if(reportType==='incentives'){
+      const drvMap={};
+      allTrips.forEach(t=>{if(!t.driverId)return;if(!drvMap[t.driverId])drvMap[t.driverId]={trips:0,inc:0};drvMap[t.driverId].trips+=(t.numTrips||1);drvMap[t.driverId].inc+=(t.driverIncentive||0);});
+      tripBody+=`<h2>Driver Incentive Register</h2>
+      <table><thead><tr><th>#</th><th>Driver</th><th class="right">Trips</th><th class="right">Total Incentive</th></tr></thead>
+      <tbody>${Object.entries(drvMap).sort((a,b)=>b[1].inc-a[1].inc).map(([id,v],i)=>{const d=(drivers||[]).find(x=>x.id===id);return`<tr><td>${i+1}</td><td><b>${d?.name||'?'}</b></td><td class="right">${v.trips}</td><td class="right" style="font-weight:700;color:#e65100">${fmtINR(v.inc)}</td></tr>`;}).join('')}
+      </tbody><tfoot><tr style="background:#fff8e1;font-weight:700"><td colspan="3">TOTAL</td><td class="right">${fmtINR(totalIncentive)}</td></tr></tfoot></table>`;
+
+    } else if(reportType==='dispatch'){
+      const siteMap={};
+      allTrips.forEach(t=>{if(!t.fromSiteId)return;if(!siteMap[t.fromSiteId])siteMap[t.fromSiteId]={trips:[],qty:0,revenue:0};siteMap[t.fromSiteId].trips.push(t);siteMap[t.fromSiteId].qty+=(t.quantity||0)*(t.numTrips||1);if(t.movementType==='external')siteMap[t.fromSiteId].revenue+=(t.amount||0);});
+      tripBody+=`<h2>Site Dispatch Log</h2>
+      <table><thead><tr><th>From Site</th><th class="right">Trips</th><th class="right">Qty</th><th class="right">Revenue</th></tr></thead>
+      <tbody>${Object.entries(siteMap).sort((a,b)=>b[1].qty-a[1].qty).map(([id,v])=>{const s=(sites||[]).find(x=>x.id===id);return`<tr><td><b>${s?.name||'?'}</b></td><td class="right">${v.trips.reduce((a,t)=>a+(t.numTrips||1),0)}</td><td class="right">${fmt(v.qty,0)}</td><td class="right" style="font-weight:700">${fmtINR(v.revenue)}</td></tr>`;}).join('')}
+      </tbody></table>`;
+
+    } else if(reportType==='dues'){
+      const today_=new Date();
+      const dueList=[];
+      (customers||[]).forEach(c=>{
+        const cTrips=(trips||[]).filter(t=>t.customerId===c.id&&t.movementType==='external');
+        const due=cTrips.reduce((a,t)=>a+(t.amount||0)-(t.amountPaid||0),0);
+        if(due<=0) return;
+        const oldest=cTrips.filter(t=>(t.amount||0)-(t.amountPaid||0)>0).sort((a,b)=>a.date.localeCompare(b.date))[0];
+        const days=oldest?Math.floor((today_-new Date(oldest.date))/(86400000)):0;
+        dueList.push({c,due,days,oldest});
+      });
+      dueList.sort((a,b)=>b.days-a.days);
+      tripBody+=`<h2>Outstanding Dues</h2>
+      <table><thead><tr><th>Customer</th><th>Phone</th><th class="right">Outstanding</th><th class="right">Days Outstanding</th><th>Oldest Invoice</th></tr></thead>
+      <tbody>${dueList.map(({c,due,days,oldest})=>`
+        <tr><td><b>${c.name}</b></td><td>${c.phone||'—'}</td>
+        <td class="right" style="color:#c62828;font-weight:700">${fmtINR(due)}</td>
+        <td class="right" style="color:${days>30?'#c62828':days>15?'#e65100':'green'};font-weight:700">${days} days</td>
+        <td>${oldest?fmtD(oldest.date):'—'}</td></tr>`).join('')}
       </tbody>
-      <tfoot><tr class="tfoot"><td>TOTAL</td><td></td><td class="right">${fmtINR(totalIncentive)}</td></tr></tfoot>
-    </table>
-    <div class="footer">Trips Report · ${repFmtRange(range)} · Chiddarwar Construction Co. Pvt. Ltd.</div>`;
-    body=tripBody;
+      <tfoot><tr style="background:#ffebee;font-weight:700"><td colspan="2">TOTAL OUTSTANDING</td><td class="right" style="color:#c62828">${fmtINR(dueList.reduce((a,x)=>a+x.due,0))}</td><td colspan="2"></td></tr></tfoot></table>`;
+    }
+
+    tripBody+=`<div class="footer">Trips Report · ${repFmtRange(range)} · Chiddarwar Construction Co. Pvt. Ltd.</div>`;
+
+    const w=window.open('','_blank');
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Trips — ${repFmtRange(range)}</title>${tripCSS}<style>.no-print{display:flex!important;}@media print{.no-print{display:none!important;}}</style></head><body>${tripPrintBar}${tripBody}</body></html>`);
+    w.document.close();
+    return; // Early return — trips PDF handled above
 
   } else {
     body=`${header('REPORT')}
-    <div style="padding:40px;text-align:center;color:#999">Switch to Daily Ops, Financial, Trips or Muster tab and tap 📄 to export.</div>`;
+    <div style="padding:40px;text-align:center;color:#999">Switch to Daily Ops, Financial, Trips, Vehicle or Muster tab and tap 📄 to export.</div>`;
   }
 
   const printBar=`<div style="background:#111;padding:10px 20px;display:flex;gap:10px;align-items:center;border-bottom:3px solid #ffb300;position:sticky;top:0;z-index:100" class="no-print">
