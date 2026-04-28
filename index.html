@@ -3975,8 +3975,12 @@ async function applyLumpSumPayment(custId){
     ? `${fmtINR(amt)} applied · ${fmtINR(remaining)} excess (all trips cleared)`
     : `${fmtINR(amt)} applied across ${updatedCount} trip${updatedCount!==1?'s':''}`;
   flash('💰 PAYMENT RECORDED', msg);
-  // Refresh customer detail
-  showCustomerDetail(custId);
+  // Refresh whichever context is showing
+  if(document.getElementById('scr-reports')?.classList.contains('active')){
+    renderReports();
+  } else {
+    showCustomerDetail(custId);
+  }
 }
 
 function showCustomerDetail(custId){
@@ -6875,6 +6879,9 @@ function renderReports(){
               <div style="background:var(--bg3);border-radius:6px;padding:8px;text-align:center"><div style="font-family:var(--fh);font-size:14px;color:var(--green)">${fmtINR(row.revenue)}</div><div style="font-size:9px;color:var(--muted);font-weight:700">REVENUE</div></div>
               <div style="background:${due>0?'rgba(255,61,61,.08)':'rgba(0,200,83,.08)'};border-radius:6px;padding:8px;text-align:center"><div style="font-family:var(--fh);font-size:14px;color:var(${due>0?'--red':'--green'})">${due>0?fmtINR(due):'PAID'}</div><div style="font-size:9px;color:var(${due>0?'--red':'--green'});font-weight:700">${due>0?'DUE':'CLEARED'}</div></div>
             </div>
+            ${due>0?`<button onclick="recordLumpSumPayment('${c.id}')" style="margin-top:10px;width:100%;background:linear-gradient(135deg,rgba(0,200,83,.15),rgba(0,200,83,.05));border:2px solid var(--green);color:var(--green);padding:11px;border-radius:8px;font-family:var(--fh);font-size:13px;cursor:pointer">
+              💰 RECORD PAYMENT FROM CUSTOMER
+            </button>`:''}
           </div>
 
           <div style="margin:8px 14px 0;font-family:var(--fh);font-size:11px;color:var(--muted);letter-spacing:.5px">📦 MATERIALS BREAKDOWN</div>
