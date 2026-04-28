@@ -3112,6 +3112,14 @@ function renderTripsTab(el){
       <div class="act-ico">📜</div><div class="act-txt"><div class="act-title">TRIP LOG</div><div class="act-desc">View · Edit · Search all trips</div></div><div class="act-arr">›</div>
     </div>
 
+    <div class="act" onclick="show('scr-customers');renderCustomers()">
+      <div class="act-ico">👥</div><div class="act-txt"><div class="act-title">CUSTOMERS</div><div class="act-desc">Manage customer list · Record payments · View dues</div></div><div class="act-arr">›</div>
+    </div>
+
+    <div class="act" onclick="showMaterials()">
+      <div class="act-ico">📦</div><div class="act-txt"><div class="act-title">MATERIALS</div><div class="act-desc">Predefined product list · Rates · Units</div></div><div class="act-arr">›</div>
+    </div>
+
     ${todayTrips.length?`
     <div class="sec-lbl" style="margin-top:6px">Today's Trips</div>
     <div style="margin:0 14px 12px">
@@ -3939,6 +3947,7 @@ function recordLumpSumPayment(custId){
 }
 
 async function applyLumpSumPayment(custId){
+  const fmtINR=n=>'₹'+Number(Math.round(n||0)).toLocaleString('en-IN');
   const amt = parseFloat(document.getElementById('lump-amt')?.value)||0;
   const payDate = document.getElementById('lump-date')?.value || today();
   const rem = document.getElementById('lump-rem')?.value||'';
