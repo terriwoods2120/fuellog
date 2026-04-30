@@ -577,6 +577,11 @@ input[type=file]{display:none}
     </div>
   </div>
   <!-- SESSION BADGE -->
+  <!-- SYNC PENDING BANNER -->
+  <div id="sync-warn-banner" style="display:none;background:rgba(255,61,61,.12);border-bottom:2px solid var(--red);padding:8px 14px;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0">
+    <div style="font-size:12px;color:var(--red);font-weight:700;line-height:1.4">⚠ <span id="sync-warn-text">Data not yet saved to cloud</span><br><span style="font-size:10px;font-weight:600;color:var(--muted)">Do NOT close the app until this clears</span></div>
+    <button onclick="manualRetrySync()" style="background:var(--red);color:#fff;border:none;padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">↑ SYNC NOW</button>
+  </div>
   <div style="padding:6px 14px;background:var(--bg2);border-bottom:1px solid var(--border);
     display:flex;align-items:center;gap:8px;flex-shrink:0">
     <span class="sess-who" id="sess-who" style="font-size:13px;font-weight:700"></span>
@@ -1427,9 +1432,19 @@ function _updateSyncBadge(){
       st.innerHTML = '⚠ ' + q.length + ' pending';
       st.style.color = 'var(--red)';
     } else {
-      // Reset to normal state when queue clears
       st.innerHTML = (typeof fbOnline !== 'undefined' && fbOnline) ? '✓' : '⟳';
       st.style.color = (typeof fbOnline !== 'undefined' && fbOnline) ? 'var(--green)' : 'var(--muted)';
+    }
+  }
+  // Show/hide the sticky warning banner — critical on mobile where beforeunload is suppressed
+  const banner = document.getElementById('sync-warn-banner');
+  if(banner){
+    if(q.length > 0){
+      banner.style.display = 'flex';
+      const warnText = document.getElementById('sync-warn-text');
+      if(warnText) warnText.textContent = q.length + ' record'+(q.length>1?'s':'')+' not yet saved to cloud';
+    } else {
+      banner.style.display = 'none';
     }
   }
 }
@@ -2118,10 +2133,24 @@ function confirmPinChange(){
     }, 1200);
   }
 }
-function logout(){
-  sess=null;pinBuf='';
+async function logout(){
+  // If there are pending entries, push to Firebase before logging out
+  const q = _getQueue();
+  if(q.length > 0){
+    flash('SYNCING...', 'Saving ' + q.length + ' pending record(s) before logout');
+    await processSyncQueue();
+    // If still pending after retry, warn but allow logout
+    const remaining = _getQueue();
+    if(remaining.length > 0){
+      const proceed = confirm('⚠ ' + remaining.length + ' record(s) could not be saved to cloud.\n\nLog out anyway? These entries may be lost.');
+      if(!proceed) return;
+    }
+  }
+  // Pull latest Firebase data so localStorage is current before clearing session
+  try { await refreshData(); } catch(e){}
+  sess=null; pinBuf='';
   saveSession(null);
-  show('scr-login');initLogin();
+  show('scr-login'); initLogin();
 }
 
 
@@ -4007,6 +4036,23 @@ async function applyLumpSumPayment(custId){
   }
 }
 
+function deleteCustomer(custId){
+  if(!canDelete()){alert('Only Owner can delete customers');return;}
+  const c=customers.find(x=>x.id===custId);
+  if(!c){alert('Customer not found');return;}
+  const linked=(trips||[]).filter(t=>t.customerId===custId&&t.movementType==='external');
+  if(linked.length>0){
+    alert(`Cannot delete "${c.name}" — ${linked.length} trip${linked.length>1?'s are':' is'} linked to this customer.\n\nTo fix a wrong name or number, use ✏️ EDIT instead.\n\nTo delete, first delete all linked trips, then delete the customer.`);
+    return;
+  }
+  if(!confirm(`Delete customer "${c.name}"?\n\nThis cannot be undone.`)) return;
+  customers=customers.filter(x=>x.id!==custId);
+  sv('customers',customers);
+  flash('DELETED',`"${c.name}" removed`);
+  show('scr-customers');
+  renderCustomers();
+}
+
 function showCustomerDetail(custId){
   const c=customers.find(x=>x.id===custId);
   if(!c) return;
@@ -4043,11 +4089,12 @@ function showCustomerDetail(custId){
         </div>
       </div>
       <div style="font-size:11px;color:var(--muted);font-weight:600">${cTrips.length} trip${cTrips.length!==1?'s':''} · ${c.address?'📍 '+c.address:''}${c.gst?' · GST: '+c.gst:''}</div>
-      ${c.phone?`<div style="margin-top:10px;display:flex;gap:6px">
-        <a href="tel:${c.phone}" style="flex:1;background:var(--bg3);border:1px solid var(--green);color:var(--green);padding:8px;border-radius:8px;text-align:center;font-size:12px;font-weight:700;text-decoration:none">📞 CALL</a>
-        <a href="https://wa.me/91${c.phone.replace(/\D/g,'').slice(-10)}" target="_blank" style="flex:1;background:var(--bg3);border:1px solid var(--green);color:var(--green);padding:8px;border-radius:8px;text-align:center;font-size:12px;font-weight:700;text-decoration:none">💬 WHATSAPP</a>
-        <button onclick="openCustomerForm('${c.id}')" style="flex:1;background:var(--bg3);border:1px solid var(--amber);color:var(--amber);padding:8px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">✏️ EDIT</button>
-      </div>`:''}
+      <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+        ${c.phone?`<a href="tel:${c.phone}" style="flex:1;min-width:70px;background:var(--bg3);border:1px solid var(--green);color:var(--green);padding:8px;border-radius:8px;text-align:center;font-size:12px;font-weight:700;text-decoration:none">📞 CALL</a>`:''}
+        ${c.phone?`<a href="https://wa.me/91${c.phone.replace(/\D/g,'').slice(-10)}" target="_blank" style="flex:1;min-width:70px;background:var(--bg3);border:1px solid var(--green);color:var(--green);padding:8px;border-radius:8px;text-align:center;font-size:12px;font-weight:700;text-decoration:none">💬 WA</a>`:''}
+        <button onclick="openCustomerForm('${c.id}')" style="flex:1;min-width:70px;background:var(--bg3);border:1px solid var(--amber);color:var(--amber);padding:8px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">✏️ EDIT</button>
+        ${canDelete()?`<button onclick="deleteCustomer('${c.id}')" style="flex:1;min-width:70px;background:var(--bg3);border:1px solid var(--red);color:var(--red);padding:8px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">🗑 DELETE</button>`:''}
+      </div>
       ${due>0?`<button onclick="recordLumpSumPayment('${c.id}')" style="margin-top:8px;width:100%;background:linear-gradient(135deg,rgba(0,200,83,.15),rgba(0,200,83,.05));border:2px solid var(--green);color:var(--green);padding:12px;border-radius:10px;font-family:var(--fh);font-size:13px;cursor:pointer">
         💰 RECORD PAYMENT FROM CUSTOMER
       </button>`:''}
@@ -9329,13 +9376,38 @@ function fbSetStatus(status){
 // ── Push local data to Firebase ──
 async function fbPushAll(){
   fbSetStatus('syncing');
+  // Pull current Firebase state first, then merge transactional keys
+  // This prevents a stale device from overwriting entries made on other devices
+  let fbSnapshot = null;
+  try { fbSnapshot = await fbGet('fuellog'); } catch(e){}
   const payload = {};
-  FB_KEYS.forEach(k => {
+  for(const k of FB_KEYS){
     const localKey = SK[k] || ('fl7_' + k);
-    try {
-      payload[k] = JSON.parse(localStorage.getItem(localKey) || '[]');
-    } catch(e){ payload[k] = []; }
-  });
+    let localVal = [];
+    try { localVal = JSON.parse(localStorage.getItem(localKey) || '[]'); } catch(e){}
+    if(MERGE_KEYS.has(k) && Array.isArray(localVal) && fbSnapshot && fbSnapshot[k]){
+      // Merge: keep any Firebase entries not in local (entered on other devices)
+      let fbArr = fbSnapshot[k];
+      if(!Array.isArray(fbArr) && typeof fbArr === 'object') fbArr = Object.values(fbArr).filter(Boolean);
+      if(Array.isArray(fbArr)){
+        const localIds = new Set(localVal.map(e=>e&&e.id).filter(Boolean));
+        const tombstoneIds = _getTombstones(k);
+        const missing = fbArr.filter(e=>e&&e.id&&!localIds.has(e.id)&&!tombstoneIds.has(e.id));
+        if(missing.length > 0){
+          localVal = [...localVal, ...missing];
+          // Update localStorage too so this device stays current
+          localStorage.setItem(localKey, JSON.stringify(localVal));
+          if(k==='trips') trips = localVal.map(_normalizeTrip);
+          else if(k==='disbs') disbs = localVal;
+          else if(k==='pumpFills') pumpFills = localVal;
+          else if(k==='purchases') purchases = localVal;
+          else if(k==='musters') musters = localVal;
+          console.log('[fbPushAll merge] '+k+': preserved '+missing.length+' remote-only entries');
+        }
+      }
+    }
+    payload[k] = localVal;
+  }
   const ok = await fbSet('fuellog', payload);
   fbSetStatus(ok ? 'online' : 'error');
   return ok;
@@ -9438,12 +9510,29 @@ async function fbInit(){
       const localKey = SK[k] || ('fl7_' + k);
       let val = data[k];
       // If Firebase returns null/empty for this key, prefer localStorage
-      // This prevents a failed Firebase write from wiping local data on reload
       if(val === null || val === undefined){
         try{ val = JSON.parse(localStorage.getItem(localKey)||'[]'); }
         catch(e){ val = []; }
       } else if(!Array.isArray(val) && typeof val === 'object'){
-        val = Object.values(val);
+        val = Object.values(val).filter(Boolean);
+      }
+      // MERGE FIX: For transactional keys, never discard local entries that
+      // Firebase doesn't have yet (e.g. saved offline, not yet pushed).
+      if(MERGE_KEYS.has(k) && Array.isArray(val)){
+        try{
+          const localRaw = JSON.parse(localStorage.getItem(localKey)||'[]');
+          if(Array.isArray(localRaw) && localRaw.length > 0){
+            const fbIds = new Set(val.map(e=>e&&e.id).filter(Boolean));
+            const tombstoneIds = _getTombstones(k);
+            const localOnly = localRaw.filter(e=>e&&e.id&&!fbIds.has(e.id)&&!tombstoneIds.has(e.id));
+            if(localOnly.length > 0){
+              console.log('[StartupMerge] '+k+': preserving '+localOnly.length+' local-only entries not yet in Firebase');
+              val = [...val, ...localOnly];
+              // Push the merged result back to Firebase so it's not lost
+              _fbWrite(k, val).then(ok=>{ if(ok) console.log('[StartupMerge] '+k+': pushed '+localOnly.length+' recovered entries to Firebase'); });
+            }
+          }
+        } catch(me){ /* merge failed — use Firebase value as-is */ }
       }
       localStorage.setItem(localKey, JSON.stringify(val));
       // Update in-memory variables immediately
@@ -9668,6 +9757,104 @@ setInterval(async()=>{
     fbSetStatus('offline');
   }
 }, 30000);
+
+// ════════════════════════════════════════════════════════
+// AUTO-REFRESH (every 5 minutes) + INACTIVITY AUTO-LOGOUT
+// Owner/Admin: 8hr timeout | Manager/Supervisor: 4hr timeout
+// 1-minute warning before auto-logout
+// ════════════════════════════════════════════════════════
+let _lastActivity = Date.now();
+let _autoLogoutWarned = false;
+let _autoLogoutTimer = null;
+
+// Reset activity timestamp on any user interaction
+;['click','keydown','touchstart','scroll'].forEach(ev=>{
+  document.addEventListener(ev, ()=>{ _lastActivity = Date.now(); _autoLogoutWarned = false; }, {passive:true});
+});
+
+// Auto-refresh: silently pull Firebase every 5 minutes if logged in and online
+setInterval(async()=>{
+  if(!sess || !fbOnline) return;
+  try {
+    const data = await fbGet('fuellog');
+    if(!data) return;
+    FB_KEYS.forEach(k=>{
+      const localKey = SK[k]||('fl7_'+k);
+      let val = data[k];
+      if(val===null||val===undefined) return; // don't overwrite local with empty
+      if(!Array.isArray(val)&&typeof val==='object') val=Object.values(val).filter(Boolean);
+      // Merge transactional keys — never discard local-only entries
+      if(MERGE_KEYS.has(k)&&Array.isArray(val)){
+        try{
+          const localRaw=JSON.parse(localStorage.getItem(localKey)||'[]');
+          if(Array.isArray(localRaw)&&localRaw.length>0){
+            const fbIds=new Set(val.map(e=>e&&e.id).filter(Boolean));
+            const tombstoneIds=_getTombstones(k);
+            const localOnly=localRaw.filter(e=>e&&e.id&&!fbIds.has(e.id)&&!tombstoneIds.has(e.id));
+            if(localOnly.length>0) val=[...val,...localOnly];
+          }
+        }catch(me){}
+      }
+      localStorage.setItem(localKey, JSON.stringify(val));
+      if(k==='users') users=val;
+      else if(k==='fleet') fleet=val;
+      else if(k==='disbs') disbs=val;
+      else if(k==='readings') readings=val;
+      else if(k==='purchases') purchases=val;
+      else if(k==='pumps') pumps=val;
+      else if(k==='pumpFills') pumpFills=val;
+      else if(k==='sites') sites=val;
+      else if(k==='drivers') drivers=val;
+      else if(k==='musters') musters=val;
+      else if(k==='checklistTemplates') checklistTemplates=val;
+      else if(k==='checklistRecords') checklistRecords=val;
+      else if(k==='trips') trips=(val||[]).map(_normalizeTrip);
+      else if(k==='customers') customers=val;
+      else if(k==='materials') materials=val;
+    });
+    console.log('[AutoRefresh] Firebase data refreshed at', new Date().toLocaleTimeString());
+  } catch(e){ /* silent fail — don't disturb user */ }
+}, 5 * 60 * 1000); // every 5 minutes
+
+// Inactivity checker — runs every 60 seconds
+setInterval(async()=>{
+  if(!sess) return;
+  const role = sess.role;
+  // Timeout thresholds — owner/admin: 2hr, manager/supervisor: 3hr, driver: 5hr
+  const TIMEOUT = (role==='owner'||role==='admin') ? 2*60*60*1000
+                : (role==='driver') ? 5*60*60*1000
+                : 3*60*60*1000;
+  const WARN_BEFORE = 60*1000; // warn 1 minute before
+  const idle = Date.now() - _lastActivity;
+  if(idle >= TIMEOUT){
+    // Time's up — sync then force logout
+    flash('SESSION EXPIRED', 'Saving data and logging out...');
+    const q = _getQueue();
+    if(q.length>0) await processSyncQueue().catch(()=>{});
+    sess=null; pinBuf='';
+    saveSession(null);
+    show('scr-login'); initLogin();
+    alert('You were logged out due to inactivity.\nAll data has been saved to cloud.');
+  } else if(idle >= TIMEOUT - WARN_BEFORE && !_autoLogoutWarned){
+    _autoLogoutWarned = true;
+    // Show non-blocking warning banner
+    const banner = document.getElementById('sync-warn-banner');
+    const warnText = document.getElementById('sync-warn-text');
+    if(banner&&warnText){
+      warnText.textContent = 'Session expiring in 1 minute due to inactivity — tap anywhere to stay logged in';
+      banner.style.display = 'flex';
+      banner.style.borderColor = 'var(--amber)';
+      banner.style.background = 'rgba(255,179,0,.1)';
+      // Auto-hide the warning after 55 seconds (logout will handle it if not dismissed)
+      setTimeout(()=>{
+        if(_autoLogoutWarned){ // still warned = user didn't interact
+          banner.style.borderColor = 'var(--red)';
+          banner.style.background = 'rgba(255,61,61,.12)';
+        }
+      }, 55000);
+    }
+  }
+}, 60000);
 
 // ── Secret URL Owner PIN Reset ──
 // Usage: https://yourapp.url/?reset=SECRETKEY
