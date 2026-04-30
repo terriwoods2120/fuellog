@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1162,6 +1162,21 @@ input[type=file]{display:none}
       </select>
     </div>
     <div class="f-field"><label class="f-lbl">Default Rate ₹ (optional)</label><input class="f-inp" id="mat-rate" type="number" inputmode="decimal" placeholder="Leave blank if variable"></div>
+
+    <div style="margin:10px 0;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;padding:12px">
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
+        <input type="checkbox" id="mat-tracks-stock" onchange="document.getElementById('mat-reorder-row').style.display=this.checked?'block':'none'" style="width:18px;height:18px;accent-color:var(--amber);flex-shrink:0;margin-top:2px">
+        <div>
+          <div style="font-family:var(--fh);font-size:13px;color:var(--white)">📦 Track Stock</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px;line-height:1.5">ON for materials consumed gradually (cement, steel, paint, gumboots).<br>OFF for materials consumed same day (GSB, sand, aggregate, RMC).</div>
+        </div>
+      </label>
+      <div id="mat-reorder-row" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+        <label class="f-lbl">Reorder alert when below</label>
+        <input class="f-inp" id="mat-reorder-thresh" type="number" inputmode="decimal" placeholder="e.g. 20">
+      </div>
+    </div>
+
     <div class="f-field"><label class="f-lbl">Notes</label><input class="f-inp" id="mat-notes" type="text" placeholder="Optional"></div>
   </div>
   <div style="padding:10px 14px;background:var(--bg2);border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 2fr;gap:10px">
@@ -2998,7 +3013,7 @@ function renderMoreTab(el){
     <div class="act" onclick="show('scr-checklists')">
       <div class="act-ico">✅</div><div class="act-txt"><div class="act-title">CHECKLISTS</div><div class="act-desc">Pre-start · Post-shift templates</div></div><div class="act-arr">›</div>
     </div>
-    <div class="act" onclick="showCustomers()">
+<div class="act" onclick="showCustomers()">
       <div class="act-ico">👥</div><div class="act-txt"><div class="act-title">CUSTOMERS</div><div class="act-desc">Manage parties · Phone · Address · GST</div></div><div class="act-arr">›</div>
     </div>
     <div class="act" onclick="showMaterials()">
@@ -4108,6 +4123,9 @@ function openMaterialForm(editId){
   document.getElementById('mat-name').value=e.name||'';
   document.getElementById('mat-unit').value=e.unit||'brass';
   document.getElementById('mat-rate').value=e.rate||'';
+  document.getElementById('mat-tracks-stock').checked=!!e.tracksStock;
+  document.getElementById('mat-reorder-thresh').value=e.reorderThreshold||'';
+  document.getElementById('mat-reorder-row').style.display=e.tracksStock?'block':'none';
   document.getElementById('mat-notes').value=e.notes||'';
   show('scr-material-form');
 }
@@ -4115,11 +4133,14 @@ function openMaterialForm(editId){
 function saveMaterial(){
   const name=document.getElementById('mat-name').value.trim();
   if(!name){alert('Material name required');return;}
+  const tracksStock=document.getElementById('mat-tracks-stock')?.checked||false;
   const data={
     id:_matFormEditId||uid(),
     name,
     unit:document.getElementById('mat-unit').value,
     rate:parseFloat(document.getElementById('mat-rate').value)||null,
+    tracksStock,
+    reorderThreshold:tracksStock?(parseFloat(document.getElementById('mat-reorder-thresh').value)||null):null,
     notes:document.getElementById('mat-notes').value.trim()
   };
   if(_matFormEditId){
@@ -4133,7 +4154,7 @@ function saveMaterial(){
     flash('ADDED','Material added');
   }
   sv('materials',materials);
-  localStorage.setItem('fl7_materialsSeeded', '1'); // prevent default seeding
+  localStorage.setItem('fl7_materialsSeeded', '1');
   _matFormEditId=null;
   show('scr-materials');
   renderMaterials();
