@@ -1550,6 +1550,15 @@ function _getTombstones(key){
 async function processSyncQueue(){
   const q = _getQueue();
   if(!q.length) return {ok:0, fail:0};
+  // Purge any queue entries older than 24 hours — these are ghosts from old sv() bug
+  const cutoff = Date.now() - 24*60*60*1000;
+  const fresh24 = q.filter(item => (item.ts||0) > cutoff);
+  if(fresh24.length < q.length){
+    console.log('[SyncQueue] Purged '+(q.length-fresh24.length)+' stale ghost entries older than 24hr');
+    _setQueue(fresh24);
+    _updateSyncBadge();
+    if(!fresh24.length) return {ok:0, fail:0};
+  }
   const remaining = [];
   let ok = 0, fail = 0;
   // Deduplicate: only keep the LATEST write per key (older ones are stale)
@@ -1573,18 +1582,17 @@ async function processSyncQueue(){
 // New sv() — saves locally AND queues for Firebase sync
 const sv = (k, v) => {
   localStorage.setItem(SK[k], JSON.stringify(v));
-  // Queue for Firebase write
+  // Unique ID per queue item — prevents wrong-item removal when multiple sv() calls happen close together
+  const qid = k + '_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
   const q = _getQueue();
-  q.push({key: k, ts: Date.now()});
+  q.push({key: k, ts: Date.now(), qid});
   _setQueue(q);
   _updateSyncBadge();
   // Try to sync immediately
   _fbWrite(k, v).then(success => {
     if(success){
-      // Remove this item from queue
-      const q2 = _getQueue().filter(item =>
-        !(item.key === k && item.ts === q[q.length-1].ts)
-      );
+      // Remove exactly this item by its unique qid — not by position or timestamp
+      const q2 = _getQueue().filter(item => item.qid !== qid);
       _setQueue(q2);
       _updateSyncBadge();
       _lastSaveStatus = {status:'saved', key:k, ts:Date.now()};
