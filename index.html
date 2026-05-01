@@ -9458,7 +9458,7 @@ const FB_URL = 'https://fuellog-9f3c0-default-rtdb.firebaseio.com';
 const FB_KEY = 'AIzaSyB44pKu7YTc-Q_6GLC3mlaEBPJm3d3odPc';
 
 // All keys we sync to Firebase
-const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords','trips','customers','materials'];
+const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords','trips','customers','materials','staff','staffMusters'];
 
 let fbOnline = false;
 let fbSyncing = false;
@@ -9763,8 +9763,10 @@ async function fbInit(){
       else if(k==='trips') trips=(val||[]).map(_normalizeTrip);
       else if(k==='customers') customers=val;
       else if(k==='materials') materials=val;
+      else if(k==='staff') staff=val;
+      else if(k==='staffMusters') staffMusters=val;
     });
-    console.log('Loaded from Firebase — disbs:',disbs.length,'fleet:',fleet.length,'users:',users.length);
+    console.log('Loaded from Firebase — disbs:',disbs.length,'fleet:',fleet.length,'users:',users.length,'staff:',staff.length);
     // Only seed default materials if Firebase confirms none exist
     if(materials.length===0) _seedMaterials();
   } else {
@@ -9788,6 +9790,8 @@ async function fbInit(){
       else if(k==='trips') trips=(val||[]).map(_normalizeTrip);
       else if(k==='customers') customers=val;
       else if(k==='materials') materials=val;
+      else if(k==='staff') staff=val;
+      else if(k==='staffMusters') staffMusters=val;
       }catch(e){}
     });
     // Seed only if localStorage also had no materials
