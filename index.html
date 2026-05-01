@@ -927,18 +927,102 @@ input[type=file]{display:none}
     <div><div class="tb-title">MORNING MUSTER</div><div class="tb-sub" id="muster-date"></div></div>
     <div style="margin-left:auto;font-family:var(--fh);font-size:11px;color:var(--muted)" id="muster-count"></div>
   </div>
-  <!-- Search bar -->
-  <div style="padding:8px 14px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0">
-    <input id="muster-search" type="text" placeholder="🔍  Search vehicle or driver..." autocomplete="off"
-      oninput="renderMuster()"
-      style="width:100%;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);
-             padding:10px 14px;border-radius:10px;font-size:14px;font-family:var(--fb);
-             box-sizing:border-box;outline:none">
+  <!-- FLEET / STAFF tab bar -->
+  <div style="display:flex;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0">
+    <button id="mtab-fleet" onclick="switchMusterTab('fleet')"
+      style="flex:1;padding:12px 0;font-family:var(--fh);font-size:13px;font-weight:700;border:none;cursor:pointer;
+             background:var(--amber);color:#000;border-bottom:3px solid var(--amber)">
+      🚜 FLEET
+    </button>
+    <button id="mtab-staff" onclick="switchMusterTab('staff')"
+      style="flex:1;padding:12px 0;font-family:var(--fh);font-size:13px;font-weight:700;border:none;cursor:pointer;
+             background:var(--bg2);color:var(--muted);border-bottom:3px solid transparent">
+      👷 STAFF
+    </button>
   </div>
-  <div style="padding:8px 14px 4px;font-size:11px;color:var(--muted);font-weight:600;flex-shrink:0">
-    Mark attendance for today. Swaps are temporary — only for today.
+
+  <!-- FLEET TAB CONTENT -->
+  <div id="muster-fleet-panel">
+    <div style="padding:8px 14px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0">
+      <input id="muster-search" type="text" placeholder="🔍  Search vehicle or driver..." autocomplete="off"
+        oninput="renderMuster()"
+        style="width:100%;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);
+               padding:10px 14px;border-radius:10px;font-size:14px;font-family:var(--fb);
+               box-sizing:border-box;outline:none">
+    </div>
+    <div style="padding:8px 14px 4px;font-size:11px;color:var(--muted);font-weight:600;flex-shrink:0">
+      Mark attendance for today. Swaps are temporary — only for today.
+    </div>
+    <div class="log-list" id="muster-list" style="flex:1;overflow-y:auto"></div>
   </div>
-  <div class="log-list" id="muster-list" style="flex:1;overflow-y:auto"></div>
+
+  <!-- STAFF TAB CONTENT -->
+  <div id="muster-staff-panel" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+    <!-- Category pill row -->
+    <div id="muster-staff-pills" style="display:flex;gap:6px;padding:10px 12px;background:var(--bg2);
+         border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;-webkit-overflow-scrolling:touch">
+    </div>
+    <!-- Staff search -->
+    <div style="padding:8px 14px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0">
+      <input id="staff-muster-search" type="text" placeholder="🔍  Search staff..." autocomplete="off"
+        oninput="renderStaffMuster()"
+        style="width:100%;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);
+               padding:10px 14px;border-radius:10px;font-size:14px;font-family:var(--fb);
+               box-sizing:border-box;outline:none">
+    </div>
+    <div style="padding:6px 14px 2px;font-size:11px;color:var(--muted);font-weight:600;flex-shrink:0" id="staff-muster-hint">
+      Default all present. Mark exceptions only.
+    </div>
+    <div class="log-list" id="staff-muster-list" style="flex:1;overflow-y:auto"></div>
+  </div>
+
+  <div class="pad-bot"></div>
+</div>
+
+<!-- ═══ STAFF MASTER ═══ -->
+<div class="screen" id="scr-staff">
+  <div class="topbar">
+    <button class="tb-back" onclick="show('scr-home')">‹</button>
+    <div><div class="tb-title">STAFF MASTER</div><div class="tb-sub">Owner only</div></div>
+    <button style="margin-left:auto;background:none;border:none;color:var(--amber);font-size:22px;cursor:pointer" onclick="openAddStaff()">＋</button>
+  </div>
+  <!-- Add/Edit form (hidden by default) -->
+  <div id="staff-form-wrap" style="display:none">
+    <div class="form-body">
+      <div class="f-field"><label class="f-lbl">Full Name</label><input class="f-inp" id="stf-name" placeholder="e.g. Ramesh Kale" type="text"></div>
+      <div class="f-field">
+        <label class="f-lbl">Category</label>
+        <select class="f-inp" id="stf-cat" style="background:var(--bg3);color:var(--white)">
+          <option value="Crusher Team">⛏️ Crusher Team</option>
+          <option value="HMP Gang">🏭 HMP Gang</option>
+          <option value="Paver Gang">🛣️ Paver Gang</option>
+          <option value="Concrete Pump Gang">🏗️ Concrete Pump Gang</option>
+          <option value="Office Staff">🖥️ Office Staff</option>
+          <option value="Daily Wage">💰 Daily Wage</option>
+        </select>
+      </div>
+      <div class="f-field"><label class="f-lbl">Phone (optional)</label><input class="f-inp" id="stf-phone" placeholder="Mobile number" type="tel" inputmode="numeric"></div>
+      <!-- Monthly salary — hidden for Daily Wage -->
+      <div class="f-field" id="stf-salary-wrap">
+        <label class="f-lbl">Monthly Salary (₹)</label>
+        <input class="f-inp" id="stf-salary" placeholder="e.g. 18000" type="number" inputmode="numeric">
+        <div style="font-size:11px;color:var(--muted);margin-top:4px" id="stf-daily-calc">Daily rate auto-calculated</div>
+      </div>
+      <!-- Daily rate — shown only for Daily Wage -->
+      <div class="f-field" id="stf-dailyrate-wrap" style="display:none">
+        <label class="f-lbl">Daily Rate (₹)</label>
+        <input class="f-inp" id="stf-dailyrate" placeholder="e.g. 600" type="number" inputmode="numeric">
+      </div>
+      <input type="hidden" id="stf-edit-id">
+      <div style="display:flex;gap:8px">
+        <button class="big-btn bb-amber" style="flex:1;height:50px;font-size:16px" onclick="saveStaff()">💾 SAVE</button>
+        <button class="big-btn" style="flex:1;height:50px;font-size:16px;background:var(--bg3);color:var(--muted)" onclick="closeStaffForm()">CANCEL</button>
+      </div>
+    </div>
+  </div>
+  <!-- Filter pills -->
+  <div style="display:flex;gap:6px;padding:10px 12px;background:var(--bg2);border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;flex-shrink:0" id="staff-filter-pills"></div>
+  <div class="log-list" id="staff-log"></div>
   <div class="pad-bot"></div>
 </div>
 
@@ -1210,6 +1294,16 @@ input[type=file]{display:none}
       <option value="month">This Month</option>
     </select>
   </div>
+  <!-- Type filter pills -->
+  <div style="display:flex;gap:6px;padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;-webkit-overflow-scrolling:touch">
+    <button onclick="setAuditType('all')" id="atype-all" style="flex-shrink:0;padding:5px 12px;border-radius:16px;border:none;cursor:pointer;font-family:var(--fh);font-size:11px;font-weight:700;background:var(--amber);color:#000">ALL</button>
+    <button onclick="setAuditType('fuel')" id="atype-fuel" style="flex-shrink:0;padding:5px 12px;border-radius:16px;border:none;cursor:pointer;font-family:var(--fh);font-size:11px;font-weight:700;background:var(--bg3);color:var(--muted)">⛽ FUEL</button>
+    <button onclick="setAuditType('pump')" id="atype-pump" style="flex-shrink:0;padding:5px 12px;border-radius:16px;border:none;cursor:pointer;font-family:var(--fh);font-size:11px;font-weight:700;background:var(--bg3);color:var(--muted)">🏪 PUMP</button>
+    <button onclick="setAuditType('purchase')" id="atype-purchase" style="flex-shrink:0;padding:5px 12px;border-radius:16px;border:none;cursor:pointer;font-family:var(--fh);font-size:11px;font-weight:700;background:var(--bg3);color:var(--muted)">🛒 PURCHASE</button>
+    <button onclick="setAuditType('trip')" id="atype-trip" style="flex-shrink:0;padding:5px 12px;border-radius:16px;border:none;cursor:pointer;font-family:var(--fh);font-size:11px;font-weight:700;background:var(--bg3);color:var(--muted)">📦 TRIPS</button>
+    <button onclick="setAuditType('muster')" id="atype-muster" style="flex-shrink:0;padding:5px 12px;border-radius:16px;border:none;cursor:pointer;font-family:var(--fh);font-size:11px;font-weight:700;background:var(--bg3);color:var(--muted)">🚜 FLEET MUSTER</button>
+    <button onclick="setAuditType('staffmuster')" id="atype-staffmuster" style="flex-shrink:0;padding:5px 12px;border-radius:16px;border:none;cursor:pointer;font-family:var(--fh);font-size:11px;font-weight:700;background:var(--bg3);color:var(--muted)">🧑 STAFF MUSTER</button>
+  </div>
   <div id="audit-log-list" style="overflow-y:auto;flex:1"></div>
   <div class="pad-bot"></div>
 </div>
@@ -1396,7 +1490,7 @@ input[type=file]{display:none}
 // ════════════════════════════════════
 // STORAGE
 // ════════════════════════════════════
-const SK={users:'fl7_users',fleet:'fl7_fleet',disbs:'fl7_disbs',readings:'fl7_readings',purchases:'fl7_purchases',pumps:'fl7_pumps',pumpFills:'fl7_pumpFills',sites:'fl7_sites',drivers:'fl7_drivers',musters:'fl7_musters',checklistTemplates:'fl7_clTemplates',checklistRecords:'fl7_clRecords',trips:'fl7_trips',customers:'fl7_customers',materials:'fl7_materials'};
+const SK={users:'fl7_users',fleet:'fl7_fleet',disbs:'fl7_disbs',readings:'fl7_readings',purchases:'fl7_purchases',pumps:'fl7_pumps',pumpFills:'fl7_pumpFills',sites:'fl7_sites',drivers:'fl7_drivers',musters:'fl7_musters',checklistTemplates:'fl7_clTemplates',checklistRecords:'fl7_clRecords',trips:'fl7_trips',customers:'fl7_customers',materials:'fl7_materials',staff:'fl7_staff',staffMusters:'fl7_staffMusters'};
 const ld=k=>{try{return JSON.parse(localStorage.getItem(SK[k])||'[]')}catch{return[]}};
 // ═══ OFFLINE SYNC QUEUE (Item 3 + 4) ═══
 // Every save goes through a queue. Failed writes retry automatically.
@@ -1450,7 +1544,7 @@ function _updateSyncBadge(){
 }
 
 // Keys containing transactional records — must MERGE, never overwrite with fewer entries
-const MERGE_KEYS = new Set(['disbs','pumpFills','purchases','readings','musters','trips','checklistRecords']);
+const MERGE_KEYS = new Set(['disbs','pumpFills','purchases','readings','musters','trips','checklistRecords','staffMusters']);
 
 // Actual Firebase PUT with merge protection
 async function _fbWrite(key, value){
@@ -1483,6 +1577,7 @@ async function _fbWrite(key, value){
               else if(key==='pumpFills') pumpFills=writeValue;
               else if(key==='purchases') purchases=writeValue;
               else if(key==='musters') musters=writeValue;
+              else if(key==='staffMusters') staffMusters=writeValue;
               else if(key==='trips') trips=writeValue.map(_normalizeTrip);
               console.log('[Merge] '+key+': preserved '+missing.length+' remote entries');
             }
@@ -1623,7 +1718,7 @@ window.addEventListener('beforeunload', (e) => {
     return e.returnValue;
   }
 });
-let users=ld('users'),fleet=ld('fleet'),disbs=ld('disbs'),readings=ld('readings'),purchases=ld('purchases'),pumps=ld('pumps'),pumpFills=ld('pumpFills'),sites=ld('sites'),drivers=ld('drivers'),musters=ld('musters'),checklistTemplates=ld('checklistTemplates'),checklistRecords=ld('checklistRecords'),trips=ld('trips'),customers=ld('customers'),materials=ld('materials');
+let users=ld('users'),fleet=ld('fleet'),disbs=ld('disbs'),readings=ld('readings'),purchases=ld('purchases'),pumps=ld('pumps'),pumpFills=ld('pumpFills'),sites=ld('sites'),drivers=ld('drivers'),musters=ld('musters'),checklistTemplates=ld('checklistTemplates'),checklistRecords=ld('checklistRecords'),trips=ld('trips'),customers=ld('customers'),materials=ld('materials'),staff=ld('staff'),staffMusters=ld('staffMusters');
 
 
 // Bowser stock = total purchased into bowser minus total dispensed from bowser
@@ -1691,7 +1786,8 @@ function onEnter(id){
   if(id==='scr-pumps')     renderPumpLog();
   if(id==='scr-sites')     renderSitesLog();
   if(id==='scr-drivers')   renderDriverList();
-  if(id==='scr-muster'){const el=document.getElementById('muster-date');if(el)el.textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'});renderMuster();}
+  if(id==='scr-staff')     { if(!isOwner()){show('scr-home');return;} renderStaffList(); }
+  if(id==='scr-muster'){const el=document.getElementById('muster-date');if(el)el.textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'});initMusterTabs();}
   if(id==='scr-readings')  {const s=document.getElementById('readings-veh-search');if(s)s.value='';renderReadingsVehGrid();}
   if(id==='scr-purchases') {renderPurchases();document.getElementById('pur-by').value=sess?.name||'';document.getElementById('pur-date').value=today();}
   if(id==='scr-reports'){
@@ -3017,6 +3113,9 @@ function renderFleetTab(el){
     <div class="act" onclick="show('scr-drivers')">
       <div class="act-ico">👷</div><div class="act-txt"><div class="act-title">DRIVERS & OPERATORS</div><div class="act-desc">Add staff · Assign to vehicles</div></div><div class="act-arr">›</div>
     </div>
+    <div class="act" onclick="if(!isOwner()){alert('Owner only');return;}show('scr-staff')">
+      <div class="act-ico">🧑‍🤝‍🧑</div><div class="act-txt"><div class="act-title">STAFF MASTER</div><div class="act-desc">Gangs · Office · Daily Wage</div></div><div class="act-arr">›</div>
+    </div>
     <div class="act" onclick="show('scr-sites')">
       <div class="act-ico">🏗</div><div class="act-txt"><div class="act-title">SITES</div><div class="act-desc">Manage project sites</div></div><div class="act-arr">›</div>
     </div>
@@ -4314,6 +4413,18 @@ function showAuditLog(){
   renderAuditLog();
 }
 
+function setAuditType(type){
+  window._auditType = type;
+  // Update pill styles
+  ['all','fuel','pump','purchase','trip','muster','staffmuster'].forEach(t=>{
+    const el = document.getElementById('atype-'+t);
+    if(!el) return;
+    el.style.background = t===type ? 'var(--amber)' : 'var(--bg3)';
+    el.style.color = t===type ? '#000' : 'var(--muted)';
+  });
+  renderAuditLog();
+}
+
 function renderAuditLog(){
   const el=document.getElementById('audit-log-list');
   if(!el) return;
@@ -4370,6 +4481,57 @@ function renderAuditLog(){
       });
     });
   }
+
+  // Trips
+  (trips||[]).filter(t=>t.date>=fromDate).forEach(t=>{
+    if(!canSeeAll&&t.loggedBy!==sess?.userId) return;
+    const veh=gV(t.vehicleId);
+    const cust=(customers||[]).find(c=>c.id===t.customerId);
+    const mat=(materials||[]).find(m=>m.id===t.materialId);
+    const isExt=t.movementType==='external';
+    entries.push({
+      id:t.id, ts:t.ts||0, date:t.date,
+      type:'trip', icon:'📦',
+      title:`${t.numTrips>1?t.numTrips+'× ':''}${mat?.name||t.materialName||'Trip'} → ${isExt?cust?.name||'?':'Internal'}`,
+      sub:`${veh?.name||'?'} · ${t.driverName||'?'} · by ${t.loggedByName||'?'}${isExt&&t.amount?' · ₹'+t.amount.toLocaleString('en-IN'):''}`,
+      editedBy:t.editedByName, editedAt:t.editedAt,
+      loggedBy:t.loggedByName, changes:t._changes||null
+    });
+  });
+
+  // Fleet Musters
+  (musters||[]).filter(m=>m.date>=fromDate).forEach(m=>{
+    if(!canSeeAll&&m.markedBy!==sess?.userId) return;
+    const veh=gV(m.vehicleId);
+    const statusLbl=m.status==='present'?'✅ Present':'❌ Absent';
+    entries.push({
+      id:m.id, ts:m.ts||0, date:m.date,
+      type:'muster', icon:'🚜',
+      title:`${statusLbl} — ${veh?.name||'?'}`,
+      sub:`${m.driverName?m.driverName+' · ':''}by ${m.markedByName||'?'}`,
+      editedBy:null, editedAt:null,
+      loggedBy:m.markedByName
+    });
+  });
+
+  // Staff Musters
+  (staffMusters||[]).filter(m=>m.date>=fromDate).forEach(m=>{
+    if(!canSeeAll&&m.by!==sess?.name) return;
+    const s=(staff||[]).find(x=>x.id===m.staffId);
+    const statusLbl=m.status==='present'?'✅ Present':m.status==='absent'?'❌ Absent':m.status==='halfday'?'½ Half Day':'🏖 Leave';
+    entries.push({
+      id:m.id, ts:m.ts||0, date:m.date,
+      type:'staffmuster', icon:'🧑',
+      title:`${statusLbl} — ${s?.name||'?'}`,
+      sub:`${s?.category||''} · by ${m.by||'?'}${m.advance>0?' · Advance ₹'+m.advance.toLocaleString('en-IN'):''}`,
+      editedBy:null, editedAt:null,
+      loggedBy:m.by
+    });
+  });
+
+  // Type filter
+  const activeType = window._auditType || 'all';
+  if(activeType !== 'all') entries = entries.filter(e => e.type === activeType);
 
   // Search filter
   if(q){
@@ -6621,13 +6783,26 @@ function renderReports(){
     }
   // ═══ TAB: MUSTER REPORT ═══
   } else if(repActiveTab==='muster'){
+    // V43: Fleet/Staff sub-toggle
+    if(typeof window._musterSubTab==='undefined') window._musterSubTab='fleet';
+    const subToggleHTML = `
+      <div style="display:flex;gap:6px;padding:0 14px 4px 14px;margin-top:10px">
+        <button onclick="setMusterSub('fleet')" style="flex:1;padding:9px 0;border-radius:8px;border:none;cursor:pointer;font-family:var(--fh);font-size:13px;font-weight:700;background:${window._musterSubTab==='fleet'?'var(--amber)':'var(--bg3)'};color:${window._musterSubTab==='fleet'?'#000':'var(--muted)'}">🚜 FLEET</button>
+        <button onclick="setMusterSub('staff')" style="flex:1;padding:9px 0;border-radius:8px;border:none;cursor:pointer;font-family:var(--fh);font-size:13px;font-weight:700;background:${window._musterSubTab==='staff'?'var(--amber)':'var(--bg3)'};color:${window._musterSubTab==='staff'?'#000':'var(--muted)'}">🧑 STAFF</button>
+      </div>`;
+
+    if(window._musterSubTab==='staff'){
+      html = subToggleHTML + renderStaffMusterReport(range, false);
+    } else {
+      // Fleet path — original code unchanged below, but with toggle prepended at end
+      html = subToggleHTML;  // will be appended to by existing logic? No, existing assigns html=`...` directly. Use marker instead.
     const days=[];
     let d=new Date(range.from);const endD=new Date(range.to);
     while(d<=endD){days.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}
     const isMultiDay=days.length>1;
 
     // Vehicle types that need a DRIVER (mobile road vehicles)
-    const isDriverVehicle = vt => ['tipper','truck','dumper','car','tanker','tractor'].includes(vt);
+    const isDriverVehicle = vt => ['tipper','truck','dumper','car','tanker','tractor','transit-mixer'].includes(vt);
     // Everything else (excavator, roller, backhoe, loader, paver, HMP, dozer, generator, crane, other) needs an OPERATOR
 
     // Build vehRows — classify role by VEHICLE type, not person type
@@ -6662,7 +6837,7 @@ function renderReports(){
       const driversPresent=present.filter(x=>x.role==='driver').length;
       const opsPresent=present.filter(x=>x.role==='operator').length;
 
-      html=`
+      html+=`
       <!-- Top counts -->
       <div style="margin:10px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;gap:0">
         <div style="flex:1;text-align:center">
@@ -6748,7 +6923,7 @@ function renderReports(){
       // Multi-day: cumulative table with driver/operator split
       const driversCol='var(--green)';
       const opsCol='var(--blue)';
-      html=`
+      html+=`
       <div style="margin:10px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 14px">
         <div style="font-family:var(--fh);font-size:12px;color:var(--amber);letter-spacing:1px;margin-bottom:4px">CUMULATIVE ATTENDANCE</div>
         <div style="font-size:11px;color:var(--muted);font-weight:600">${days.length} days · ${fmtD(range.from)} – ${fmtD(range.to)}</div>
@@ -6801,6 +6976,7 @@ function renderReports(){
         </div>
       </div>`;
     }
+    } // end V43 fleet sub-tab
   // ═══ TAB: TRIPS ═══
   } else if(repActiveTab==='trips'){
     if(typeof window._tripRepType==='undefined') window._tripRepType='register';
@@ -7610,6 +7786,10 @@ function exportRepPDF(){
 
     <div class="footer">Generated from FuelLog App · Chiddarwar Construction Co. Pvt. Ltd. · Period: ${repFmtRange(range)}</div>`;
   } else if(repActiveTab==='muster'){
+    // V43: Staff sub-tab uses different print render
+    if(window._musterSubTab==='staff'){
+      html += renderStaffMusterReport(range, true);
+    } else {
     const days=[];
     let dm=new Date(range.from);const endDm=new Date(range.to);
     while(dm<=endDm){days.push(dm.toISOString().slice(0,10));dm.setDate(dm.getDate()+1);}
@@ -7625,7 +7805,7 @@ function exportRepPDF(){
       const latestM=[...(musters||[])].filter(x=>x.vehicleId===v.id&&days.includes(x.date)).sort((a,b)=>b.date.localeCompare(a.date))[0];
       const drvId=latestM?.driverId||v.driverId;
       const drv=(drivers||[]).find(d=>d.id===drvId);
-      const isDriverVehicle = vt => ['tipper','truck','dumper','car','tanker','tractor'].includes(vt);
+      const isDriverVehicle = vt => ['tipper','truck','dumper','car','tanker','tractor','transit-mixer'].includes(vt);
       const role=isDriverVehicle(v.type)?'driver':'operator';
       return{v,presentDays,absentDays,drvName:drv?.name||v.driverName||'—',role};
     });
@@ -7713,6 +7893,7 @@ function exportRepPDF(){
       </table>
       <div class="footer">Cumulative Muster · ${repFmtRange(range)} · ${days.length} days · Chiddarwar Construction Co. Pvt. Ltd.</div>`;
     }
+    } // end V43 fleet print sub-tab
   } else if(repActiveTab==='vehicle'){
     const isMachType=t=>['excavator','dozer','roller','paver','hmp','generator','tractor','other'].includes(t);
     const reportType=document.getElementById('veh-rep-type')?.value||'summary';
@@ -10507,6 +10688,533 @@ function saveEdit(){
   if(typeof saveEditMain==='function')saveEditMain();
 }
 /* ═══ END MODAL CORE ═══ */
+
+// ════════════════════════════════════
+// MUSTER TAB SWITCHING
+// ════════════════════════════════════
+let activeMusterTab = 'fleet';
+let activeStaffCat = 'All';
+
+const STAFF_CATS = ['All','Crusher Team','HMP Gang','Paver Gang','Concrete Pump Gang','Office Staff','Daily Wage'];
+const STAFF_CAT_ICO = {'All':'👥','Crusher Team':'⛏️','HMP Gang':'🏭','Paver Gang':'🛣️','Concrete Pump Gang':'🏗️','Office Staff':'🖥️','Daily Wage':'💰'};
+
+function initMusterTabs(){
+  activeMusterTab = 'fleet';
+  activeStaffCat = 'All';
+  switchMusterTab('fleet');
+}
+
+function switchMusterTab(tab){
+  activeMusterTab = tab;
+  const fleetBtn = document.getElementById('mtab-fleet');
+  const staffBtn = document.getElementById('mtab-staff');
+  const fleetPanel = document.getElementById('muster-fleet-panel');
+  const staffPanel = document.getElementById('muster-staff-panel');
+  if(tab==='fleet'){
+    fleetBtn.style.background='var(--amber)'; fleetBtn.style.color='#000'; fleetBtn.style.borderBottom='3px solid var(--amber)';
+    staffBtn.style.background='var(--bg2)'; staffBtn.style.color='var(--muted)'; staffBtn.style.borderBottom='3px solid transparent';
+    fleetPanel.style.display=''; staffPanel.style.display='none';
+    renderMuster();
+  } else {
+    staffBtn.style.background='var(--amber)'; staffBtn.style.color='#000'; staffBtn.style.borderBottom='3px solid var(--amber)';
+    fleetBtn.style.background='var(--bg2)'; fleetBtn.style.color='var(--muted)'; fleetBtn.style.borderBottom='3px solid transparent';
+    fleetPanel.style.display='none'; staffPanel.style.display='flex';
+    buildStaffPills();
+    renderStaffMuster();
+  }
+  updateMusterCount();
+}
+
+function updateMusterCount(){
+  const td = today();
+  const fleetMarked = (musters||[]).filter(m=>m.date===td).length;
+  const staffMarked = (staffMusters||[]).filter(m=>m.date===td).length;
+  const el = document.getElementById('muster-count');
+  if(el) el.textContent = `Fleet ${fleetMarked}/${(fleet||[]).length} · Staff ${staffMarked}/${(staff||[]).filter(s=>s.active!==false).length}`;
+}
+
+function buildStaffPills(){
+  const wrap = document.getElementById('muster-staff-pills');
+  if(!wrap) return;
+  wrap.innerHTML = STAFF_CATS.map(cat => `
+    <button onclick="setStaffCat('${cat}')" id="spill-${cat.replace(/\s/g,'_')}"
+      style="flex-shrink:0;padding:7px 14px;border-radius:20px;border:none;cursor:pointer;font-family:var(--fh);font-size:12px;font-weight:700;
+             background:${activeStaffCat===cat?'var(--amber)':'var(--bg3)'};color:${activeStaffCat===cat?'#000':'var(--muted)'};white-space:nowrap">
+      ${STAFF_CAT_ICO[cat]||''} ${cat}
+    </button>`).join('');
+}
+
+function setStaffCat(cat){
+  activeStaffCat = cat;
+  buildStaffPills();
+  renderStaffMuster();
+}
+
+// ════════════════════════════════════
+// STAFF MUSTER RENDER
+// ════════════════════════════════════
+function renderStaffMuster(){
+  const el = document.getElementById('staff-muster-list');
+  if(!el) return;
+  const td = today();
+  const activeStaff = (staff||[]).filter(s=>s.active!==false);
+  if(!activeStaff.length){
+    el.innerHTML='<div class="muted-txt" style="padding:40px;text-align:center">No staff added yet.<br><br><button class="big-btn bb-amber" style="margin-top:12px" onclick="if(!isOwner()){alert(\'Owner only\');return;}show(\'scr-staff\')">+ Add Staff</button></div>';
+    return;
+  }
+  const q = (document.getElementById('staff-muster-search')?.value||'').toLowerCase().trim();
+  let filtered = activeStaff;
+  if(activeStaffCat!=='All') filtered = filtered.filter(s=>s.category===activeStaffCat);
+  if(q) filtered = filtered.filter(s=>s.name.toLowerCase().includes(q));
+  if(!filtered.length){
+    el.innerHTML=`<div class="muted-txt" style="padding:30px;text-align:center">No staff match</div>`;
+    return;
+  }
+
+  // Days in current month for salary calc
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+
+  el.innerHTML = filtered.map(s=>{
+    const rec = (staffMusters||[]).find(m=>m.staffId===s.id&&m.date===td);
+    const status = rec?.status || 'pending';
+    const adv = rec?.advance || 0;
+    const advRemark = rec?.advRemark || '';
+    const isDW = s.category==='Daily Wage';
+    const dailyRate = isDW ? (s.dailyRate||0) : Math.round((s.salary||0)/daysInMonth);
+    const statusCol = status==='present'?'var(--green)':status==='absent'?'var(--red)':status==='halfday'?'var(--amber)':status==='leave'?'#7c83fd':'var(--muted)';
+    const statusLbl = status==='present'?'✅ Present':status==='absent'?'❌ Absent':status==='halfday'?'½ Half Day':status==='leave'?'🏖 Paid Leave':'⏳ Not marked';
+    const borderCol = status==='present'?'var(--green)':status==='absent'?'var(--red)':status==='halfday'?'var(--amber)':status==='leave'?'#7c83fd':'transparent';
+    return `<div class="log-item" style="flex-direction:column;gap:8px;align-items:stretch;border-left:3px solid ${borderCol}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="li-name">${s.name}</div>
+          <div class="li-det" style="color:${statusCol}">${statusLbl}</div>
+          <div class="li-by">${STAFF_CAT_ICO[s.category]||''} ${s.category} · ₹${dailyRate.toLocaleString('en-IN')}/day${isDW?'':' (₹'+((s.salary||0)).toLocaleString('en-IN')+'/mo)'}</div>
+        </div>
+        ${isOwner()||isAdmin()||isManager()?`<button onclick="editStaffFromMuster('${s.id}')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">Edit</button>`:''}
+      </div>
+      <!-- Status buttons -->
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        <button style="flex:1;min-width:60px;height:38px;border-radius:8px;border:2px solid var(--green);background:${status==='present'?'var(--green)':'rgba(0,200,83,.12)'};color:${status==='present'?'#000':'var(--green)'};font-family:var(--fh);font-size:12px;cursor:pointer"
+          onclick="markStaffMuster('${s.id}','present')">✅ PRESENT</button>
+        <button style="flex:1;min-width:60px;height:38px;border-radius:8px;border:2px solid var(--red);background:${status==='absent'?'var(--red)':'rgba(255,61,61,.12)'};color:${status==='absent'?'#fff':'var(--red)'};font-family:var(--fh);font-size:12px;cursor:pointer"
+          onclick="markStaffMuster('${s.id}','absent')">❌ ABSENT</button>
+        <button style="flex:1;min-width:60px;height:38px;border-radius:8px;border:2px solid var(--amber);background:${status==='halfday'?'var(--amber)':'rgba(255,179,0,.12)'};color:${status==='halfday'?'#000':'var(--amber)'};font-family:var(--fh);font-size:12px;cursor:pointer"
+          onclick="markStaffMuster('${s.id}','halfday')">½ HALF</button>
+        <button style="flex:1;min-width:60px;height:38px;border-radius:8px;border:2px solid #7c83fd;background:${status==='leave'?'#7c83fd':'rgba(124,131,253,.12)'};color:${status==='leave'?'#fff':'#7c83fd'};font-family:var(--fh);font-size:12px;cursor:pointer"
+          onclick="markStaffMuster('${s.id}','leave')">🏖 LEAVE</button>
+      </div>
+      <!-- Advance row -->
+      <div style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:11px;color:var(--muted);font-weight:600;white-space:nowrap">Advance ₹</span>
+        <input type="number" inputmode="numeric" placeholder="0" value="${adv||''}"
+          id="adv-amt-${s.id}"
+          style="width:80px;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);padding:6px 8px;border-radius:6px;font-size:13px;font-family:var(--fb)"
+          onchange="saveStaffAdvance('${s.id}')">
+        <input type="text" placeholder="Remark" value="${advRemark}"
+          id="adv-rem-${s.id}"
+          style="flex:1;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);padding:6px 8px;border-radius:6px;font-size:13px;font-family:var(--fb)"
+          onchange="saveStaffAdvance('${s.id}')">
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function markStaffMuster(staffId, status){
+  if(!isOwner()&&!isAdmin()&&!isManager()){alert('Access denied');return;}
+  const td = today();
+  const idx = staffMusters.findIndex(m=>m.staffId===staffId&&m.date===td);
+  const existing = idx>=0 ? staffMusters[idx] : null;
+  const rec = {id: existing?.id||uid(), staffId, date:td, status, advance:existing?.advance||0, advRemark:existing?.advRemark||'', by:sess?.name||'', ts:Date.now()};
+  if(idx>=0) staffMusters[idx]=rec; else staffMusters.push(rec);
+  sv('staffMusters',staffMusters);
+  renderStaffMuster();
+  updateMusterCount();
+}
+
+function saveStaffAdvance(staffId){
+  const td = today();
+  const amt = parseFloat(document.getElementById('adv-amt-'+staffId)?.value)||0;
+  const rem = document.getElementById('adv-rem-'+staffId)?.value.trim()||'';
+  const idx = staffMusters.findIndex(m=>m.staffId===staffId&&m.date===td);
+  if(idx>=0){
+    staffMusters[idx].advance=amt; staffMusters[idx].advRemark=rem;
+    sv('staffMusters',staffMusters);
+  } else {
+    // Save advance even without a status — default present
+    const rec={id:uid(),staffId,date:td,status:'present',advance:amt,advRemark:rem,by:sess?.name||'',ts:Date.now()};
+    staffMusters.push(rec);
+    sv('staffMusters',staffMusters);
+    renderStaffMuster();
+  }
+}
+
+// ════════════════════════════════════
+// STAFF MASTER CRUD
+// ════════════════════════════════════
+let activeStaffFilter = 'All';
+
+function renderStaffList(){
+  if(!isOwner()){return;}
+  buildStaffFilterPills();
+  const el = document.getElementById('staff-log');
+  if(!el) return;
+  const filtered = activeStaffFilter==='All' ? (staff||[]) : (staff||[]).filter(s=>s.category===activeStaffFilter);
+  if(!filtered.length){
+    el.innerHTML='<div class="muted-txt" style="padding:40px;text-align:center">No staff yet. Tap ＋ to add.</div>';
+    return;
+  }
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+  el.innerHTML = filtered.map(s=>{
+    const isDW = s.category==='Daily Wage';
+    const rate = isDW ? (s.dailyRate||0) : Math.round((s.salary||0)/daysInMonth);
+    return `<div class="log-item" style="flex-direction:column;gap:4px;align-items:stretch;${s.active===false?'opacity:0.45':''}">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div class="li-name">${s.name}</div>
+          <div class="li-det">${STAFF_CAT_ICO[s.category]||''} ${s.category}</div>
+          <div class="li-by">${isDW?'₹'+s.dailyRate+'/day':'₹'+((s.salary||0)).toLocaleString('en-IN')+'/mo · ₹'+rate+'/day'}${s.phone?' · 📞'+s.phone:''}</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button onclick="openEditStaff('${s.id}')" style="background:var(--bg3);border:1px solid var(--border);color:var(--amber);border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer">✏️</button>
+          <button onclick="toggleStaffActive('${s.id}')" style="background:var(--bg3);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer">${s.active===false?'▶️':'⏸'}</button>
+          <button onclick="deleteStaff('${s.id}')" style="background:var(--bg3);border:1px solid var(--border);color:var(--red);border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer">🗑</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function buildStaffFilterPills(){
+  const wrap = document.getElementById('staff-filter-pills');
+  if(!wrap) return;
+  const cats = ['All',...STAFF_CATS.filter(c=>c!=='All')];
+  wrap.innerHTML = cats.map(cat=>`
+    <button onclick="setStaffFilter('${cat}')"
+      style="flex-shrink:0;padding:7px 14px;border-radius:20px;border:none;cursor:pointer;font-family:var(--fh);font-size:12px;font-weight:700;
+             background:${activeStaffFilter===cat?'var(--amber)':'var(--bg3)'};color:${activeStaffFilter===cat?'#000':'var(--muted)'};white-space:nowrap">
+      ${STAFF_CAT_ICO[cat]||''} ${cat}
+    </button>`).join('');
+}
+
+function setStaffFilter(cat){ activeStaffFilter=cat; renderStaffList(); }
+
+function openAddStaff(){
+  document.getElementById('stf-name').value='';
+  document.getElementById('stf-cat').value='Crusher Team';
+  document.getElementById('stf-phone').value='';
+  document.getElementById('stf-salary').value='';
+  document.getElementById('stf-dailyrate').value='';
+  document.getElementById('stf-edit-id').value='';
+  toggleStaffPayFields('Crusher Team');
+  document.getElementById('staff-form-wrap').style.display='';
+  document.getElementById('stf-name').focus();
+}
+
+function closeStaffForm(){ document.getElementById('staff-form-wrap').style.display='none'; }
+
+function openEditStaff(id){
+  const s = (staff||[]).find(x=>x.id===id); if(!s) return;
+  document.getElementById('stf-name').value=s.name||'';
+  document.getElementById('stf-cat').value=s.category||'Crusher Team';
+  document.getElementById('stf-phone').value=s.phone||'';
+  document.getElementById('stf-salary').value=s.salary||'';
+  document.getElementById('stf-dailyrate').value=s.dailyRate||'';
+  document.getElementById('stf-edit-id').value=id;
+  toggleStaffPayFields(s.category);
+  document.getElementById('staff-form-wrap').style.display='';
+  document.getElementById('stf-name').focus();
+}
+
+function editStaffFromMuster(id){ show('scr-staff'); setTimeout(()=>openEditStaff(id),300); }
+
+// Show/hide salary vs daily rate based on category
+document.addEventListener('change', e=>{
+  if(e.target.id==='stf-cat') toggleStaffPayFields(e.target.value);
+});
+function toggleStaffPayFields(cat){
+  const isDW = cat==='Daily Wage';
+  document.getElementById('stf-salary-wrap').style.display = isDW?'none':'';
+  document.getElementById('stf-dailyrate-wrap').style.display = isDW?'':'none';
+}
+
+function saveStaff(){
+  if(!isOwner()){alert('Owner only');return;}
+  const name = document.getElementById('stf-name').value.trim();
+  if(!name){alert('Please enter a name');return;}
+  const cat = document.getElementById('stf-cat').value;
+  const isDW = cat==='Daily Wage';
+  const salary = isDW ? 0 : parseFloat(document.getElementById('stf-salary').value)||0;
+  const dailyRate = isDW ? parseFloat(document.getElementById('stf-dailyrate').value)||0 : 0;
+  if(isDW && !dailyRate){alert('Please enter daily rate');return;}
+  if(!isDW && !salary){alert('Please enter monthly salary');return;}
+  const phone = document.getElementById('stf-phone').value.trim();
+  const editId = document.getElementById('stf-edit-id').value;
+  if(editId){
+    const idx = staff.findIndex(s=>s.id===editId);
+    if(idx>=0) staff[idx]={...staff[idx],name,category:cat,salary,dailyRate,phone,updatedAt:Date.now()};
+  } else {
+    staff.push({id:uid(),name,category:cat,salary,dailyRate,phone,active:true,createdAt:Date.now()});
+  }
+  sv('staff',staff);
+  closeStaffForm();
+  renderStaffList();
+}
+
+function toggleStaffActive(id){
+  const idx = staff.findIndex(s=>s.id===id); if(idx<0) return;
+  staff[idx].active = staff[idx].active===false ? true : false;
+  sv('staff',staff);
+  renderStaffList();
+}
+
+function deleteStaff(id){
+  if(!confirm('Delete this staff member? Their attendance history is kept.')) return;
+  staff = staff.filter(s=>s.id!==id);
+  sv('staff',staff);
+  renderStaffList();
+}
+
+// ════════════════════════════════════
+// STAFF MUSTER REPORT (V43)
+// ════════════════════════════════════
+function setMusterSub(tab){
+  window._musterSubTab = tab;
+  if(typeof renderReports==='function') renderReports();
+}
+
+// Returns HTML string for staff muster report
+// forPrint=false → screen view; forPrint=true → print/PDF view (uses repFmtRange and clean styles)
+function renderStaffMusterReport(range, forPrint){
+  const days=[];
+  let d=new Date(range.from);const endD=new Date(range.to);
+  while(d<=endD){days.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}
+
+  const activeStaff = (staff||[]).filter(s=>s.active!==false);
+  if(!activeStaff.length){
+    return forPrint
+      ? '<div style="padding:40px;text-align:center;color:#777">No staff in master. Add staff before generating report.</div>'
+      : '<div class="muted-txt" style="padding:40px;text-align:center">No staff added yet.</div>';
+  }
+
+  // Per-staff aggregate over date range
+  const rows = activeStaff.map(s=>{
+    let present=0, absent=0, half=0, leave=0, advTotal=0, advances=[];
+    days.forEach(dt=>{
+      const rec = (staffMusters||[]).find(m=>m.staffId===s.id&&m.date===dt);
+      if(!rec) return;
+      if(rec.status==='present') present++;
+      else if(rec.status==='absent') absent++;
+      else if(rec.status==='halfday') half++;
+      else if(rec.status==='leave') leave++;
+      if(rec.advance>0){ advTotal += rec.advance; advances.push({date:dt, amt:rec.advance, remark:rec.advRemark||''}); }
+    });
+    const isDW = s.category==='Daily Wage';
+    // For salaried: daily rate uses days-in-month of THIS month (range.from's month)
+    const refDate = new Date(range.from);
+    const daysInMonth = new Date(refDate.getFullYear(), refDate.getMonth()+1, 0).getDate();
+    const dailyRate = isDW ? (s.dailyRate||0) : (s.salary||0)/daysInMonth;
+    const wageDays = present + (half*0.5) + leave;
+    const gross = Math.round(wageDays * dailyRate);
+    const net = gross - advTotal;
+    return {s, present, absent, half, leave, advTotal, advances, dailyRate:Math.round(dailyRate), wageDays, gross, net, isDW};
+  });
+
+  // Group by category for attendance display
+  const byCat = {};
+  rows.forEach(r=>{
+    const c = r.s.category;
+    if(!byCat[c]) byCat[c]=[];
+    byCat[c].push(r);
+  });
+
+  const totals = {
+    persons: rows.length,
+    presentDays: rows.reduce((a,r)=>a+r.present,0),
+    halfDays: rows.reduce((a,r)=>a+r.half,0),
+    leaveDays: rows.reduce((a,r)=>a+r.leave,0),
+    absentDays: rows.reduce((a,r)=>a+r.absent,0),
+    gross: rows.reduce((a,r)=>a+r.gross,0),
+    advances: rows.reduce((a,r)=>a+r.advTotal,0),
+    net: rows.reduce((a,r)=>a+r.net,0)
+  };
+
+  if(forPrint){
+    // Print/PDF version - clean tables
+    let h = `
+    <div class="rep-header" style="text-align:center;margin-bottom:16px">
+      <h2 style="font-family:'Inter',sans-serif;font-size:18px;font-weight:800;color:#000;margin:0">STAFF ATTENDANCE REPORT</h2>
+      <div style="font-size:11px;color:#666;margin-top:3px">${repFmtRange(range)} · ${days.length} days · Chiddarwar Construction Co. Pvt. Ltd.</div>
+    </div>
+
+    <!-- Summary tiles -->
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <div style="flex:1;border:1px solid #ddd;padding:8px;text-align:center"><div style="font-size:9px;color:#666;font-weight:700">PEOPLE</div><div style="font-size:18px;font-weight:800">${totals.persons}</div></div>
+      <div style="flex:1;border:1px solid #ddd;padding:8px;text-align:center"><div style="font-size:9px;color:green;font-weight:700">PRESENT-DAYS</div><div style="font-size:18px;font-weight:800;color:green">${totals.presentDays + totals.halfDays*0.5 + totals.leaveDays}</div></div>
+      <div style="flex:1;border:1px solid #ddd;padding:8px;text-align:center"><div style="font-size:9px;color:#c62828;font-weight:700">ABSENT-DAYS</div><div style="font-size:18px;font-weight:800;color:#c62828">${totals.absentDays}</div></div>
+    </div>`;
+
+    // Attendance table by category
+    Object.keys(byCat).forEach(cat=>{
+      h += `<div style="font-family:'Inter',sans-serif;font-size:13px;font-weight:800;margin:14px 0 6px;color:#000">${cat} (${byCat[cat].length})</div>
+      <table class="rep-tbl" style="width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px">
+        <thead><tr style="background:#f0f0f0">
+          <th style="padding:6px;text-align:left;border:1px solid #ccc">Name</th>
+          <th style="padding:6px;text-align:center;border:1px solid #ccc;color:green">P</th>
+          <th style="padding:6px;text-align:center;border:1px solid #ccc;color:#e65100">½</th>
+          <th style="padding:6px;text-align:center;border:1px solid #ccc;color:#5c6bc0">L</th>
+          <th style="padding:6px;text-align:center;border:1px solid #ccc;color:#c62828">A</th>
+          <th style="padding:6px;text-align:right;border:1px solid #ccc">Total Days</th>
+        </tr></thead>
+        <tbody>
+          ${byCat[cat].map(r=>`<tr>
+            <td style="padding:6px;border:1px solid #ddd">${r.s.name}</td>
+            <td style="padding:6px;text-align:center;border:1px solid #ddd;color:green;font-weight:700">${r.present||'—'}</td>
+            <td style="padding:6px;text-align:center;border:1px solid #ddd;color:#e65100;font-weight:700">${r.half||'—'}</td>
+            <td style="padding:6px;text-align:center;border:1px solid #ddd;color:#5c6bc0;font-weight:700">${r.leave||'—'}</td>
+            <td style="padding:6px;text-align:center;border:1px solid #ddd;color:#c62828;font-weight:700">${r.absent||'—'}</td>
+            <td style="padding:6px;text-align:right;border:1px solid #ddd;font-weight:700">${(r.present + r.half*0.5 + r.leave) || '—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+    });
+
+    // Wage table — Owner only
+    if(typeof isOwner==='function' && isOwner()){
+      h += `<div style="page-break-before:always"></div>
+      <div class="rep-header" style="text-align:center;margin:0 0 12px 0">
+        <h2 style="font-family:'Inter',sans-serif;font-size:18px;font-weight:800;color:#000;margin:0">WAGE CALCULATION</h2>
+        <div style="font-size:11px;color:#666;margin-top:3px">${repFmtRange(range)} · Owner Confidential · Chiddarwar Construction Co. Pvt. Ltd.</div>
+      </div>
+      <table class="rep-tbl" style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px">
+        <thead><tr style="background:#f0f0f0">
+          <th style="padding:6px;text-align:left;border:1px solid #ccc">Name</th>
+          <th style="padding:6px;text-align:left;border:1px solid #ccc">Category</th>
+          <th style="padding:6px;text-align:right;border:1px solid #ccc">₹/day</th>
+          <th style="padding:6px;text-align:right;border:1px solid #ccc">Wage Days</th>
+          <th style="padding:6px;text-align:right;border:1px solid #ccc">Gross</th>
+          <th style="padding:6px;text-align:right;border:1px solid #ccc">Advances</th>
+          <th style="padding:6px;text-align:right;border:1px solid #ccc;background:#fff3cd">Net Payable</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(r=>`<tr>
+            <td style="padding:6px;border:1px solid #ddd">${r.s.name}</td>
+            <td style="padding:6px;border:1px solid #ddd;font-size:10px;color:#666">${r.s.category}</td>
+            <td style="padding:6px;text-align:right;border:1px solid #ddd">${r.dailyRate.toLocaleString('en-IN')}</td>
+            <td style="padding:6px;text-align:right;border:1px solid #ddd">${r.wageDays}</td>
+            <td style="padding:6px;text-align:right;border:1px solid #ddd">₹${r.gross.toLocaleString('en-IN')}</td>
+            <td style="padding:6px;text-align:right;border:1px solid #ddd;color:#c62828">${r.advTotal>0?'₹'+r.advTotal.toLocaleString('en-IN'):'—'}</td>
+            <td style="padding:6px;text-align:right;border:1px solid #ddd;background:#fff8e1;font-weight:800">₹${r.net.toLocaleString('en-IN')}</td>
+          </tr>`).join('')}
+        </tbody>
+        <tfoot><tr class="tfoot" style="background:#e0e0e0;font-weight:800">
+          <td colspan="4" style="padding:6px;border:1px solid #999">TOTAL</td>
+          <td style="padding:6px;text-align:right;border:1px solid #999">₹${totals.gross.toLocaleString('en-IN')}</td>
+          <td style="padding:6px;text-align:right;border:1px solid #999;color:#c62828">₹${totals.advances.toLocaleString('en-IN')}</td>
+          <td style="padding:6px;text-align:right;border:1px solid #999;background:#fff3cd">₹${totals.net.toLocaleString('en-IN')}</td>
+        </tr></tfoot>
+      </table>
+      <div class="footer">Wage Report · ${repFmtRange(range)} · Chiddarwar Construction Co. Pvt. Ltd.</div>`;
+    }
+    return h;
+  }
+
+  // ── Screen version ──
+  let h = `
+  <!-- Summary tiles -->
+  <div style="margin:6px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;gap:0">
+    <div style="flex:1;text-align:center">
+      <div style="font-family:var(--fh);font-size:22px;color:var(--white)">${totals.persons}</div>
+      <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px">PEOPLE</div>
+    </div>
+    <div style="flex:1;text-align:center;border-left:1px solid var(--border);border-right:1px solid var(--border)">
+      <div style="font-family:var(--fh);font-size:22px;color:var(--green)">${(totals.presentDays + totals.halfDays*0.5 + totals.leaveDays).toFixed(1).replace(/\.0$/,'')}</div>
+      <div style="font-size:10px;color:var(--green);font-weight:700;letter-spacing:.5px">WAGE-DAYS</div>
+    </div>
+    <div style="flex:1;text-align:center">
+      <div style="font-family:var(--fh);font-size:22px;color:var(--red)">${totals.absentDays}</div>
+      <div style="font-size:10px;color:var(--red);font-weight:700;letter-spacing:.5px">ABSENT-DAYS</div>
+    </div>
+  </div>
+
+  <!-- Attendance section -->
+  <div style="margin:12px 14px 0;font-family:var(--fh);font-size:13px;color:var(--amber);letter-spacing:1px">📋 ATTENDANCE BY CATEGORY</div>`;
+
+  Object.keys(byCat).forEach(cat=>{
+    const ic = STAFF_CAT_ICO[cat]||'';
+    h += `
+    <div class="rep-card" style="margin-top:8px">
+      <div class="rep-hd">${ic} ${cat} <span style="color:var(--muted);font-weight:600">· ${byCat[cat].length}</span></div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr style="background:var(--bg3);color:var(--muted)">
+            <th style="padding:7px 10px;text-align:left;font-size:10px;font-weight:700">NAME</th>
+            <th style="padding:7px 6px;text-align:center;font-size:10px;font-weight:700;color:var(--green)">P</th>
+            <th style="padding:7px 6px;text-align:center;font-size:10px;font-weight:700;color:var(--amber)">½</th>
+            <th style="padding:7px 6px;text-align:center;font-size:10px;font-weight:700;color:#7c83fd">L</th>
+            <th style="padding:7px 6px;text-align:center;font-size:10px;font-weight:700;color:var(--red)">A</th>
+            <th style="padding:7px 10px;text-align:right;font-size:10px;font-weight:700">DAYS</th>
+          </tr></thead>
+          <tbody>
+            ${byCat[cat].map(r=>`<tr style="border-top:1px solid var(--border)">
+              <td style="padding:8px 10px;color:var(--white);font-weight:600">${r.s.name}</td>
+              <td style="padding:8px 6px;text-align:center;color:var(--green);font-weight:700">${r.present||'—'}</td>
+              <td style="padding:8px 6px;text-align:center;color:var(--amber);font-weight:700">${r.half||'—'}</td>
+              <td style="padding:8px 6px;text-align:center;color:#7c83fd;font-weight:700">${r.leave||'—'}</td>
+              <td style="padding:8px 6px;text-align:center;color:var(--red);font-weight:700">${r.absent||'—'}</td>
+              <td style="padding:8px 10px;text-align:right;font-family:var(--fh);color:var(--white)">${(r.present + r.half*0.5 + r.leave)||'—'}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  });
+
+  // Wage section — Owner only
+  if(typeof isOwner==='function' && isOwner()){
+    h += `
+    <div style="margin:18px 14px 0;font-family:var(--fh);font-size:13px;color:var(--amber);letter-spacing:1px">💰 WAGE CALCULATION <span style="color:var(--muted);font-size:10px;font-weight:600">· Owner only</span></div>
+    <div class="rep-card" style="margin-top:8px">
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:11px;min-width:580px">
+          <thead><tr style="background:var(--bg3);color:var(--muted)">
+            <th style="padding:7px 8px;text-align:left;font-size:10px;font-weight:700">NAME</th>
+            <th style="padding:7px 6px;text-align:right;font-size:10px;font-weight:700">₹/DAY</th>
+            <th style="padding:7px 6px;text-align:right;font-size:10px;font-weight:700">DAYS</th>
+            <th style="padding:7px 6px;text-align:right;font-size:10px;font-weight:700">GROSS</th>
+            <th style="padding:7px 6px;text-align:right;font-size:10px;font-weight:700;color:var(--red)">ADVANCES</th>
+            <th style="padding:7px 8px;text-align:right;font-size:10px;font-weight:700;color:var(--amber)">NET</th>
+          </tr></thead>
+          <tbody>
+            ${rows.map(r=>`<tr style="border-top:1px solid var(--border)">
+              <td style="padding:8px 8px;color:var(--white)">
+                <div style="font-weight:600">${r.s.name}</div>
+                <div style="color:var(--muted);font-size:10px;font-weight:600">${r.s.category}</div>
+              </td>
+              <td style="padding:8px 6px;text-align:right;color:var(--white)">${r.dailyRate.toLocaleString('en-IN')}</td>
+              <td style="padding:8px 6px;text-align:right;color:var(--white)">${r.wageDays}</td>
+              <td style="padding:8px 6px;text-align:right;color:var(--white)">₹${r.gross.toLocaleString('en-IN')}</td>
+              <td style="padding:8px 6px;text-align:right;color:${r.advTotal>0?'var(--red)':'var(--muted)'}">${r.advTotal>0?'₹'+r.advTotal.toLocaleString('en-IN'):'—'}</td>
+              <td style="padding:8px 8px;text-align:right;font-family:var(--fh);color:var(--amber)">₹${r.net.toLocaleString('en-IN')}</td>
+            </tr>`).join('')}
+          </tbody>
+          <tfoot><tr style="border-top:2px solid var(--amber);background:var(--bg3)">
+            <td style="padding:9px 8px;font-family:var(--fh);font-size:11px;color:var(--amber)" colspan="3">TOTAL</td>
+            <td style="padding:9px 6px;text-align:right;font-family:var(--fh);color:var(--white)">₹${totals.gross.toLocaleString('en-IN')}</td>
+            <td style="padding:9px 6px;text-align:right;font-family:var(--fh);color:var(--red)">₹${totals.advances.toLocaleString('en-IN')}</td>
+            <td style="padding:9px 8px;text-align:right;font-family:var(--fh);color:var(--amber);font-size:13px">₹${totals.net.toLocaleString('en-IN')}</td>
+          </tr></tfoot>
+        </table>
+      </div>
+    </div>
+    <div style="margin:8px 14px 0;font-size:10px;color:var(--muted);font-style:italic">
+      Daily rate for salaried staff = monthly salary ÷ days in month of ${new Date(range.from).toLocaleDateString('en-IN',{month:'long',year:'numeric'})} (${new Date(new Date(range.from).getFullYear(), new Date(range.from).getMonth()+1, 0).getDate()} days). Wage Days = Present + ½×Half + Leave.
+    </div>`;
+  }
+  return h;
+}
 
 fbInit();
 </script>
