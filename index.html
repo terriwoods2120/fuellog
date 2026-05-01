@@ -913,6 +913,11 @@ input[type=file]{display:none}
     </div>
     <div class="f-field"><label class="f-lbl">Phone (optional)</label><input class="f-inp" id="drv-phone" placeholder="Mobile number" type="tel" inputmode="numeric"></div>
     <div class="f-field"><label class="f-lbl">PIN — for future checklist login (optional)</label><input class="f-inp" id="drv-pin" placeholder="4-digit PIN" type="password" inputmode="numeric" maxlength="4"></div>
+    <div class="f-field" id="drv-salary-wrap" style="display:none">
+      <label class="f-lbl">Monthly Salary (₹) <span style="font-size:10px;color:var(--muted);font-weight:600">· Owner only</span></label>
+      <input class="f-inp" id="drv-salary" placeholder="e.g. 18000" type="number" inputmode="numeric">
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">Daily rate auto-calculated from days in month</div>
+    </div>
     <button class="big-btn bb-amber bb-full" style="height:56px;font-size:18px" onclick="saveDriver()">+ ADD DRIVER</button>
   </div>
   <div class="sec-lbl">Driver & Operator List</div>
@@ -1785,7 +1790,7 @@ function onEnter(id){
   if(id==='scr-users')     renderUserList();
   if(id==='scr-pumps')     renderPumpLog();
   if(id==='scr-sites')     renderSitesLog();
-  if(id==='scr-drivers')   renderDriverList();
+  if(id==='scr-drivers')   { renderDriverList(); const sw=document.getElementById('drv-salary-wrap'); if(sw) sw.style.display=isOwner()?'':'none'; }
   if(id==='scr-staff')     { if(!isOwner()){show('scr-home');return;} renderStaffList(); }
   if(id==='scr-muster'){const el=document.getElementById('muster-date');if(el)el.textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'});initMusterTabs();}
   if(id==='scr-readings')  {const s=document.getElementById('readings-veh-search');if(s)s.value='';renderReadingsVehGrid();}
@@ -8607,11 +8612,13 @@ function saveDriver(){
   const pin=document.getElementById('drv-pin').value.trim();
   if(pin&&(pin.length!==4||isNaN(Number(pin)))){alert('PIN must be 4 digits or leave blank');return;}
   if(drivers.find(d=>d.name.toLowerCase()===name.toLowerCase())){alert('Name already exists');return;}
+  // Salary: Owner only — Manager creating a driver leaves salary at 0
+  const salary = isOwner() ? (parseFloat(document.getElementById('drv-salary').value)||0) : 0;
   drivers.push({id:uid(),name,type:driverType,
     phone:document.getElementById('drv-phone').value.trim(),
-    pin:pin||null,active:true,addedBy:sess.userId,addedByName:sess.name});
+    pin:pin||null,salary,active:true,addedBy:sess.userId,addedByName:sess.name});
   sv('drivers',drivers);
-  ['drv-name','drv-phone','drv-pin'].forEach(i=>document.getElementById(i).value='');
+  ['drv-name','drv-phone','drv-pin','drv-salary'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
   renderDriverList();flash('DRIVER ADDED!',name);
 }
 function editDriver(id){
@@ -8631,7 +8638,12 @@ function editDriver(id){
     <div class="f-field"><label class="f-lbl">Phone</label>
       <input class="f-inp" id="ed-drv-phone" value="${d.phone||''}" type="tel" inputmode="numeric"></div>
     <div class="f-field"><label class="f-lbl">PIN (4 digits — leave blank to keep current)</label>
-      <input class="f-inp" id="ed-drv-pin" placeholder="New PIN or leave blank" type="password" inputmode="numeric" maxlength="4"></div>`;
+      <input class="f-inp" id="ed-drv-pin" placeholder="New PIN or leave blank" type="password" inputmode="numeric" maxlength="4"></div>
+    ${isOwner()?`<div class="f-field">
+      <label class="f-lbl">Monthly Salary (₹) <span style="font-size:10px;color:var(--muted);font-weight:600">· Owner only</span></label>
+      <input class="f-inp" id="ed-drv-salary" value="${d.salary||''}" type="number" inputmode="numeric" placeholder="0">
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">Daily rate auto-calculated from days in month</div>
+    </div>`:''}`;
   document.getElementById('edit-modal').dataset.editType='driver';
   document.getElementById('edit-modal').dataset.driverId=id;
   document.getElementById('edit-modal').classList.add('show');
@@ -8649,11 +8661,15 @@ function saveDriverEdit(){
   if(!name){alert('Enter name');return;}
   const pin=document.getElementById('ed-drv-pin').value.trim();
   if(pin&&(pin.length!==4||isNaN(Number(pin)))){alert('PIN must be 4 digits or leave blank');return;}
+  // Salary: Owner-only field; preserve existing if Manager is editing
+  const salaryEl = document.getElementById('ed-drv-salary');
+  const salary = (isOwner() && salaryEl) ? (parseFloat(salaryEl.value)||0) : (drivers[idx].salary||0);
   drivers[idx]={...drivers[idx],
     name,
     type:edDrvType||drivers[idx].type,
     phone:document.getElementById('ed-drv-phone').value.trim(),
     pin:pin||drivers[idx].pin,
+    salary,
     editedBy:sess.userId,editedByName:sess.name,editedAt:Date.now()
   };
   sv('drivers',drivers);
@@ -8673,19 +8689,26 @@ function renderDriverList(){
   if(!drivers.length){el.innerHTML='<div class="muted-txt">No drivers added yet</div>';return;}
   const typeIco={driver:'🚚',operator:'⚙️',both:'👷'};
   const typeLbl={driver:'Driver',operator:'Operator',both:'Driver & Operator'};
-  el.innerHTML=drivers.map(d=>`
+  const showSalary = isOwner();
+  const now = new Date();
+  const dim = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+  el.innerHTML=drivers.map(d=>{
+    const sal = d.salary||0;
+    const dailyRate = sal ? Math.round(sal/dim) : 0;
+    return `
     <div class="log-item">
       <div class="li-ico">${typeIco[d.type]||'👷'}</div>
       <div class="li-main">
         <div class="li-name">${d.name}</div>
         <div class="li-det">${typeLbl[d.type]||d.type}${d.phone?' · 📞 '+d.phone:''}</div>
-        <div class="li-by">PIN: ${d.pin?'●●●●':'Not set'} · Added by ${d.addedByName||'—'}</div>
+        <div class="li-by">PIN: ${d.pin?'●●●●':'Not set'}${showSalary&&sal?` · 💰 ₹${sal.toLocaleString('en-IN')}/mo (₹${dailyRate}/day)`:showSalary?' · 💰 No salary set':''} · Added by ${d.addedByName||'—'}</div>
       </div>
       <div class="li-actions">
         ${isAdmin()?`<button class="li-btn" onclick="editDriver('${d.id}')">✏️</button>`:''}
         ${isOwner()?`<button class="li-btn del" onclick="delDriver('${d.id}')">🗑</button>`:''}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 // ════════════════════════════════════
