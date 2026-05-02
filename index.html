@@ -3329,10 +3329,38 @@ function openTripEntry(editId){
   }
   // Reset state for fresh form
   window._tripSlipChips = null; // will be re-initialized from editing data
+  window._tripMiscCharges = null; // will be re-initialized from editing data
   window._tripSelDriverId = editing?.driverId || '';
   window._tripSelVehId = editing?.vehicleId || '';
   document.getElementById('trip-entry-title').textContent=editing?'EDIT TRIP':'NEW TRIP';
   renderTripEntryForm(editing);
+  show('scr-trip-entry');
+}
+
+// Standalone misc charge for a customer (no actual trip — just charge them)
+// Opens the trip form pre-filled with: external + customer-own-vehicle + 1 misc charge row
+function openChargeForCustomer(custId){
+  if(!canTripEnter()){alert('Only Owner or Manager can enter charges');return;}
+  const c=customers.find(x=>x.id===custId);
+  if(!c){alert('Customer not found');return;}
+  _tripEntryState={editId:null};
+  // Synthetic "editing" object to pre-fill the form without saving
+  const synthetic={
+    movementType:'external',
+    customerId:custId,
+    customerOwnVehicle:true,
+    customerVehicleNo:'',
+    customerDriverName:'',
+    quantity:0,unit:'',rate:0,
+    miscCharges:[{label:'',amount:0,gstable:false}],
+    paymentStatus:'pending'
+  };
+  window._tripSlipChips = null;
+  window._tripMiscCharges = null;
+  window._tripSelDriverId = '';
+  window._tripSelVehId = '';
+  document.getElementById('trip-entry-title').textContent='ADD CHARGE — '+c.name;
+  renderTripEntryForm(synthetic);
   show('scr-trip-entry');
 }
 
@@ -3348,6 +3376,11 @@ function renderTripEntryForm(editing){
   // Initialize slip chips array from existing data
   if(!Array.isArray(window._tripSlipChips)){
     window._tripSlipChips = e.slipNos && Array.isArray(e.slipNos) ? [...e.slipNos] : (e.slipNo ? [e.slipNo] : []);
+  }
+
+  // Initialize misc charges array from existing data
+  if(!Array.isArray(window._tripMiscCharges)){
+    window._tripMiscCharges = Array.isArray(e.miscCharges) ? e.miscCharges.map(m=>({label:m.label||'',amount:Number(m.amount)||0,gstable:!!m.gstable})) : [];
   }
 
   // Initialize driver and vehicle selections
@@ -3453,15 +3486,38 @@ function renderTripEntryForm(editing){
     </div>
 
     <div class="f-r2">
-      <div class="f-field"><label class="f-lbl">Quantity (per trip)</label><input class="f-inp" id="trip-qty" type="number" inputmode="decimal" value="${e.quantity||''}" placeholder="0"></div>
+      <div class="f-field"><label class="f-lbl">Quantity (per trip)</label><input class="f-inp" id="trip-qty" type="number" inputmode="decimal" value="${e.quantity||''}" placeholder="0" oninput="updateTripAmount()"></div>
       <div class="f-field"><label class="f-lbl">Unit</label><input class="f-inp" id="trip-unit" type="text" value="${e.unit||''}" placeholder="brass / MT"></div>
     </div>
 
     ${movementType==='external'?`
     <div class="f-r2">
       <div class="f-field"><label class="f-lbl">Rate ₹</label><input class="f-inp" id="trip-rate" type="number" inputmode="decimal" value="${e.rate||''}" placeholder="0" oninput="updateTripAmount()"></div>
-      <div class="f-field"><label class="f-lbl">Amount ₹ *</label><input class="f-inp" id="trip-amount" type="number" inputmode="decimal" value="${e.amount||''}" placeholder="auto-calc" style="font-family:var(--fh)"></div>
+      <div class="f-field"><label class="f-lbl">Subtotal ₹</label><input class="f-inp" id="trip-subtotal" type="number" inputmode="decimal" value="${e.subtotal||e.amount||''}" placeholder="auto-calc" style="font-family:var(--fh);background:var(--bg2);color:var(--muted)" readonly></div>
     </div>
+
+    <!-- Misc Charges (collapsed by default) -->
+    <div class="f-field" id="trip-misc-wrap" style="display:${(e.miscCharges&&e.miscCharges.length)?'block':'none'}">
+      <label class="f-lbl">Misc Charges (loading, detention, late fee, etc.)</label>
+      <div id="trip-misc-list"></div>
+    </div>
+    <div style="margin:-4px 0 12px"><a onclick="addMiscCharge()" style="font-size:11px;color:var(--amber);font-weight:700;cursor:pointer;text-decoration:none">+ Add charge</a></div>
+
+    <!-- GST -->
+    <div class="f-r2">
+      <div class="f-field"><label class="f-lbl">GST %</label>
+        <select class="f-inp" id="trip-gst-pct" style="background:var(--bg3);color:var(--white)" onchange="updateTripAmount()">
+          <option value="0"${(!e.gstPercent||e.gstPercent==0)?' selected':''}>0% (no GST)</option>
+          <option value="5"${e.gstPercent==5?' selected':''}>5%</option>
+          <option value="12"${e.gstPercent==12?' selected':''}>12%</option>
+          <option value="18"${e.gstPercent==18?' selected':''}>18%</option>
+          <option value="28"${e.gstPercent==28?' selected':''}>28%</option>
+        </select>
+      </div>
+      <div class="f-field"><label class="f-lbl">GST ₹</label><input class="f-inp" id="trip-gst-amt" type="number" value="${e.gstAmount||''}" placeholder="0" style="font-family:var(--fh);background:var(--bg2);color:var(--muted)" readonly></div>
+    </div>
+
+    <div class="f-field"><label class="f-lbl">Total Amount ₹ *</label><input class="f-inp" id="trip-amount" type="number" inputmode="decimal" value="${e.amount||''}" placeholder="auto-calc" style="font-family:var(--fh);font-size:16px;color:var(--green)"></div>
 
     <div class="f-field"><label class="f-lbl">Payment Status</label>
       <select class="f-inp" id="trip-payment" style="background:var(--bg3);color:var(--white)" onchange="onTripPaymentChange()">
@@ -3480,6 +3536,11 @@ function renderTripEntryForm(editing){
   `;
   // Render initial slip chips
   renderSlipChips();
+  // Render misc charges (if any) and refresh totals
+  if(movementType==='external'){
+    renderMiscCharges();
+    updateTripAmount();
+  }
 }
 
 function _currentTripEdit(){
@@ -3731,10 +3792,68 @@ function updateTripAmount(){
   const qty=parseFloat(document.getElementById('trip-qty')?.value)||0;
   const rate=parseFloat(document.getElementById('trip-rate')?.value)||0;
   const trips=parseInt(document.getElementById('trip-count')?.value)||1;
+  const gstPct=parseFloat(document.getElementById('trip-gst-pct')?.value)||0;
+  const subInp=document.getElementById('trip-subtotal');
+  const gstInp=document.getElementById('trip-gst-amt');
   const amtInp=document.getElementById('trip-amount');
-  if(amtInp&&qty>0&&rate>0){
-    amtInp.value=(qty*rate*trips).toFixed(0);
+  const subtotal=qty*rate*trips;
+  // Read misc charges from in-memory state
+  const misc=window._tripMiscCharges||[];
+  let miscGstable=0,miscNonGstable=0;
+  misc.forEach(m=>{
+    const amt=parseFloat(m.amount)||0;
+    if(m.gstable) miscGstable+=amt; else miscNonGstable+=amt;
+  });
+  const gstBase=subtotal+miscGstable;
+  const gstAmount=gstBase*(gstPct/100);
+  const total=subtotal+miscGstable+miscNonGstable+gstAmount;
+  if(subInp) subInp.value=subtotal>0?subtotal.toFixed(0):'';
+  if(gstInp) gstInp.value=gstAmount>0?gstAmount.toFixed(0):'';
+  if(amtInp) amtInp.value=total>0?total.toFixed(0):'';
+}
+
+function addMiscCharge(){
+  if(!window._tripMiscCharges) window._tripMiscCharges=[];
+  window._tripMiscCharges.push({label:'',amount:0,gstable:false});
+  renderMiscCharges();
+  // Open the misc wrap if it was hidden
+  const w=document.getElementById('trip-misc-wrap');
+  if(w) w.style.display='block';
+}
+
+function removeMiscCharge(idx){
+  if(!window._tripMiscCharges) return;
+  window._tripMiscCharges.splice(idx,1);
+  renderMiscCharges();
+  if(!window._tripMiscCharges.length){
+    const w=document.getElementById('trip-misc-wrap');
+    if(w) w.style.display='none';
   }
+  updateTripAmount();
+}
+
+function onMiscChargeFieldChange(idx,field,val){
+  if(!window._tripMiscCharges||!window._tripMiscCharges[idx]) return;
+  if(field==='label') window._tripMiscCharges[idx].label=val;
+  else if(field==='amount') window._tripMiscCharges[idx].amount=parseFloat(val)||0;
+  else if(field==='gstable') window._tripMiscCharges[idx].gstable=!!val;
+  updateTripAmount();
+}
+
+function renderMiscCharges(){
+  const list=document.getElementById('trip-misc-list');
+  if(!list) return;
+  const misc=window._tripMiscCharges||[];
+  list.innerHTML=misc.map((m,i)=>`
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+      <input type="text" placeholder="Label (e.g. Late fee)" value="${m.label||''}" oninput="onMiscChargeFieldChange(${i},'label',this.value)" style="flex:2;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);padding:8px 10px;border-radius:8px;font-size:12px;font-family:var(--fb);box-sizing:border-box;outline:none">
+      <input type="number" inputmode="decimal" placeholder="₹" value="${m.amount||''}" oninput="onMiscChargeFieldChange(${i},'amount',this.value)" style="flex:1;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);padding:8px 10px;border-radius:8px;font-size:12px;font-family:var(--fh);box-sizing:border-box;outline:none">
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:10px;color:var(--muted);font-weight:700">
+        <input type="checkbox" ${m.gstable?'checked':''} onchange="onMiscChargeFieldChange(${i},'gstable',this.checked)" style="width:13px;height:13px;accent-color:var(--amber)">GST
+      </label>
+      <button onclick="removeMiscCharge(${i})" style="background:transparent;border:none;color:var(--red);font-size:16px;cursor:pointer;padding:0 4px">×</button>
+    </div>
+  `).join('');
 }
 
 function onTripPaymentChange(){
@@ -3759,9 +3878,15 @@ async function saveTrip(){
   const customerVehicleNo = document.getElementById('trip-cust-veh-no')?.value?.trim()||'';
   const customerDriverName = document.getElementById('trip-cust-driver-name')?.value?.trim()||'';
 
-  if(!driverId && !customerOwnVehicle){alert('Select driver — type name and tap from list');return;}
-  if(!vehicleId && !customerOwnVehicle){alert('Select vehicle — or check "Customer\'s own vehicle"');return;}
-  if(!fromSiteId){alert('Select from site');return;}
+  // Detect charge-only entry early so we can relax validation
+  const _qtyVal=parseFloat(document.getElementById('trip-qty')?.value)||0;
+  const _rateVal=parseFloat(document.getElementById('trip-rate')?.value)||0;
+  const _miscTotal=(window._tripMiscCharges||[]).reduce((a,m)=>a+(parseFloat(m.amount)||0),0);
+  const isChargeOnly = (movementType==='external' && _qtyVal===0 && _rateVal===0 && _miscTotal>0);
+
+  if(!driverId && !customerOwnVehicle && !isChargeOnly){alert('Select driver — type name and tap from list');return;}
+  if(!vehicleId && !customerOwnVehicle && !isChargeOnly){alert('Select vehicle — or check "Customer\'s own vehicle"');return;}
+  if(!fromSiteId && !isChargeOnly){alert('Select from site');return;}
 
   let toSiteId=null,customerId=null;
   if(movementType==='internal'){
@@ -3774,7 +3899,7 @@ async function saveTrip(){
   }
 
   const materialId=document.getElementById('trip-material').value;
-  if(!materialId){alert('Select material');return;}
+  if(!materialId && !isChargeOnly){alert('Select material — or add a misc charge for a charge-only entry');return;}
 
   const numTrips=parseInt(document.getElementById('trip-count').value)||1;
   if(numTrips<1){alert('Number of trips must be at least 1');return;}
@@ -3803,6 +3928,10 @@ async function saveTrip(){
     quantity:parseFloat(document.getElementById('trip-qty').value)||0,
     unit:document.getElementById('trip-unit').value.trim(),
     rate:movementType==='external'?(parseFloat(document.getElementById('trip-rate').value)||0):0,
+    subtotal:movementType==='external'?(parseFloat(document.getElementById('trip-subtotal')?.value)||0):0,
+    gstPercent:movementType==='external'?(parseFloat(document.getElementById('trip-gst-pct')?.value)||0):0,
+    gstAmount:movementType==='external'?(parseFloat(document.getElementById('trip-gst-amt')?.value)||0):0,
+    miscCharges:movementType==='external'?((window._tripMiscCharges||[]).filter(m=>m.label||m.amount).map(m=>({label:String(m.label||'').trim(),amount:Number(m.amount)||0,gstable:!!m.gstable}))):[],
     amount:movementType==='external'?(parseFloat(document.getElementById('trip-amount').value)||0):0,
     amountPaid:movementType==='external'?(parseFloat(document.getElementById('trip-paid')?.value)||0):0,
     paymentStatus:movementType==='external'?(document.getElementById('trip-payment')?.value||'pending'):null,
@@ -3828,6 +3957,8 @@ async function saveTrip(){
     if(orig.vehicleId!==trip.vehicleId){const ov=gV(orig.vehicleId);const nv=gV(trip.vehicleId);changes.push({field:'Vehicle',oldVal:ov?.name||'?',newVal:nv?.name||'?'});}
     if(orig.quantity!==trip.quantity) changes.push({field:'Qty',oldVal:orig.quantity,newVal:trip.quantity});
     if(orig.rate!==trip.rate) changes.push({field:'Rate',oldVal:orig.rate,newVal:trip.rate});
+    if((orig.gstPercent||0)!==(trip.gstPercent||0)) changes.push({field:'GST%',oldVal:orig.gstPercent||0,newVal:trip.gstPercent||0});
+    if(JSON.stringify(orig.miscCharges||[])!==JSON.stringify(trip.miscCharges||[])) changes.push({field:'Misc Charges',oldVal:(orig.miscCharges||[]).length+' line(s)',newVal:(trip.miscCharges||[]).length+' line(s)'});
     if(orig.amount!==trip.amount) changes.push({field:'Amount',oldVal:orig.amount,newVal:trip.amount});
     if(orig.numTrips!==trip.numTrips) changes.push({field:'Trips',oldVal:orig.numTrips,newVal:trip.numTrips});
     if(orig.paymentStatus!==trip.paymentStatus) changes.push({field:'Payment',oldVal:orig.paymentStatus,newVal:trip.paymentStatus});
@@ -4215,6 +4346,7 @@ function showCustomerDetail(custId){
       ${due>0?`<button onclick="recordLumpSumPayment('${c.id}')" style="margin-top:8px;width:100%;background:linear-gradient(135deg,rgba(0,200,83,.15),rgba(0,200,83,.05));border:2px solid var(--green);color:var(--green);padding:12px;border-radius:10px;font-family:var(--fh);font-size:13px;cursor:pointer">
         💰 RECORD PAYMENT FROM CUSTOMER
       </button>`:''}
+      ${canTripEnter()?`<div style="margin-top:8px;text-align:center"><a onclick="openChargeForCustomer('${c.id}')" style="font-size:11px;color:var(--amber);font-weight:700;cursor:pointer;text-decoration:none">+ Add charge (late fee, penalty, etc.)</a></div>`:''}
     </div>
 
     ${matList.length?`
@@ -4234,11 +4366,18 @@ function showCustomerDetail(custId){
       const veh=gV(t.vehicleId);
       const m=(materials||[]).find(x=>x.id===t.materialId);
       const due=(t.amount||0)-(t.amountPaid||0);
+      const isChargeOnly=!t.materialId&&(!t.quantity||t.quantity===0);
+      const miscList=(t.miscCharges||[]).filter(mc=>mc.label||mc.amount);
+      const miscTotal=miscList.reduce((a,mc)=>a+(Number(mc.amount)||0),0);
+      const titleLine=isChargeOnly
+        ? (miscList.length?miscList.map(mc=>mc.label||'Charge').join(', '):'Misc charge')
+        : `${m?.name||'?'} · ${fmt(t.quantity,1)} ${t.unit||''} × ${t.numTrips} trips`;
       return `<div style="margin:6px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 14px">
         <div style="display:flex;justify-content:space-between;align-items:start;gap:10px">
-          <div>
-            <div style="font-family:var(--fh);font-size:12px;color:var(--white)">${m?.name||'?'} · ${fmt(t.quantity,1)} ${t.unit||''} × ${t.numTrips} trips</div>
-            <div style="font-size:10px;color:var(--muted);font-weight:600">${fmtD(t.date)} · ${t.customerOwnVehicle?('Cust. veh'+(t.customerVehicleNo?' '+t.customerVehicleNo:'')):veh?.name||'?'}${(()=>{const s=_fmtSlips(t);return s?' · '+s:'';})()}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-family:var(--fh);font-size:12px;color:var(--white)">${isChargeOnly?'💰 ':''}${titleLine}</div>
+            <div style="font-size:10px;color:var(--muted);font-weight:600">${fmtD(t.date)}${isChargeOnly?'':' · '+(t.customerOwnVehicle?('Cust. veh'+(t.customerVehicleNo?' '+t.customerVehicleNo:'')):veh?.name||'?')}${(()=>{const s=_fmtSlips(t);return s?' · '+s:'';})()}</div>
+            ${(t.gstPercent>0||(!isChargeOnly&&miscList.length))?`<div style="font-size:9px;color:var(--amber);font-weight:700;margin-top:3px">${!isChargeOnly&&miscList.length?'+ Misc ₹'+fmt(miscTotal,0):''}${(t.gstPercent>0&&!isChargeOnly&&miscList.length)?' · ':''}${t.gstPercent>0?'GST '+t.gstPercent+'% (₹'+fmt(t.gstAmount||0,0)+')':''}</div>`:''}
           </div>
           <div style="text-align:right">
             <div style="font-family:var(--fh);font-size:13px;color:var(--green)">${fmtINR(t.amount)}</div>
@@ -8117,6 +8256,9 @@ function exportRepPDF(){
       <div class="kpi-cell red"><div class="kpi-val" style="color:#c62828">${fmtINR(totalDue)}</div><div class="kpi-lbl">Outstanding</div></div>
     </div>`;
 
+    const totalGstCollected=(trips||[]).filter(t=>t.date>=range.from&&t.date<=range.to&&t.movementType==='external').reduce((a,t)=>a+(t.gstAmount||0),0);
+    const totalMisc=(trips||[]).filter(t=>t.date>=range.from&&t.date<=range.to&&t.movementType==='external').reduce((a,t)=>a+((t.miscCharges||[]).reduce((b,m)=>b+(Number(m.amount)||0),0)),0);
+
     if(reportType==='register'){
       let regTrips=[...allTrips];
       if(window._tripRepDriver!=='all') regTrips=regTrips.filter(t=>t.driverId===window._tripRepDriver);
@@ -8130,14 +8272,21 @@ function exportRepPDF(){
         const fromS=(sites||[]).find(s=>s.id===t.fromSiteId); const toS=(sites||[]).find(s=>s.id===t.toSiteId);
         const cust=(customers||[]).find(c=>c.id===t.customerId); const mat=(materials||[]).find(m=>m.id===t.materialId);
         const isExt=t.movementType==='external'; const due=(t.amount||0)-(t.amountPaid||0);
+        const isChargeOnly=isExt&&!t.materialId&&(!t.quantity||t.quantity===0);
+        const matLabel=isChargeOnly?'<i style="color:#999">Misc charge</i>':(mat?.name||'—');
+        const gstSuffix=t.gstPercent>0?`<div style="font-size:8px;color:#999">incl. GST ${t.gstPercent}% (₹${fmt(t.gstAmount||0,0)})</div>`:'';
         return`<tr><td>${fmtD(t.date)}</td><td style="font-size:9px">${_fmtSlips(t)||'—'}</td><td>${t.customerOwnVehicle?(t.customerDriverName?t.customerDriverName+' (cust.)':'Cust. driver'):(drv?.name||'—')}</td>
           <td>${t.customerOwnVehicle?('Cust.'+(t.customerVehicleNo?' '+t.customerVehicleNo:'')):v?.name||'—'}</td>
           <td>${fromS?.name||'—'}</td><td>${isExt?cust?.name||'?':toS?.name||'—'}</td>
-          <td>${mat?.name||'—'}</td><td>${t.quantity?fmt(t.quantity,1)+' '+t.unit:'—'}${t.numTrips>1?' ×'+t.numTrips:''}</td>
-          <td class="right" style="font-weight:700">${isExt?fmtINR(t.amount):'—'}</td>
+          <td>${matLabel}</td><td>${t.quantity?fmt(t.quantity,1)+' '+t.unit:'—'}${t.numTrips>1?' ×'+t.numTrips:''}</td>
+          <td class="right" style="font-weight:700">${isExt?fmtINR(t.amount)+gstSuffix:'—'}</td>
           <td style="font-size:9px;color:${isExt?(due>0?'#c62828':'green'):'#999'}">${isExt?(due>0?'DUE '+fmtINR(due):'PAID'):'INT'}</td></tr>`;
       }).join('')}</tbody>
-      <tfoot><tr style="background:#fff8e1;font-weight:700"><td colspan="8">TOTAL</td><td class="right">${fmtINR(totalRevenue)}</td><td></td></tr></tfoot></table>`;
+      <tfoot>
+        <tr style="background:#fff8e1;font-weight:700"><td colspan="8">TOTAL</td><td class="right">${fmtINR(totalRevenue)}</td><td></td></tr>
+        ${totalGstCollected>0?`<tr style="background:#fffde7;font-size:10px"><td colspan="8" style="text-align:right;color:#666">of which GST collected:</td><td class="right" style="color:#e65100">${fmtINR(totalGstCollected)}</td><td></td></tr>`:''}
+        ${totalMisc>0?`<tr style="background:#fffde7;font-size:10px"><td colspan="8" style="text-align:right;color:#666">of which misc charges:</td><td class="right" style="color:#e65100">${fmtINR(totalMisc)}</td><td></td></tr>`:''}
+      </tfoot></table>`;
 
     } else if(reportType==='customers'){
       const custMap={};
