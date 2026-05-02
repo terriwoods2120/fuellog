@@ -3374,8 +3374,8 @@ function renderTripEntryForm(editing){
       <div id="trip-slip-hint" style="margin-top:4px;font-size:10px;color:var(--muted);font-weight:600"></div>
     </div>
 
-    <!-- Driver — searchable picker -->
-    <div class="f-field">
+    <!-- Driver — searchable picker (hidden when customer's own vehicle) -->
+    <div class="f-field" id="trip-driver-field" style="display:${e.customerOwnVehicle&&movementType==='external'?'none':'block'}">
       <label class="f-lbl">Driver *</label>
       <input id="trip-driver-search" type="text" placeholder="🔍 Type driver name..."
         value="${selDriver?selDriver.name:''}"
@@ -3392,7 +3392,7 @@ function renderTripEntryForm(editing){
         ${movementType==='external'?`
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--muted);font-weight:600">
           <input type="checkbox" id="trip-own-vehicle" ${e.customerOwnVehicle?'checked':''}
-            onchange="window._tripSelVehId='';document.getElementById('trip-vehicle-search').value='';document.getElementById('trip-vehicle-field').querySelector('.veh-picker').style.display=this.checked?'none':'block';document.getElementById('trip-cust-veh-no').style.display=this.checked?'block':'none'"
+            onchange="window._tripSelVehId='';document.getElementById('trip-vehicle-search').value='';document.getElementById('trip-vehicle-field').querySelector('.veh-picker').style.display=this.checked?'none':'block';document.getElementById('trip-cust-veh-no').style.display=this.checked?'block':'none';document.getElementById('trip-cust-driver-name').style.display=this.checked?'block':'none';document.getElementById('trip-driver-field').style.display=this.checked?'none':'block';if(this.checked){window._tripSelDriverId='';document.getElementById('trip-driver-search').value='';document.getElementById('trip-driver-results').style.display='none';}"
             style="width:14px;height:14px;accent-color:var(--amber)">
           Customer's own vehicle
         </label>`:''}
@@ -3408,6 +3408,9 @@ function renderTripEntryForm(editing){
       <input id="trip-cust-veh-no" type="text" placeholder="Customer vehicle number (optional)"
         value="${e.customerVehicleNo||''}"
         style="width:100%;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);padding:10px 12px;border-radius:10px;font-size:13px;font-family:var(--fb);box-sizing:border-box;outline:none;display:${e.customerOwnVehicle&&movementType==='external'?'block':'none'}">
+      <input id="trip-cust-driver-name" type="text" placeholder="Customer's driver name (optional)"
+        value="${e.customerDriverName||''}"
+        style="width:100%;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);padding:10px 12px;border-radius:10px;font-size:13px;font-family:var(--fb);box-sizing:border-box;outline:none;display:${e.customerOwnVehicle&&movementType==='external'?'block':'none'};margin-top:6px">
     </div>
 
     <div class="f-field"><label class="f-lbl">Movement Type</label>
@@ -3752,10 +3755,11 @@ async function saveTrip(){
   const fromSiteId=document.getElementById('trip-from-site').value;
 
   // Validation
-  if(!driverId){alert('Select driver — type name and tap from list');return;}
   const customerOwnVehicle = movementType==='external' && document.getElementById('trip-own-vehicle')?.checked;
   const customerVehicleNo = document.getElementById('trip-cust-veh-no')?.value?.trim()||'';
+  const customerDriverName = document.getElementById('trip-cust-driver-name')?.value?.trim()||'';
 
+  if(!driverId && !customerOwnVehicle){alert('Select driver — type name and tap from list');return;}
   if(!vehicleId && !customerOwnVehicle){alert('Select vehicle — or check "Customer\'s own vehicle"');return;}
   if(!fromSiteId){alert('Select from site');return;}
 
@@ -3763,7 +3767,7 @@ async function saveTrip(){
   if(movementType==='internal'){
     toSiteId=document.getElementById('trip-to-site').value;
     if(!toSiteId){alert('Select destination site');return;}
-    if(toSiteId===fromSiteId){alert('From and To sites must be different');return;}
+    if(toSiteId===fromSiteId){if(!confirm('From and To sites are the same.\n\nThis is valid for movement within one location (e.g., murum from quarry-to-quarry, or shuttling within a single site).\n\nContinue with this entry?')) return;}
   } else {
     customerId=document.getElementById('trip-customer').value;
     if(!customerId||customerId==='__new__'){alert('Select or add customer');return;}
@@ -3795,6 +3799,7 @@ async function saveTrip(){
     materialName:(materials.find(m=>m.id===materialId)||{}).name||'',
     customerOwnVehicle: customerOwnVehicle||false,
     customerVehicleNo: customerOwnVehicle ? customerVehicleNo : '',
+    customerDriverName: customerOwnVehicle ? customerDriverName : '',
     quantity:parseFloat(document.getElementById('trip-qty').value)||0,
     unit:document.getElementById('trip-unit').value.trim(),
     rate:movementType==='external'?(parseFloat(document.getElementById('trip-rate').value)||0):0,
@@ -4498,7 +4503,7 @@ function renderAuditLog(){
       id:t.id, ts:t.ts||0, date:t.date,
       type:'trip', icon:'📦',
       title:`${t.numTrips>1?t.numTrips+'× ':''}${mat?.name||t.materialName||'Trip'} → ${isExt?cust?.name||'?':'Internal'}`,
-      sub:`${veh?.name||'?'} · ${t.driverName||'?'} · by ${t.loggedByName||'?'}${isExt&&t.amount?' · ₹'+t.amount.toLocaleString('en-IN'):''}`,
+      sub:`${t.customerOwnVehicle?('Cust. veh'+(t.customerVehicleNo?' '+t.customerVehicleNo:'')):(veh?.name||'?')} · ${t.customerOwnVehicle?(t.customerDriverName||'Cust. driver'):(t.driverName||'?')} · by ${t.loggedByName||'?'}${isExt&&t.amount?' · ₹'+t.amount.toLocaleString('en-IN'):''}`,
       editedBy:t.editedByName, editedAt:t.editedAt,
       loggedBy:t.loggedByName, changes:t._changes||null
     });
@@ -8125,7 +8130,7 @@ function exportRepPDF(){
         const fromS=(sites||[]).find(s=>s.id===t.fromSiteId); const toS=(sites||[]).find(s=>s.id===t.toSiteId);
         const cust=(customers||[]).find(c=>c.id===t.customerId); const mat=(materials||[]).find(m=>m.id===t.materialId);
         const isExt=t.movementType==='external'; const due=(t.amount||0)-(t.amountPaid||0);
-        return`<tr><td>${fmtD(t.date)}</td><td style="font-size:9px">${_fmtSlips(t)||'—'}</td><td>${drv?.name||'—'}</td>
+        return`<tr><td>${fmtD(t.date)}</td><td style="font-size:9px">${_fmtSlips(t)||'—'}</td><td>${t.customerOwnVehicle?(t.customerDriverName?t.customerDriverName+' (cust.)':'Cust. driver'):(drv?.name||'—')}</td>
           <td>${t.customerOwnVehicle?('Cust.'+(t.customerVehicleNo?' '+t.customerVehicleNo:'')):v?.name||'—'}</td>
           <td>${fromS?.name||'—'}</td><td>${isExt?cust?.name||'?':toS?.name||'—'}</td>
           <td>${mat?.name||'—'}</td><td>${t.quantity?fmt(t.quantity,1)+' '+t.unit:'—'}${t.numTrips>1?' ×'+t.numTrips:''}</td>
