@@ -3392,7 +3392,7 @@ function renderTripEntryForm(editing){
   document.getElementById('trip-entry-body').innerHTML=`
     <div class="f-r2">
       <div class="f-field"><label class="f-lbl">Date *</label><input class="f-inp" id="trip-date" type="date" value="${dateVal}" ${!isOwner()&&editing?'readonly':''}></div>
-      <div class="f-field"><label class="f-lbl">Number of Trips *</label><input class="f-inp" id="trip-count" type="number" inputmode="numeric" value="${e.numTrips||1}" min="1" oninput="updateTripAmount()"></div>
+      <div class="f-field"><label class="f-lbl">Number of Trips *</label><input class="f-inp" id="trip-count" type="number" inputmode="numeric" value="${e.numTrips||1}" min="1" oninput="updateTripAmount()" onchange="updateTripAmount()" onblur="updateTripAmount()"></div>
     </div>
 
     <!-- Slip Numbers — chip input -->
@@ -3486,13 +3486,13 @@ function renderTripEntryForm(editing){
     </div>
 
     <div class="f-r2">
-      <div class="f-field"><label class="f-lbl">Quantity (per trip)</label><input class="f-inp" id="trip-qty" type="number" inputmode="decimal" value="${e.quantity||''}" placeholder="0" oninput="updateTripAmount()"></div>
+      <div class="f-field"><label class="f-lbl">Quantity (per trip)</label><input class="f-inp" id="trip-qty" type="number" inputmode="decimal" value="${e.quantity||''}" placeholder="0" oninput="updateTripAmount()" onchange="updateTripAmount()" onblur="updateTripAmount()"></div>
       <div class="f-field"><label class="f-lbl">Unit</label><input class="f-inp" id="trip-unit" type="text" value="${e.unit||''}" placeholder="brass / MT"></div>
     </div>
 
     ${movementType==='external'?`
     <div class="f-r2">
-      <div class="f-field"><label class="f-lbl">Rate ₹</label><input class="f-inp" id="trip-rate" type="number" inputmode="decimal" value="${e.rate||''}" placeholder="0" oninput="updateTripAmount()"></div>
+      <div class="f-field"><label class="f-lbl">Rate ₹</label><input class="f-inp" id="trip-rate" type="number" inputmode="decimal" value="${e.rate||''}" placeholder="0" oninput="updateTripAmount()" onchange="updateTripAmount()" onblur="updateTripAmount()"></div>
       <div class="f-field"><label class="f-lbl">Subtotal ₹</label><input class="f-inp" id="trip-subtotal" type="number" inputmode="decimal" value="${e.subtotal||e.amount||''}" placeholder="auto-calc" style="font-family:var(--fh);background:var(--bg2);color:var(--muted)" readonly></div>
     </div>
 
@@ -3809,7 +3809,11 @@ function updateTripAmount(){
   const total=subtotal+miscGstable+miscNonGstable+gstAmount;
   if(subInp) subInp.value=subtotal>0?subtotal.toFixed(0):'';
   if(gstInp) gstInp.value=gstAmount>0?gstAmount.toFixed(0):'';
-  if(amtInp) amtInp.value=total>0?total.toFixed(0):'';
+  // Only update amount field if user is NOT currently editing it manually.
+  // This prevents fighting user override while still recalculating when they edit qty/rate.
+  if(amtInp && document.activeElement!==amtInp){
+    amtInp.value=total>0?total.toFixed(0):'';
+  }
 }
 
 function addMiscCharge(){
@@ -10971,9 +10975,9 @@ function renderStaffMuster(){
         <div>
           <div class="li-name">${s.name}</div>
           <div class="li-det" style="color:${statusCol}">${statusLbl}</div>
-          <div class="li-by">${STAFF_CAT_ICO[s.category]||''} ${s.category} · ₹${dailyRate.toLocaleString('en-IN')}/day${isDW?'':' (₹'+((s.salary||0)).toLocaleString('en-IN')+'/mo)'}</div>
+          <div class="li-by">${STAFF_CAT_ICO[s.category]||''} ${s.category}${isOwner()?` · ₹${dailyRate.toLocaleString('en-IN')}/day${isDW?'':' (₹'+((s.salary||0)).toLocaleString('en-IN')+'/mo)'}`:''}</div>
         </div>
-        ${isOwner()||isAdmin()||isManager()?`<button onclick="editStaffFromMuster('${s.id}')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">Edit</button>`:''}
+        ${isOwner()?`<button onclick="editStaffFromMuster('${s.id}')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">Edit</button>`:''}
       </div>
       <!-- Status buttons -->
       <div style="display:flex;gap:5px;flex-wrap:wrap">
@@ -11056,7 +11060,7 @@ function renderStaffList(){
         <div>
           <div class="li-name">${s.name}</div>
           <div class="li-det">${STAFF_CAT_ICO[s.category]||''} ${s.category}</div>
-          <div class="li-by">${isDW?'₹'+s.dailyRate+'/day':'₹'+((s.salary||0)).toLocaleString('en-IN')+'/mo · ₹'+rate+'/day'}${s.phone?' · 📞'+s.phone:''}</div>
+          <div class="li-by">${isOwner()?(isDW?'₹'+s.dailyRate+'/day':'₹'+((s.salary||0)).toLocaleString('en-IN')+'/mo · ₹'+rate+'/day'):'(salary hidden)'}${s.phone?' · 📞'+s.phone:''}</div>
         </div>
         <div style="display:flex;gap:6px">
           <button onclick="openEditStaff('${s.id}')" style="background:var(--bg3);border:1px solid var(--border);color:var(--amber);border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer">✏️</button>
