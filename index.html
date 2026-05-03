@@ -587,6 +587,18 @@ input[type=file]{display:none}
     <span class="sess-who" id="sess-who" style="font-size:13px;font-weight:700"></span>
     <span id="sess-bdg"></span>
   </div>
+  <!-- V48: Pending approval pill — Owner only, shown when there are pending entries -->
+  <div id="home-pending-pill" onclick="show('scr-audit-log');setAuditType('pending')"
+    style="display:none;margin:8px 14px 0;background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(245,158,11,.05));border:1.5px solid #f59e0b;border-radius:10px;padding:10px 14px;cursor:pointer;flex-shrink:0">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:20px">⏳</span>
+      <div style="flex:1">
+        <div style="font-family:var(--fh);font-size:13px;color:#f59e0b;font-weight:700"><span class="hpp-count">0</span> Backdated entries awaiting your approval</div>
+        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:2px">Tap to review in audit log</div>
+      </div>
+      <span style="color:#f59e0b;font-size:18px">›</span>
+    </div>
+  </div>
   <!-- SCROLLABLE CONTENT -->
   <div id="home-content" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0">
     <div id="home-dashboard"></div>
@@ -1308,6 +1320,8 @@ input[type=file]{display:none}
     <button onclick="setAuditType('trip')" id="atype-trip" style="flex-shrink:0;padding:5px 12px;border-radius:16px;border:none;cursor:pointer;font-family:var(--fh);font-size:11px;font-weight:700;background:var(--bg3);color:var(--muted)">📦 TRIPS</button>
     <button onclick="setAuditType('muster')" id="atype-muster" style="flex-shrink:0;padding:5px 12px;border-radius:16px;border:none;cursor:pointer;font-family:var(--fh);font-size:11px;font-weight:700;background:var(--bg3);color:var(--muted)">🚜 FLEET MUSTER</button>
     <button onclick="setAuditType('staffmuster')" id="atype-staffmuster" style="flex-shrink:0;padding:5px 12px;border-radius:16px;border:none;cursor:pointer;font-family:var(--fh);font-size:11px;font-weight:700;background:var(--bg3);color:var(--muted)">🧑 STAFF MUSTER</button>
+    <button onclick="setAuditType('pending')" id="atype-pending" style="flex-shrink:0;padding:5px 12px;border-radius:16px;border:1.5px solid #f59e0b;cursor:pointer;font-family:var(--fh);font-size:11px;font-weight:700;background:var(--bg3);color:#f59e0b">⏳ PENDING <span id="atype-pending-count" style="background:#f59e0b;color:#000;padding:0 5px;border-radius:8px;margin-left:3px;display:none">0</span></button>
+    <button onclick="setAuditType('edited')" id="atype-edited" style="flex-shrink:0;padding:5px 12px;border-radius:16px;border:1.5px solid var(--blue);cursor:pointer;font-family:var(--fh);font-size:11px;font-weight:700;background:var(--bg3);color:var(--blue)">✏ EDITED</button>
   </div>
   <div id="audit-log-list" style="overflow-y:auto;flex:1"></div>
   <div class="pad-bot"></div>
@@ -1765,6 +1779,10 @@ const canSettings= ()=>isAdmin();
 // ════════════════════════════════════
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 const today=()=>new Date().toISOString().slice(0,10);
+// V48: Future-date hard block. Used by all save handlers across the app.
+const isFutureDate=(dateStr)=>!!dateStr && dateStr > today();
+// V48: Backdate detection — older than today.
+const isBackdate=(dateStr)=>!!dateStr && dateStr < today();
 const fmt=(n,d=1)=>(parseFloat(n)||0).toFixed(d);
 const fmtD=d=>{if(!d)return'—';const p=d.split('-');return`${p[2]}/${p[1]}/${p[0].slice(2)}`};
 const gV=id=>fleet.find(f=>f.id===id);
@@ -1794,7 +1812,7 @@ function onEnter(id){
   if(id==='scr-staff')     { if(!isOwner()){show('scr-home');return;} renderStaffList(); }
   if(id==='scr-muster'){const el=document.getElementById('muster-date');if(el)el.textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'});initMusterTabs();}
   if(id==='scr-readings')  {const s=document.getElementById('readings-veh-search');if(s)s.value='';renderReadingsVehGrid();}
-  if(id==='scr-purchases') {renderPurchases();document.getElementById('pur-by').value=sess?.name||'';document.getElementById('pur-date').value=today();}
+  if(id==='scr-purchases') {renderPurchases();document.getElementById('pur-by').value=sess?.name||'';document.getElementById('pur-date').value=today();document.getElementById('pur-date').setAttribute('max',today());}
   if(id==='scr-reports'){
     // Set date fields to today if blank
     const rf=document.getElementById('rep-from');
@@ -2699,6 +2717,8 @@ function renderHome(){
   // Render active tab
   const tab=_bnavTab||'home';
   bnavRender(tab);
+  // V48: Refresh pending approval pill
+  renderHomePendingPill();
 }
 
 let _bnavTab='home';
@@ -3188,7 +3208,9 @@ function canTripView(){ return isOwner()||isAdmin()||isManager(); }
 function canTripEdit(t){
   if(!canTripEnter()) return false;
   if(isOwner()) return true; // owner can edit anything
-  // Manager: only same-day entries
+  // V48: Manager can edit own pending entries regardless of date (until Owner approves).
+  if(t.pendingApproval && t.loggedBy===sess?.userId) return true;
+  // Manager: only same-day entries (post-approval rule)
   return t.date===today();
 }
 
@@ -3391,7 +3413,7 @@ function renderTripEntryForm(editing){
 
   document.getElementById('trip-entry-body').innerHTML=`
     <div class="f-r2">
-      <div class="f-field"><label class="f-lbl">Date *</label><input class="f-inp" id="trip-date" type="date" value="${dateVal}" ${!isOwner()&&editing?'readonly':''}></div>
+      <div class="f-field"><label class="f-lbl">Date *</label><input class="f-inp" id="trip-date" type="date" value="${dateVal}" max="${today()}" ${!isOwner()&&editing?'readonly':''}></div>
       <div class="f-field"><label class="f-lbl">Number of Trips *</label><input class="f-inp" id="trip-count" type="number" inputmode="numeric" value="${e.numTrips||1}" min="1" oninput="updateTripAmount()" onchange="updateTripAmount()" onblur="updateTripAmount()"></div>
     </div>
 
@@ -3877,6 +3899,18 @@ async function saveTrip(){
   const vehicleId=window._tripSelVehId||'';
   const fromSiteId=document.getElementById('trip-from-site').value;
 
+  // V48: Hard block on future dates — applies to everyone
+  if(isFutureDate(date)){alert('❌ Cannot enter trips for future dates.\n\nDate must be today or earlier.');return;}
+
+  // V48: Determine if this entry needs Owner approval.
+  // Rule: Manager (or Admin who is not Owner) creating/editing a backdated trip → pending approval.
+  // Same-date Today entries flow normally. Owner-created backdates also flow normally (Owner has authority).
+  const isBackdated = isBackdate(date);
+  const creatorRole = isOwner() ? 'owner' : (isAdmin() ? 'admin' : (isManager() ? 'manager' : 'unknown'));
+  const needsApproval = isBackdated && !isOwner();
+  // For edit case: detect if date was changed FROM today TO backdated (re-trigger approval)
+  const editDateBecomesBackdate = editId && orig && !isBackdate(orig.date) && isBackdated && !isOwner();
+
   // Validation
   const customerOwnVehicle = movementType==='external' && document.getElementById('trip-own-vehicle')?.checked;
   const customerVehicleNo = document.getElementById('trip-cust-veh-no')?.value?.trim()||'';
@@ -3943,8 +3977,24 @@ async function saveTrip(){
     driverIncentive:parseFloat(document.getElementById('trip-incentive').value)||0,
     remarks:document.getElementById('trip-remarks').value.trim(),
     loggedBy:editId?orig.loggedBy:sess.userId,
-    loggedByName:editId?orig.loggedByName:sess.name
+    loggedByName:editId?orig.loggedByName:sess.name,
+    // V48: Approval workflow fields
+    createdRole: editId ? (orig.createdRole || creatorRole) : creatorRole,
+    pendingApproval: needsApproval || (editId && orig.pendingApproval && !isOwner()),
+    approvalReason: editDateBecomesBackdate ? 'date-edited-to-backdate' : (needsApproval ? 'backdated' : (editId ? (orig.approvalReason || null) : null)),
+    approvedBy: editId ? (orig.approvedBy || null) : null,
+    approvedByName: editId ? (orig.approvedByName || null) : null,
+    approvedAt: editId ? (orig.approvedAt || null) : null
   };
+
+  // V48: If Manager edits an already-approved trip and changes date to backdate,
+  // we re-trigger approval — wipe prior approval stamps.
+  if(editDateBecomesBackdate){
+    trip.pendingApproval = true;
+    trip.approvedBy = null;
+    trip.approvedByName = null;
+    trip.approvedAt = null;
+  }
 
   // External: payment defaults
   if(movementType==='external'){
@@ -3973,10 +4023,18 @@ async function saveTrip(){
     trip.editedAt=Date.now();
     trip._changes=changes;
     trips[idx]=trip;
-    flash('UPDATED','Trip updated');
+    if(trip.pendingApproval){
+      flash('⏳ PENDING APPROVAL','Edit awaits Owner approval');
+    } else {
+      flash('UPDATED','Trip updated');
+    }
   } else {
     trips.push(trip);
-    flash(movementType==='external'?'✅ TRIP SAVED':'✅ INTERNAL TRIP','Recorded successfully');
+    if(trip.pendingApproval){
+      flash('⏳ PENDING APPROVAL','Backdated entry awaits Owner approval');
+    } else {
+      flash(movementType==='external'?'✅ TRIP SAVED':'✅ INTERNAL TRIP','Recorded successfully');
+    }
   }
   sv('trips',trips);
   show('scr-home');
@@ -4103,11 +4161,13 @@ function renderCustomers(){
   }
   const fmtINR=n=>'₹'+Number(Math.round(n||0)).toLocaleString('en-IN');
   el.innerHTML=list.map(c=>{
-    const cTrips=(trips||[]).filter(t=>t.customerId===c.id&&t.movementType==='external');
+    const cTripsAll=(trips||[]).filter(t=>t.customerId===c.id&&t.movementType==='external');
+    const cTrips=cTripsAll.filter(t=>!t.pendingApproval); // V48: exclude pending from totals
     const totalAmt=cTrips.reduce((a,t)=>a+(t.amount||0),0);
     const totalPaid=cTrips.reduce((a,t)=>a+(t.amountPaid||0),0);
     const due=totalAmt-totalPaid;
     const lastT=cTrips.sort((a,b)=>b.date.localeCompare(a.date))[0];
+    const pendingCount=cTripsAll.filter(t=>t.pendingApproval).length;
     return `<div onclick="showCustomerDetail('${c.id}')" style="margin:6px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer;${due>0?'border-left:3px solid var(--red)':''}">
       <div style="display:flex;justify-content:space-between;align-items:start;gap:10px">
         <div style="flex:1;min-width:0">
@@ -4177,9 +4237,9 @@ function recordLumpSumPayment(custId){
   const c = customers.find(x=>x.id===custId);
   if(!c){alert('Customer not found');return;}
 
-  // Get all unpaid/partial trips sorted oldest first
+  // Get all unpaid/partial trips sorted oldest first (V48: exclude pending)
   const unpaidTrips = (trips||[])
-    .filter(t=>t.customerId===custId && t.movementType==='external' && (t.amount||0)-(t.amountPaid||0)>0)
+    .filter(t=>t.customerId===custId && t.movementType==='external' && !t.pendingApproval && (t.amount||0)-(t.amountPaid||0)>0)
     .sort((a,b)=>a.date.localeCompare(b.date));
 
   if(!unpaidTrips.length){alert('No outstanding amounts for '+c.name);return;}
@@ -4206,7 +4266,7 @@ function recordLumpSumPayment(custId){
     </div>
     <div style="margin-bottom:10px">
       <label style="font-size:11px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px">DATE RECEIVED</label>
-      <input id="lump-date" type="date" value="${today()}"
+      <input id="lump-date" type="date" value="${today()}" max="${today()}"
         style="width:100%;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);padding:10px;border-radius:8px;font-size:13px;box-sizing:border-box;outline:none">
     </div>
     <div style="margin-bottom:10px">
@@ -4246,12 +4306,13 @@ async function applyLumpSumPayment(custId){
   const fmtINR=n=>'₹'+Number(Math.round(n||0)).toLocaleString('en-IN');
   const amt = parseFloat(document.getElementById('lump-amt')?.value)||0;
   const payDate = document.getElementById('lump-date')?.value || today();
+  if(isFutureDate(payDate)){alert('❌ Payment date cannot be in the future.');return;}
   const rem = document.getElementById('lump-rem')?.value||'';
   if(!amt||amt<=0){alert('Enter amount received');return;}
 
   const c = customers.find(x=>x.id===custId);
   const unpaidTrips = (trips||[])
-    .filter(t=>t.customerId===custId && t.movementType==='external' && (t.amount||0)-(t.amountPaid||0)>0)
+    .filter(t=>t.customerId===custId && t.movementType==='external' && !t.pendingApproval && (t.amount||0)-(t.amountPaid||0)>0)
     .sort((a,b)=>a.date.localeCompare(b.date));
 
   let remaining = amt;
@@ -4308,7 +4369,9 @@ function deleteCustomer(custId){
 function showCustomerDetail(custId){
   const c=customers.find(x=>x.id===custId);
   if(!c) return;
-  const cTrips=(trips||[]).filter(t=>t.customerId===c.id&&t.movementType==='external').sort((a,b)=>b.date.localeCompare(a.date));
+  const cTripsAll=(trips||[]).filter(t=>t.customerId===c.id&&t.movementType==='external').sort((a,b)=>b.date.localeCompare(a.date));
+  const cTrips=cTripsAll.filter(t=>!t.pendingApproval); // V48: exclude pending from totals (still rendered below with PENDING badge)
+  const cTripsPending=cTripsAll.filter(t=>t.pendingApproval);
   const totalAmt=cTrips.reduce((a,t)=>a+(t.amount||0),0);
   const totalPaid=cTrips.reduce((a,t)=>a+(t.amountPaid||0),0);
   const due=totalAmt-totalPaid;
@@ -4316,7 +4379,7 @@ function showCustomerDetail(custId){
   document.getElementById('cust-detail-name').textContent=c.name;
   document.getElementById('cust-detail-sub').textContent='📱 '+(c.phone||'No phone');
 
-  // Material breakdown
+  // Material breakdown — only approved trips
   const matMap={};
   cTrips.forEach(t=>{
     const m=(materials||[]).find(x=>x.id===t.materialId);
@@ -4364,6 +4427,30 @@ function showCustomerDetail(custId){
         <div style="font-family:var(--fh);color:var(--green)">${fmtINR(m.amt)}</div>
       </div>`).join('')}
     </div>`:''}
+
+    ${cTripsPending.length?`
+    <div style="margin:10px 14px 0;font-family:var(--fh);font-size:11px;color:#f59e0b;letter-spacing:.5px;padding:0 4px">⏳ PENDING APPROVAL (${cTripsPending.length})</div>`:''}
+    ${cTripsPending.map(t=>{
+      const veh=gV(t.vehicleId);
+      const m=(materials||[]).find(x=>x.id===t.materialId);
+      const isChargeOnly=!t.materialId&&(!t.quantity||t.quantity===0);
+      const miscList=(t.miscCharges||[]).filter(mc=>mc.label||mc.amount);
+      const titleLine=isChargeOnly
+        ? (miscList.length?miscList.map(mc=>mc.label||'Charge').join(', '):'Misc charge')
+        : `${m?.name||'?'} · ${fmt(t.quantity,1)} ${t.unit||''} × ${t.numTrips} trips`;
+      return `<div style="margin:6px 14px 0;background:rgba(245,158,11,.08);border:1px dashed #f59e0b;border-radius:10px;padding:10px 14px">
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:10px">
+          <div style="flex:1;min-width:0">
+            <div style="font-family:var(--fh);font-size:12px;color:var(--white)">${isChargeOnly?'💰 ':''}${titleLine}<span style="font-size:9px;background:#f59e0b;color:#000;padding:1px 6px;border-radius:4px;margin-left:6px;font-weight:700">PENDING</span></div>
+            <div style="font-size:10px;color:var(--muted);font-weight:600">${fmtD(t.date)} (backdated) · by ${t.loggedByName||'?'}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-family:var(--fh);font-size:13px;color:#f59e0b">${fmtINR(t.amount)}</div>
+            <div style="font-size:9px;color:var(--muted);font-weight:700">awaits owner</div>
+          </div>
+        </div>
+      </div>`;
+    }).join('')}
 
     <div style="margin:10px 14px 0;font-family:var(--fh);font-size:11px;color:var(--muted);letter-spacing:.5px;padding:0 4px">📜 PURCHASE HISTORY</div>
     ${cTrips.length?cTrips.slice(0,30).map(t=>{
@@ -4569,11 +4656,23 @@ function showAuditLog(){
 function setAuditType(type){
   window._auditType = type;
   // Update pill styles
-  ['all','fuel','pump','purchase','trip','muster','staffmuster'].forEach(t=>{
+  const allTypes = ['all','fuel','pump','purchase','trip','muster','staffmuster','pending','edited'];
+  allTypes.forEach(t=>{
     const el = document.getElementById('atype-'+t);
     if(!el) return;
-    el.style.background = t===type ? 'var(--amber)' : 'var(--bg3)';
-    el.style.color = t===type ? '#000' : 'var(--muted)';
+    const isActive = t===type;
+    if(t==='pending'){
+      // Pending pill: amber theme
+      el.style.background = isActive ? '#f59e0b' : 'var(--bg3)';
+      el.style.color = isActive ? '#000' : '#f59e0b';
+    } else if(t==='edited'){
+      // Edited pill: blue theme
+      el.style.background = isActive ? 'var(--blue)' : 'var(--bg3)';
+      el.style.color = isActive ? '#fff' : 'var(--blue)';
+    } else {
+      el.style.background = isActive ? 'var(--amber)' : 'var(--bg3)';
+      el.style.color = isActive ? '#000' : 'var(--muted)';
+    }
   });
   renderAuditLog();
 }
@@ -4648,7 +4747,12 @@ function renderAuditLog(){
       title:`${t.numTrips>1?t.numTrips+'× ':''}${mat?.name||t.materialName||'Trip'} → ${isExt?cust?.name||'?':'Internal'}`,
       sub:`${t.customerOwnVehicle?('Cust. veh'+(t.customerVehicleNo?' '+t.customerVehicleNo:'')):(veh?.name||'?')} · ${t.customerOwnVehicle?(t.customerDriverName||'Cust. driver'):(t.driverName||'?')} · by ${t.loggedByName||'?'}${isExt&&t.amount?' · ₹'+t.amount.toLocaleString('en-IN'):''}`,
       editedBy:t.editedByName, editedAt:t.editedAt,
-      loggedBy:t.loggedByName, changes:t._changes||null
+      loggedBy:t.loggedByName, changes:t._changes||null,
+      // V48: approval workflow fields
+      pendingApproval: !!t.pendingApproval,
+      approvalReason: t.approvalReason||null,
+      approvedByName: t.approvedByName||null, approvedAt: t.approvedAt||null,
+      approvableId: t.id // used by Approve/Reject buttons
     });
   });
 
@@ -4684,7 +4788,27 @@ function renderAuditLog(){
 
   // Type filter
   const activeType = window._auditType || 'all';
-  if(activeType !== 'all') entries = entries.filter(e => e.type === activeType);
+
+  // V48: Compute pending count for the pill badge regardless of filter
+  const pendingCount = entries.filter(e => e.pendingApproval).length;
+  const pendingBadgeEl = document.getElementById('atype-pending-count');
+  if(pendingBadgeEl){
+    if(pendingCount>0 && isOwner()){
+      pendingBadgeEl.style.display='inline-block';
+      pendingBadgeEl.textContent=pendingCount;
+    } else {
+      pendingBadgeEl.style.display='none';
+    }
+  }
+
+  // V48: Virtual filters
+  if(activeType === 'pending'){
+    entries = entries.filter(e => e.pendingApproval);
+  } else if(activeType === 'edited'){
+    entries = entries.filter(e => !!e.editedBy);
+  } else if(activeType !== 'all'){
+    entries = entries.filter(e => e.type === activeType);
+  }
 
   // Search filter
   if(q){
@@ -4695,10 +4819,17 @@ function renderAuditLog(){
     );
   }
 
-  entries.sort((a,b)=>b.ts-a.ts||b.date.localeCompare(a.date));
+  // V48: Sort — pending entries pinned to top, then chronological
+  entries.sort((a,b)=>{
+    // Pending always on top
+    if(a.pendingApproval && !b.pendingApproval) return -1;
+    if(!a.pendingApproval && b.pendingApproval) return 1;
+    // Within same group, by timestamp desc
+    return (b.ts||0)-(a.ts||0)||b.date.localeCompare(a.date);
+  });
 
   const sub=document.getElementById('audit-log-sub');
-  if(sub) sub.textContent=entries.length+' entries'+(q?` matching "${q}"`:'');
+  if(sub) sub.textContent=entries.length+' entries'+(q?` matching "${q}"`:'')+(pendingCount>0&&isOwner()?` · ${pendingCount} pending`:'');
 
   if(!entries.length){
     el.innerHTML=`<div style="padding:40px;text-align:center;color:var(--muted);font-size:13px;font-weight:600">No entries found</div>`;
@@ -4706,21 +4837,128 @@ function renderAuditLog(){
   }
 
   const fmtINR=n=>'₹'+Number(Math.round(n)).toLocaleString('en-IN');
+  // V48: Helper to format change diffs like "Rate ₹10 → ₹1,000"
+  const fmtChangeVal = (field, val) => {
+    if(val===null||val===undefined||val==='') return '—';
+    if(['Rate','Amount','Incentive'].includes(field)) return '₹'+Number(val).toLocaleString('en-IN');
+    if(field==='Date') return fmtD(val);
+    if(field==='GST%') return val+'%';
+    return String(val);
+  };
   el.innerHTML=entries.map(e=>{
     const timeStr=e.ts?new Date(e.ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}):'';
     const editedBadge=e.editedBy?`<span style="font-size:10px;background:rgba(41,121,255,.15);color:var(--blue);padding:2px 7px;border-radius:6px;font-weight:700;margin-left:6px">✏ edited by ${e.editedBy}</span>`:'';
-    return`<div style="padding:12px 14px;border-bottom:1px solid var(--border)">
+    // V48: Pending badge
+    const pendingBadge = e.pendingApproval ? `<span style="font-size:10px;background:#f59e0b;color:#000;padding:2px 7px;border-radius:6px;font-weight:700;margin-left:6px">⏳ PENDING</span>` : '';
+    // V48: Approval trail
+    let approvalTrail = '';
+    if(e.pendingApproval){
+      const reasonLbl = e.approvalReason==='date-edited-to-backdate' ? 'date changed to backdate' : 'backdated entry';
+      approvalTrail = `<div style="font-size:10px;color:#f59e0b;margin-top:3px;font-weight:700">⏳ Awaits Owner approval (${reasonLbl})</div>`;
+    } else if(e.approvedByName){
+      approvalTrail = `<div style="font-size:10px;color:var(--green);margin-top:3px">✅ Approved by ${e.approvedByName}${e.approvedAt?' · '+new Date(e.approvedAt).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''}</div>`;
+    }
+    // V48: Change details (field-level diff)
+    let changesBlock = '';
+    if(e.changes && e.changes.length){
+      changesBlock = `<div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5">
+        <span style="color:var(--blue);font-weight:700">Changed:</span> ${e.changes.map(c=>`${c.field}: <span style="color:var(--red);text-decoration:line-through">${fmtChangeVal(c.field,c.oldVal)}</span> → <span style="color:var(--green);font-weight:700">${fmtChangeVal(c.field,c.newVal)}</span>`).join(' · ')}
+      </div>`;
+    }
+    // V48: Approve/Reject buttons — Owner only, on pending entries
+    const approveButtons = (e.pendingApproval && isOwner() && e.type==='trip') ? `
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button onclick="approveTrip('${e.approvableId}')" style="flex:1;background:linear-gradient(135deg,rgba(0,200,83,.2),rgba(0,200,83,.05));border:1.5px solid var(--green);color:var(--green);padding:8px;border-radius:8px;font-family:var(--fh);font-size:12px;font-weight:700;cursor:pointer">✅ APPROVE</button>
+        <button onclick="rejectTrip('${e.approvableId}')" style="flex:1;background:linear-gradient(135deg,rgba(255,61,61,.2),rgba(255,61,61,.05));border:1.5px solid var(--red);color:var(--red);padding:8px;border-radius:8px;font-family:var(--fh);font-size:12px;font-weight:700;cursor:pointer">❌ REJECT</button>
+      </div>` : '';
+    // V48: Pending background highlight
+    const rowBg = e.pendingApproval ? 'background:rgba(245,158,11,.06);border-left:3px solid #f59e0b' : '';
+    return`<div style="padding:12px 14px;border-bottom:1px solid var(--border);${rowBg}">
       <div style="display:flex;align-items:flex-start;gap:10px">
         <span style="font-size:22px;flex-shrink:0">${e.icon}</span>
         <div style="flex:1;min-width:0">
-          <div style="font-family:var(--fh);font-size:13px;color:var(--white);line-height:1.3">${e.title}${editedBadge}</div>
+          <div style="font-family:var(--fh);font-size:13px;color:var(--white);line-height:1.3">${e.title}${pendingBadge}${editedBadge}</div>
           <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:3px">${e.sub}</div>
           <div style="font-size:10px;color:var(--muted);margin-top:3px">${fmtD(e.date)}${timeStr?' · '+timeStr:''}</div>
           ${e.editedAt?`<div style="font-size:10px;color:var(--blue);margin-top:3px">Edited: ${new Date(e.editedAt).toLocaleString('en-IN')}</div>`:''}
+          ${changesBlock}
+          ${approvalTrail}
+          ${approveButtons}
         </div>
       </div>
     </div>`;
   }).join('');
+}
+
+// ════════════════════════════════════
+// V48: BACKDATE APPROVAL WORKFLOW
+// ════════════════════════════════════
+
+// Owner approves a pending trip → flips pendingApproval false, stamps approver
+async function approveTrip(tripId){
+  if(!isOwner()){alert('Only Owner can approve');return;}
+  const idx=trips.findIndex(t=>t.id===tripId);
+  if(idx<0){alert('Trip not found');return;}
+  const t=trips[idx];
+  if(!t.pendingApproval){alert('This trip is not pending approval');return;}
+  if(!confirm(`Approve trip:\n\n${t.materialName||'Trip'} · ₹${(t.amount||0).toLocaleString('en-IN')}\nDate: ${fmtD(t.date)}\nEntered by: ${t.loggedByName||'?'}\n\nOnce approved, this entry counts toward all customer balances and reports.`)) return;
+  trips[idx]={
+    ...t,
+    pendingApproval:false,
+    approvedBy:sess.userId,
+    approvedByName:sess.name,
+    approvedAt:Date.now()
+  };
+  sv('trips',trips);
+  flash('✅ APPROVED','Trip approved and now counts toward totals');
+  renderAuditLog();
+  renderHomePendingPill();
+}
+
+// Owner rejects a pending trip → delete + preserve rejection record locally
+async function rejectTrip(tripId){
+  if(!isOwner()){alert('Only Owner can reject');return;}
+  const idx=trips.findIndex(t=>t.id===tripId);
+  if(idx<0){alert('Trip not found');return;}
+  const t=trips[idx];
+  if(!t.pendingApproval){alert('This trip is not pending approval');return;}
+  const reason=prompt(`Reject trip:\n\n${t.materialName||'Trip'} · ₹${(t.amount||0).toLocaleString('en-IN')}\nEntered by: ${t.loggedByName||'?'}\n\nReason for rejection (optional):`,'');
+  if(reason===null) return;
+  const rejectedRecord = {
+    ...t,
+    rejectedBy:sess.userId,
+    rejectedByName:sess.name,
+    rejectedAt:Date.now(),
+    rejectedReason:(reason||'').trim()
+  };
+  try{
+    const existing = JSON.parse(localStorage.getItem('fl7_rejectedTrips')||'[]');
+    existing.push(rejectedRecord);
+    localStorage.setItem('fl7_rejectedTrips', JSON.stringify(existing.slice(-100)));
+  } catch(e){ console.warn('Could not store rejection record',e); }
+  trips.splice(idx,1);
+  sv('trips',trips);
+  flash('❌ REJECTED','Pending entry rejected and removed');
+  renderAuditLog();
+  renderHomePendingPill();
+}
+
+// Update home pending pill — called from home render and after approve/reject
+function renderHomePendingPill(){
+  const pill=document.getElementById('home-pending-pill');
+  if(!pill) return;
+  if(!isOwner()){
+    pill.style.display='none';
+    return;
+  }
+  const pending=(trips||[]).filter(t=>t.pendingApproval);
+  if(pending.length>0){
+    pill.style.display='block';
+    const lbl=pill.querySelector('.hpp-count');
+    if(lbl) lbl.textContent=pending.length;
+  } else {
+    pill.style.display='none';
+  }
 }
 
 // ════════════════════════════════════
@@ -5330,6 +5568,7 @@ function savePurchase(){
   if(!vendor){alert('Select a pump');return;}
   if(!litres){alert('Enter litres');return;}
   const purchaseDate=document.getElementById('pur-date')?.value||today();
+  if(isFutureDate(purchaseDate)){alert('❌ Cannot enter purchases for future dates.\n\nDate must be today or earlier.');return;}
   purchases.push({
     id:uid(),date:purchaseDate,ts:Date.now(),vendor,pumpId:pumpId||null,litres,
     rate:parseFloat(document.getElementById('pur-rate').value)||0,
@@ -5832,7 +6071,7 @@ function openReadingEntry(vehId){
         <div class="f-field"><label class="f-lbl">Closing Litres</label><input class="f-inp ro" id="re-close-L" placeholder="${calib?'Auto':'Set calib first'}" readonly></div>
       </div>
       <div class="f-field"><label class="f-lbl">Hourmeter Reading (hrs)</label><input class="f-inp" id="re-hours" placeholder="e.g. 2847" type="number" inputmode="decimal"></div>
-      <div class="f-field"><label class="f-lbl">Period Date</label><input class="f-inp" id="re-date-field" type="date" value="${today()}"></div>
+      <div class="f-field"><label class="f-lbl">Period Date</label><input class="f-inp" id="re-date-field" type="date" value="${today()}" max="${today()}"></div>
       <div class="f-field"><label class="f-lbl">Remarks (optional)</label><input class="f-inp" id="re-remarks" placeholder="" type="text"></div>
       <button class="big-btn bb-go bb-full" style="height:58px;font-size:19px" onclick="saveReadingMach('${vehId}')">✓ SAVE READING</button>
     </div>`;
@@ -5879,6 +6118,7 @@ function saveReadingMach(vehId){
   const hours=parseFloat(document.getElementById('re-hours')?.value)||null;
   const calib=veh?.calibration||null;
   const date=document.getElementById('re-date-field')?.value||today();
+  if(isFutureDate(date)){alert('❌ Cannot enter readings for future dates.');return;}
   readings.push({
     id:uid(),date,ts:Date.now(),vehicleId:vehId,type:'dip',
     openingCm:openCm,closingCm:closeCm,
@@ -5901,6 +6141,7 @@ function saveReadingRoad(vehId){
   const closePct=parseFloat(document.getElementById('re-close-pct')?.value)||null;
   const fromDate=document.getElementById('re-from-date')?.value||today();
   const toDate=document.getElementById('re-to-date')?.value||today();
+  if(isFutureDate(fromDate)||isFutureDate(toDate)){alert('❌ Cannot enter readings for future dates.');return;}
   readings.push({
     id:uid(),date:toDate,ts:Date.now(),vehicleId:vehId,type:'km',
     openingKm,closingKm:closeKm,
@@ -6010,7 +6251,7 @@ function editReading(id){
         <div class="f-field"><label class="f-lbl">Closing Dip (cm)</label><input class="f-inp" id="er-close-cm" value="${r.closingCm||''}" type="number" inputmode="decimal"></div>
       </div>
       <div class="f-field"><label class="f-lbl">Hourmeter Reading (hrs)</label><input class="f-inp" id="er-hours" value="${r.reading||''}" type="number" inputmode="decimal"></div>
-      <div class="f-field"><label class="f-lbl">Date</label><input class="f-inp" id="er-date" value="${r.date}" type="date"></div>
+      <div class="f-field"><label class="f-lbl">Date</label><input class="f-inp" id="er-date" value="${r.date}" type="date" max="${today()}"></div>
       <div class="f-field"><label class="f-lbl">Remarks</label><input class="f-inp" id="er-remarks" value="${r.remarks||''}" type="text"></div>`;
   } else {
     body.innerHTML=`
@@ -7138,7 +7379,7 @@ function renderReports(){
     if(typeof window._tripRepMaterial==='undefined') window._tripRepMaterial='all';
     if(typeof window._tripRepDrillId==='undefined') window._tripRepDrillId=null;
 
-    const allTrips=(trips||[]).filter(t=>t.date>=range.from&&t.date<=range.to);
+    const allTrips=(trips||[]).filter(t=>t.date>=range.from&&t.date<=range.to&&!t.pendingApproval); // V48: pending excluded
     const reportType=window._tripRepType;
     const drvOpts=`<option value="all">All Drivers</option>`+(drivers||[]).map(d=>`<option value="${d.id}"${d.id===window._tripRepDriver?' selected':''}>${d.name}</option>`).join('');
     const custOpts=`<option value="all">All Customers</option>`+(customers||[]).map(c=>`<option value="${c.id}"${c.id===window._tripRepCustomer?' selected':''}>${c.name}</option>`).join('');
@@ -8218,7 +8459,7 @@ function exportRepPDF(){
       <div class="footer">🚨 CONFIDENTIAL — Fuel Theft Register · ${repFmtRange(range)} · Chiddarwar Construction Co. Pvt. Ltd.</div>`;
     }
   } else if(repActiveTab==='trips'){
-    const allTrips=(trips||[]).filter(t=>t.date>=range.from&&t.date<=range.to);
+    const allTrips=(trips||[]).filter(t=>t.date>=range.from&&t.date<=range.to&&!t.pendingApproval); // V48: pending excluded
     const reportType=window._tripRepType||'register';
     const totalTrips=allTrips.reduce((a,t)=>a+(t.numTrips||1),0);
     const totalRevenue=allTrips.filter(t=>t.movementType==='external').reduce((a,t)=>a+(t.amount||0),0);
@@ -8472,6 +8713,7 @@ async function saveEditMain(){
       const closeCm=parseFloat(document.getElementById('er-close-cm')?.value)||null;
       const hours=parseFloat(document.getElementById('er-hours')?.value)||null;
       const date=document.getElementById('er-date')?.value||r.date;
+      if(isFutureDate(date)){alert('❌ Cannot set readings to future dates.');return;}
       readings[idx]={...r,
         openingCm:openCm,closingCm:closeCm,
         openingLtr:calib&&openCm!=null?openCm*calib:null,
@@ -8591,6 +8833,7 @@ async function saveEditMain(){
     const ma=parseFloat(document.getElementById('ed-ma').value)||orig.meterAfter;
     const L=parseFloat(document.getElementById('ed-L').value)||orig.litres;
     const dateV=document.getElementById('ed-date')?.value||orig.date;
+    if(isFutureDate(dateV)){alert('❌ Cannot set entry to future dates.');return;}
     const op=document.getElementById('ed-op').value;
     const rem=document.getElementById('ed-rem').value;
     const mDiff=ma-mb;
@@ -8622,6 +8865,7 @@ async function saveEditMain(){
     const paid=parseFloat(document.getElementById('ed-pfpaid').value)||orig.paid;
     const bill=document.getElementById('ed-pfbill').value;
     const dateV=document.getElementById('ed-pfdate').value||orig.date;
+    if(isFutureDate(dateV)){alert('❌ Cannot set entry to future dates.');return;}
     const op=document.getElementById('ed-pfop').value;
     const rem=document.getElementById('ed-pfrem').value;
     const changes=[];
@@ -10813,7 +11057,7 @@ function openEditModal(type,id){
         <div class="f-field"><label class="f-lbl">Meter After (L)</label><input class="f-inp" id="ed-ma" value="${d.meterAfter||''}" type="number" inputmode="decimal"></div>
       </div>
       <div class="f-field"><label class="f-lbl">Litres</label><input class="f-inp" id="ed-L" value="${d.litres||''}" type="number" inputmode="decimal"></div>
-      <div class="f-field"><label class="f-lbl">Date</label><input class="f-inp" id="ed-date" value="${d.date||''}" type="date"></div>
+      <div class="f-field"><label class="f-lbl">Date</label><input class="f-inp" id="ed-date" value="${d.date||''}" type="date" max="${today()}"></div>
       <div class="f-field"><label class="f-lbl">Operator</label><input class="f-inp" id="ed-op" value="${d.operator||''}" type="text"></div>
       <div class="f-field"><label class="f-lbl">Remarks</label><input class="f-inp" id="ed-rem" value="${d.remarks||''}" type="text"></div>`;
     modal.dataset.editType='disb';modal.dataset.disbId=id;
@@ -10844,7 +11088,7 @@ function openEditModal(type,id){
         <div class="f-field"><label class="f-lbl">Paid ₹</label><input class="f-inp" id="ed-pfpaid" value="${p.paid||''}" type="number" inputmode="decimal"></div>
       </div>
       <div class="f-field"><label class="f-lbl">Bill No.</label><input class="f-inp" id="ed-pfbill" value="${p.bill||''}" type="text"></div>
-      <div class="f-field"><label class="f-lbl">Date</label><input class="f-inp" id="ed-pfdate" value="${p.date||''}" type="date"></div>
+      <div class="f-field"><label class="f-lbl">Date</label><input class="f-inp" id="ed-pfdate" value="${p.date||''}" type="date" max="${today()}"></div>
       <div class="f-field"><label class="f-lbl">Operator</label><input class="f-inp" id="ed-pfop" value="${p.operator||''}" type="text"></div>
       <div class="f-field"><label class="f-lbl">Remarks</label><input class="f-inp" id="ed-pfrem" value="${p.remarks||''}" type="text"></div>`;
     modal.dataset.editType='pumpFill';modal.dataset.pumpFillId=id;
