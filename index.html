@@ -5999,16 +5999,38 @@ function delPump(id){
 function renderPumpLog(){
   const el=document.getElementById('pump-log');if(!el)return;
   if(!pumps.length){el.innerHTML='<div class="muted-txt">No pumps added yet</div>';return;}
-  el.innerHTML=pumps.map(p=>`
-    <div class="log-item">
+  const fmtINR=n=>'₹'+Number(Math.round(n||0)).toLocaleString('en-IN');
+  el.innerHTML=pumps.map(p=>{
+    // Direct purchases linked to this pump (bulk buys)
+    const pPurchases=(purchases||[]).filter(x=>x.pumpId===p.id);
+    const purchaseAmt=pPurchases.reduce((a,x)=>a+(x.amount||0),0);
+    const purchasePaid=pPurchases.reduce((a,x)=>a+(x.paid||0),0);
+    // Vehicle fills from this pump (direct fill to vehicles)
+    const pFills=(pumpFills||[]).filter(x=>x.pumpId===p.id);
+    const fillAmt=pFills.reduce((a,x)=>a+(x.amount||0),0);
+    const fillPaid=pFills.reduce((a,x)=>a+(x.paid||0),0);
+    // Combined outstanding
+    const totalAmt=purchaseAmt+fillAmt;
+    const totalPaid=purchasePaid+fillPaid;
+    const due=totalAmt-totalPaid;
+    const entryCount=pPurchases.length+pFills.length;
+    const dueBadge=due>0
+      ?`<span style="font-size:10px;background:rgba(255,61,61,.15);color:var(--red);padding:2px 8px;border-radius:6px;font-weight:700;margin-top:4px;display:inline-block">DUE ${fmtINR(due)}</span>`
+      :(entryCount?`<span style="font-size:10px;background:rgba(0,200,83,.1);color:var(--green);padding:2px 8px;border-radius:6px;font-weight:700;margin-top:4px;display:inline-block">CLEAR</span>`:'');
+    const breakdown=[];
+    if(pPurchases.length) breakdown.push(`${pPurchases.length} purchase${pPurchases.length!==1?'s':''}`);
+    if(pFills.length) breakdown.push(`${pFills.length} vehicle fill${pFills.length!==1?'s':''}`);
+    return `<div class="log-item">
       <div class="li-ico">🏪</div>
       <div class="li-main">
         <div class="li-name">${p.name}</div>
         <div class="li-det">${p.location||'No location'}${p.defaultRate?' · ₹'+p.defaultRate+'/L':''}</div>
-        <div class="li-by">Added by ${p.addedByName||'—'}</div>
+        <div class="li-by">${breakdown.length?breakdown.join(' · ')+' · '+fmtINR(totalAmt)+' total':'No entries yet'}</div>
+        ${dueBadge}
       </div>
       ${isOwner()?`<button class="li-btn del" onclick="delPump('${p.id}')">🗑</button>`:''}
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 // ════════════════════════════════════
@@ -8936,6 +8958,7 @@ async function saveEditMain(){
     const proceed=await checkConcurrentEdit('pumpFill',pfId,startedAt);
     if(!proceed){return;}
     const newVehId=document.getElementById('ed-pf-veh')?.value||orig.vehicleId;
+    const newPumpId=document.getElementById('ed-pf-pump')?.value||orig.pumpId||null; // V48
     const L=parseFloat(document.getElementById('ed-pfL').value)||orig.litres;
     const rate=parseFloat(document.getElementById('ed-pfr').value)||orig.rate;
     const amt=parseFloat(document.getElementById('ed-pfamt').value)||orig.amount;
@@ -8947,6 +8970,7 @@ async function saveEditMain(){
     const rem=document.getElementById('ed-pfrem').value;
     const changes=[];
     if(newVehId!==orig.vehicleId){const ov=gV(orig.vehicleId);const nv=gV(newVehId);changes.push({field:'Vehicle',oldVal:ov?.name||orig.vehicleId,newVal:nv?.name||newVehId});}
+    if((newPumpId||null)!==(orig.pumpId||null)){const op1=(pumps||[]).find(x=>x.id===orig.pumpId);const np=(pumps||[]).find(x=>x.id===newPumpId);changes.push({field:'Pump',oldVal:op1?.name||'None',newVal:np?.name||'None'});}
     if(L!==orig.litres)changes.push({field:'Litres',oldVal:orig.litres,newVal:L});
     if(rate!==orig.rate)changes.push({field:'Rate',oldVal:orig.rate,newVal:rate});
     if(amt!==orig.amount)changes.push({field:'Amount',oldVal:orig.amount,newVal:amt});
@@ -8955,7 +8979,7 @@ async function saveEditMain(){
     if(dateV!==orig.date)changes.push({field:'Date',oldVal:orig.date,newVal:dateV});
     if(op!==orig.operator)changes.push({field:'Operator',oldVal:orig.operator||'',newVal:op});
     if(rem!==orig.remarks)changes.push({field:'Remarks',oldVal:orig.remarks||'',newVal:rem});
-    pumpFills[idx]={...orig,vehicleId:newVehId,litres:L,rate,amount:amt,paid,bill,date:dateV,operator:op,remarks:rem,
+    pumpFills[idx]={...orig,vehicleId:newVehId,pumpId:newPumpId,litres:L,rate,amount:amt,paid,bill,date:dateV,operator:op,remarks:rem,
       editedBy:sess.userId,editedByName:sess.name,editedAt:Date.now()};
     if(changes.length)saveAudit(buildAuditEntry('pumpFill',pfId,changes));
     sv('pumpFills',pumpFills);flash('UPDATED!','Pump fill updated');closeEditModal();
@@ -11147,13 +11171,19 @@ function openEditModal(type,id){
   } else if(type==='pumpFill'){
     const p=(pumpFills||[]).find(x=>x.id===id);if(!p)return;
     if(!canEditEntry(p)){alert('You can only edit your own same-day entries');return;}
-    const veh=gV(p.vehicleId);
     const vehOptions=fleet.map(f=>`<option value="${f.id}"${f.id===p.vehicleId?' selected':''}>${f.name}</option>`).join('');
+    // V48: pump station options — allow editing which pump this fill came from
+    const pumpOptions=`<option value="">-- No pump --</option>`+(pumps||[]).map(pm=>`<option value="${pm.id}"${pm.id===p.pumpId?' selected':''}>${pm.name}</option>`).join('');
     document.getElementById('edit-modal-title').textContent='EDIT PUMP FILL';
     body.innerHTML=`
       <div class="f-field"><label class="f-lbl">Vehicle</label>
         <select class="f-inp" id="ed-pf-veh" style="color:var(--white);background:var(--bg3)">
           ${vehOptions}
+        </select>
+      </div>
+      <div class="f-field"><label class="f-lbl">Pump Station</label>
+        <select class="f-inp" id="ed-pf-pump" style="color:var(--white);background:var(--bg3)">
+          ${pumpOptions}
         </select>
       </div>
       <div class="f-r2">
