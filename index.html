@@ -871,8 +871,8 @@ input[type=file]{display:none}
       <select class="f-sel" id="pf-pump"><option value="">Select pump...</option></select>
     </div>
     <div class="f-r2">
-      <div class="f-field"><label class="f-lbl">Litres</label><input class="f-inp" id="pf-litres" placeholder="0" type="number" inputmode="decimal" oninput="calcPFAmt()"></div>
-      <div class="f-field"><label class="f-lbl">Rate ₹/L</label><input class="f-inp" id="pf-rate" placeholder="91.50" type="number" inputmode="decimal" oninput="calcPFAmt()"></div>
+      <div class="f-field"><label class="f-lbl">Litres</label><input class="f-inp" id="pf-litres" placeholder="0" type="number" inputmode="decimal" oninput="calcPFAmt()" onchange="calcPFAmt()" onblur="calcPFAmt()"></div>
+      <div class="f-field"><label class="f-lbl">Rate ₹/L</label><input class="f-inp" id="pf-rate" placeholder="91.50" type="number" inputmode="decimal" oninput="calcPFAmt()" onchange="calcPFAmt()" onblur="calcPFAmt()"></div>
     </div>
     <div class="f-r2">
       <div class="f-field"><label class="f-lbl">Total Amount ₹</label><input class="f-inp" id="pf-amount" placeholder="Auto" type="number" inputmode="decimal"></div>
@@ -5954,13 +5954,15 @@ function savePumpFill(){
   if(!litres){alert('Enter litres');return;}
   const pump=pumps.find(p=>p.id===pumpId);
   const veh=gV(gf.vehicleId);
+  const rate=parseFloat(document.getElementById('pf-rate').value)||0;
+  // V48: auto-compute amount from litres×rate if the field was left blank or 0
+  const amtField=parseFloat(document.getElementById('pf-amount').value)||0;
+  const amount = amtField>0 ? amtField : (litres&&rate ? parseFloat((litres*rate).toFixed(2)) : 0);
+  const paid=parseFloat(document.getElementById('pf-paid').value)||0;
   pumpFills.push({
     id:uid(),date:today(),ts:Date.now(),
     vehicleId:gf.vehicleId,pumpId,pumpName:pump?.name||'',
-    litres,
-    rate:parseFloat(document.getElementById('pf-rate').value)||0,
-    amount:parseFloat(document.getElementById('pf-amount').value)||0,
-    paid:parseFloat(document.getElementById('pf-paid').value)||0,
+    litres,rate,amount,paid,
     bill:document.getElementById('pf-bill').value,
     photoBill:pfPhotos.bill,
     photoBefore:pfPhotos.before,
