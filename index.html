@@ -6792,12 +6792,12 @@ function renderReports(){
 
   // ═══ TAB 2: FINANCIAL SUMMARY ═══
   } else if(repActiveTab==='financial'){
-    // Purchases
-    const purchasesL=allPurchases.reduce((a,p)=>a+p.litres,0);
-    const purchasesAmt=allPurchases.reduce((a,p)=>a+(p.amount||0),0);
-    const purchasesPaid=allPurchases.reduce((a,p)=>a+(p.paid||0),0);
+    // V48: All period purchase totals include BOTH bowser purchases AND direct pump fills
+    const purchasesL=allPurchases.reduce((a,p)=>a+p.litres,0)+allPF.reduce((a,p)=>a+(p.litres||0),0);
+    const purchasesAmt=allPurchases.reduce((a,p)=>a+(p.amount||0),0)+allPF.reduce((a,p)=>a+(p.amount||0),0);
+    const purchasesPaid=allPurchases.reduce((a,p)=>a+(p.paid||0),0)+allPF.reduce((a,p)=>a+(p.paid||0),0);
     const purchasesDue=purchasesAmt-purchasesPaid;
-    // V48: All-time dues across BOTH bowser purchases and direct pump fills
+    // All-time dues include both bowser purchases and direct pump fills
     const totalDue=
       purchases.reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0) +
       (pumpFills||[]).reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0);
@@ -8288,22 +8288,32 @@ function exportRepPDF(){
 
   // ── FINANCIAL PDF ──
   } else if(repActiveTab==='financial'){
-    const purchasesAmt=allPurchases.reduce((a,p)=>a+(p.amount||0),0);
-    const purchasesPaid=allPurchases.reduce((a,p)=>a+(p.paid||0),0);
+    // V48: PDF period totals include BOTH bowser purchases AND direct pump fills
+    const purchasesAmt=allPurchases.reduce((a,p)=>a+(p.amount||0),0)+allPF.reduce((a,p)=>a+(p.amount||0),0);
+    const purchasesPaid=allPurchases.reduce((a,p)=>a+(p.paid||0),0)+allPF.reduce((a,p)=>a+(p.paid||0),0);
     const purchasesDue=purchasesAmt-purchasesPaid;
-    // V48: All-time dues include both bowser purchases and direct pump fills
+    // All-time dues include both bowser purchases and direct pump fills
     const totalDue=
       purchases.reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0) +
       (pumpFills||[]).reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0);
-    const purchasesL=allPurchases.reduce((a,p)=>a+p.litres,0);
+    const purchasesL=allPurchases.reduce((a,p)=>a+p.litres,0)+allPF.reduce((a,p)=>a+(p.litres||0),0);
     const reconciliation=purchasesL-bowserL;
 
-    // Vendor/pump-wise
+    // V48: PDF vendor breakdown — combine purchases + direct pump fills
     const vendorMap={};
+    const ensureV=k=>{ if(!vendorMap[k])vendorMap[k]={L:0,amount:0,paid:0,count:0}; };
     allPurchases.forEach(p=>{
       const key=p.vendor||'Unknown';
-      if(!vendorMap[key])vendorMap[key]={L:0,amount:0,paid:0,count:0};
-      vendorMap[key].L+=p.litres;
+      ensureV(key);
+      vendorMap[key].L+=p.litres||0;
+      vendorMap[key].amount+=(p.amount||0);
+      vendorMap[key].paid+=(p.paid||0);
+      vendorMap[key].count++;
+    });
+    allPF.forEach(p=>{
+      const key=p.pumpName||'Unknown';
+      ensureV(key);
+      vendorMap[key].L+=p.litres||0;
       vendorMap[key].amount+=(p.amount||0);
       vendorMap[key].paid+=(p.paid||0);
       vendorMap[key].count++;
