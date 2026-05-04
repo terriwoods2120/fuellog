@@ -6144,8 +6144,8 @@ function saveReadingRoad(vehId){
   if(isFutureDate(fromDate)||isFutureDate(toDate)){alert('❌ Cannot enter readings for future dates.');return;}
   readings.push({
     id:uid(),date:toDate,ts:Date.now(),vehicleId:vehId,type:'km',
-    openingKm,closingKm:closeKm,
-    openingPct,closingPct:closePct,
+    openingKm:openKm,closingKm:closeKm,
+    openingPct:openPct,closingPct:closePct,
     reading:closeKm,fromDate,toDate,
     remarks:document.getElementById('re-remarks')?.value||'',
     loggedBy:sess.userId,loggedByName:sess.name,
