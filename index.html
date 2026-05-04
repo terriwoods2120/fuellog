@@ -812,8 +812,8 @@ input[type=file]{display:none}
       <select class="f-sel" id="pur-pump"><option value="">Select pump...</option></select>
     </div>
     <div class="f-r2">
-      <div class="f-field"><label class="f-lbl">Litres</label><input class="f-inp" id="pur-litres" placeholder="0" type="number" inputmode="decimal" oninput="calcPurAmt()"></div>
-      <div class="f-field"><label class="f-lbl">Rate ₹/L</label><input class="f-inp" id="pur-rate" placeholder="91.50" type="number" inputmode="decimal" oninput="calcPurAmt()"></div>
+      <div class="f-field"><label class="f-lbl">Litres</label><input class="f-inp" id="pur-litres" placeholder="0" type="number" inputmode="decimal" oninput="calcPurAmt()" onchange="calcPurAmt()" onblur="calcPurAmt()"></div>
+      <div class="f-field"><label class="f-lbl">Rate ₹/L</label><input class="f-inp" id="pur-rate" placeholder="91.50" type="number" inputmode="decimal" oninput="calcPurAmt()" onchange="calcPurAmt()" onblur="calcPurAmt()"></div>
     </div>
     <div class="f-r2">
       <div class="f-field"><label class="f-lbl">Total Amount ₹</label><input class="f-inp" id="pur-amount" placeholder="Auto" type="number" inputmode="decimal"></div>
@@ -2784,7 +2784,11 @@ function renderDashboard(dash,alerts){
   const mismatch=disbs.filter(d=>(d.dipMatch===false||d.meterMismatch)&&!d.resolutionType).length;
   const dipMismatch=disbs.filter(d=>d.dipMatch===false&&!d.resolutionType).length;
   const meterMismatch=disbs.filter(d=>d.meterMismatch&&!d.resolutionType).length;
-  const bal=isOwner()?purchases.reduce((a,p)=>a+(p.amount-p.paid),0):0;
+  // V48: Balance Due includes BOTH bowser purchases AND direct pump fills
+  const bal=isOwner()?(
+    purchases.reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0) +
+    (pumpFills||[]).reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0)
+  ):0;
 
   // Update ops badge
   const badge=document.getElementById('bnav-ops-badge');
@@ -4943,6 +4947,16 @@ async function rejectTrip(tripId){
   renderHomePendingPill();
 }
 
+// V48: Toggle vendor detail drill-down in financial report
+function toggleVendorDetail(idx){
+  const detail=document.getElementById('ven-detail-'+idx);
+  const arr=document.getElementById('ven-arr-'+idx);
+  if(!detail) return;
+  const isOpen=detail.style.display!=='none';
+  detail.style.display=isOpen?'none':'block';
+  if(arr) arr.style.transform=isOpen?'rotate(0deg)':'rotate(90deg)';
+}
+
 // Update home pending pill — called from home render and after approve/reject
 function renderHomePendingPill(){
   const pill=document.getElementById('home-pending-pill');
@@ -5569,11 +5583,14 @@ function savePurchase(){
   if(!litres){alert('Enter litres');return;}
   const purchaseDate=document.getElementById('pur-date')?.value||today();
   if(isFutureDate(purchaseDate)){alert('❌ Cannot enter purchases for future dates.\n\nDate must be today or earlier.');return;}
+  const rate=parseFloat(document.getElementById('pur-rate').value)||0;
+  // V48: auto-compute amount from litres×rate if user didn't (mobile keyboard event-miss safety)
+  const amtField=parseFloat(document.getElementById('pur-amount').value)||0;
+  const amount = amtField>0 ? amtField : (litres&&rate ? parseFloat((litres*rate).toFixed(2)) : 0);
+  const paid=parseFloat(document.getElementById('pur-paid').value)||0;
   purchases.push({
     id:uid(),date:purchaseDate,ts:Date.now(),vendor,pumpId:pumpId||null,litres,
-    rate:parseFloat(document.getElementById('pur-rate').value)||0,
-    amount:parseFloat(document.getElementById('pur-amount').value)||0,
-    paid:parseFloat(document.getElementById('pur-paid').value)||0,
+    rate,amount,paid,
     bill:document.getElementById('pur-bill').value,
     billPhoto:purPhotoData||null,
     loggedBy:sess.userId,loggedByName:sess.name,
@@ -5597,33 +5614,86 @@ function delPurchase(id){
     flash('DELETED!','Purchase entry removed');
   });
 }
+// V48: Delete pump fill from the bowser/purchases screen sectioned view
+function delPumpFill(id){
+  if(!canDelEntry()){alert('Only Owner can delete');return;}
+  const p=(pumpFills||[]).find(x=>x.id===id);
+  showConfirm('Delete direct pump fill at "'+(p?.pumpName||'?')+'"?',()=>{
+    _recordDeletion('pumpFills',id);pumpFills=(pumpFills||[]).filter(x=>x.id!==id);sv('pumpFills',pumpFills);renderPurchases();
+    flash('DELETED!','Pump fill removed');
+  });
+}
 function renderPurchases(){
   populatePurPumpSelect();
-  const bal=purchases.reduce((a,p)=>a+(p.amount-p.paid),0);
-  document.getElementById('pur-bal').innerHTML=`<div class="bal-ban ${bal>0?'bal-owing':'bal-clear'}">
-    <div><div class="bal-lbl">Balance Due</div><div class="bal-amt ${bal>0?'ba-red':'ba-grn'}">₹${fmt(bal,0)}</div></div>
-    <div style="text-align:right"><div class="bal-lbl">Entries</div><div class="bal-amt" style="font-size:20px;color:var(--white)">${purchases.length}</div></div>
+  // V48: Combined view — bowser purchases + direct pump fills
+  const fmtINR=n=>'₹'+Number(Math.round(n||0)).toLocaleString('en-IN');
+  const purBal=purchases.reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0);
+  const pfList=(pumpFills||[]);
+  const pfBal=pfList.reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0);
+  const totalBal=purBal+pfBal;
+  const totalEntries=purchases.length+pfList.length;
+  document.getElementById('pur-bal').innerHTML=`<div class="bal-ban ${totalBal>0?'bal-owing':'bal-clear'}">
+    <div><div class="bal-lbl">Total Balance Due</div><div class="bal-amt ${totalBal>0?'ba-red':'ba-grn'}">${fmtINR(totalBal)}</div>
+      ${totalBal>0?`<div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:4px">Bowser ${fmtINR(purBal)} · Direct fills ${fmtINR(pfBal)}</div>`:''}
+    </div>
+    <div style="text-align:right"><div class="bal-lbl">Entries</div><div class="bal-amt" style="font-size:20px;color:var(--white)">${totalEntries}</div>
+      <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:4px">${purchases.length} bowser · ${pfList.length} direct</div>
+    </div>
   </div>`;
+
   const el=document.getElementById('pur-log');
-  if(!purchases.length){el.innerHTML='<div class="muted-txt">No purchases yet</div>';return;}
-  el.innerHTML=[...purchases].sort((a,b)=>b.ts-a.ts).map(p=>{
-    const b=p.amount-p.paid;
-    const canE=canEditEntry(p),canD=canDelEntry();
-    return `<div class="log-item">
-      <div class="li-ico">🏪</div>
-      <div class="li-main">
-        <div class="li-name">${p.vendor}</div>
-        <div class="li-det">${fmt(p.litres,1)} L · ₹${fmt(p.amount,0)} · ${p.bill||'No bill'}${p.billPhoto?` <span onclick="event.stopPropagation();viewPhoto('${p.id}','purchase')" style="cursor:pointer;color:var(--blue);font-weight:700">📷 View</span>`:''}</div>
-        <div class="li-by">by ${p.loggedByName}${p.editedByName?` · edited by ${p.editedByName}${p.editedAt?' on '+new Date(p.editedAt).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''}`:''}</div>
-        <span class="bdg ${b>0?'bg-red':'bg-grn'}">${b>0?'DUE ₹'+fmt(b,0):'PAID'}</span>
-      </div>
-      <div class="li-right"><div class="li-val" style="font-size:14px">₹${fmt(p.paid,0)}</div><div class="li-date">${fmtD(p.date)}</div></div>
-      <div class="li-actions">
-        ${canE?`<button class="li-btn" onclick="openEditModal('purchase','${p.id}')">✏️</button>`:''}
-        ${canD?`<button class="li-btn del" onclick="delPurchase('${p.id}')">🗑</button>`:''}
-      </div>
-    </div>`;
-  }).join('');
+  if(!totalEntries){el.innerHTML='<div class="muted-txt">No purchases yet</div>';return;}
+
+  let html='';
+
+  // Section 1: Bowser purchases
+  if(purchases.length){
+    html += `<div style="padding:10px 14px 4px;font-family:var(--fh);font-size:11px;color:var(--amber);letter-spacing:.8px;font-weight:700">🛢 BOWSER PURCHASES (${purchases.length})</div>`;
+    html += [...purchases].sort((a,b)=>b.ts-a.ts).map(p=>{
+      const b=(p.amount||0)-(p.paid||0);
+      const canE=canEditEntry(p),canD=canDelEntry();
+      return `<div class="log-item">
+        <div class="li-ico">🏪</div>
+        <div class="li-main">
+          <div class="li-name">${p.vendor} <span style="font-size:9px;background:rgba(255,179,0,.15);color:var(--amber);padding:1px 6px;border-radius:4px;font-weight:700;margin-left:4px">→ BOWSER</span></div>
+          <div class="li-det">${fmt(p.litres,1)} L · ₹${fmt(p.amount,0)} · ${p.bill||'No bill'}${p.billPhoto?` <span onclick="event.stopPropagation();viewPhoto('${p.id}','purchase')" style="cursor:pointer;color:var(--blue);font-weight:700">📷 View</span>`:''}</div>
+          <div class="li-by">by ${p.loggedByName}${p.editedByName?` · edited by ${p.editedByName}${p.editedAt?' on '+new Date(p.editedAt).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''}`:''}</div>
+          <span class="bdg ${b>0?'bg-red':'bg-grn'}">${b>0?'DUE ₹'+fmt(b,0):'PAID'}</span>
+        </div>
+        <div class="li-right"><div class="li-val" style="font-size:14px">₹${fmt(p.paid,0)}</div><div class="li-date">${fmtD(p.date)}</div></div>
+        <div class="li-actions">
+          ${canE?`<button class="li-btn" onclick="openEditModal('purchase','${p.id}')">✏️</button>`:''}
+          ${canD?`<button class="li-btn del" onclick="delPurchase('${p.id}')">🗑</button>`:''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Section 2: Direct pump fills
+  if(pfList.length){
+    html += `<div style="padding:10px 14px 4px;font-family:var(--fh);font-size:11px;color:var(--blue);letter-spacing:.8px;font-weight:700;${purchases.length?'border-top:1px solid var(--border);margin-top:8px':''}">⛽ DIRECT VEHICLE FILLS FROM PUMP (${pfList.length})</div>`;
+    html += [...pfList].sort((a,b)=>b.ts-a.ts).map(p=>{
+      const b=(p.amount||0)-(p.paid||0);
+      const veh=gV(p.vehicleId);
+      const canE=canEditEntry(p),canD=canDelEntry();
+      return `<div class="log-item">
+        <div class="li-ico">⛽</div>
+        <div class="li-main">
+          <div class="li-name">${p.pumpName||'?'} <span style="font-size:9px;background:rgba(41,121,255,.15);color:var(--blue);padding:1px 6px;border-radius:4px;font-weight:700;margin-left:4px">→ ${veh?.name||'?'}</span></div>
+          <div class="li-det">${fmt(p.litres,1)} L · ₹${fmt(p.amount||0,0)} · ${p.bill||'No bill'}</div>
+          <div class="li-by">by ${p.loggedByName||'?'}${p.editedByName?` · edited by ${p.editedByName}${p.editedAt?' on '+new Date(p.editedAt).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''}`:''}</div>
+          <span class="bdg ${b>0?'bg-red':'bg-grn'}">${b>0?'DUE ₹'+fmt(b,0):'PAID'}</span>
+        </div>
+        <div class="li-right"><div class="li-val" style="font-size:14px">₹${fmt(p.paid||0,0)}</div><div class="li-date">${fmtD(p.date)}</div></div>
+        <div class="li-actions">
+          ${canE?`<button class="li-btn" onclick="openEditModal('pumpFill','${p.id}')">✏️</button>`:''}
+          ${canD?`<button class="li-btn del" onclick="delPumpFill('${p.id}')">🗑</button>`:''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  el.innerHTML=html;
 }
 
 // --- fl-fleet.js ---
@@ -6727,8 +6797,10 @@ function renderReports(){
     const purchasesAmt=allPurchases.reduce((a,p)=>a+(p.amount||0),0);
     const purchasesPaid=allPurchases.reduce((a,p)=>a+(p.paid||0),0);
     const purchasesDue=purchasesAmt-purchasesPaid;
-    // All time dues (not just this period)
-    const totalDue=purchases.reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0);
+    // V48: All-time dues across BOTH bowser purchases and direct pump fills
+    const totalDue=
+      purchases.reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0) +
+      (pumpFills||[]).reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0);
 
     // Issues cost
     const bowserL=allDisbs.filter(d=>d.source==='bowser'||d.source==='can').reduce((a,d)=>a+d.litres,0);
@@ -6750,15 +6822,27 @@ function renderReports(){
     });
     const siteList=Object.entries(siteMap).sort((a,b)=>b[1].L-a[1].L);
 
-    // Vendor-wise purchases
+    // V48: Vendor-wise — combine purchases + direct pump fills, retain entry list for drill-down
     const vendorMap={};
+    const ensureVendor=k=>{ if(!vendorMap[k])vendorMap[k]={L:0,amount:0,paid:0,count:0,entries:[]}; };
     allPurchases.forEach(p=>{
       const key=p.vendor||'Unknown';
-      if(!vendorMap[key])vendorMap[key]={L:0,amount:0,paid:0,count:0};
-      vendorMap[key].L+=p.litres;
+      ensureVendor(key);
+      vendorMap[key].L+=p.litres||0;
       vendorMap[key].amount+=(p.amount||0);
       vendorMap[key].paid+=(p.paid||0);
       vendorMap[key].count++;
+      vendorMap[key].entries.push({type:'purchase',date:p.date,litres:p.litres||0,amount:p.amount||0,paid:p.paid||0,bill:p.bill||'',destination:'Bowser',by:p.loggedByName||''});
+    });
+    allPF.forEach(p=>{
+      const key=p.pumpName||'Unknown';
+      const veh=gV(p.vehicleId);
+      ensureVendor(key);
+      vendorMap[key].L+=p.litres||0;
+      vendorMap[key].amount+=(p.amount||0);
+      vendorMap[key].paid+=(p.paid||0);
+      vendorMap[key].count++;
+      vendorMap[key].entries.push({type:'pumpFill',date:p.date,litres:p.litres||0,amount:p.amount||0,paid:p.paid||0,bill:p.bill||'',destination:veh?.name||'?',by:p.loggedByName||''});
     });
     const vendorList=Object.entries(vendorMap).sort((a,b)=>b[1].amount-a[1].amount);
 
@@ -6817,27 +6901,7 @@ function renderReports(){
       </div>
     </div>
 
-    <!-- Reconciliation -->
-    <div class="rep-card">
-      <div class="rep-hd">⚖️ PURCHASE vs ISSUE RECONCILIATION</div>
-      <div style="padding:14px">
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
-          <span style="font-size:12px;color:var(--muted);font-weight:600">Purchased into Bowser (period)</span>
-          <span style="font-family:var(--fh);color:var(--green)">+${fmt(purchasesL,1)} L</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
-          <span style="font-size:12px;color:var(--muted);font-weight:600">Issued from Bowser (period)</span>
-          <span style="font-family:var(--fh);color:var(--red)">−${fmt(bowserL,1)} L</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:2px solid var(--amber);margin-top:4px">
-          <span style="font-family:var(--fh);font-size:13px;color:var(--amber)">NET CHANGE (Period)</span>
-          <span style="font-family:var(--fh);font-size:15px;color:${reconciliation>=0?'var(--green)':'var(--red)'}">${reconciliation>=0?'+':''}${fmt(reconciliation,1)} L</span>
-        </div>
-        <div style="margin-top:8px;font-size:10px;color:var(--muted);line-height:1.5">
-          ℹ️ If net change doesn't match your physical dip gauge difference, investigate for losses, theft, or unrecorded entries.
-        </div>
-      </div>
-    </div>
+    <!-- V48: Reconciliation card removed — top-of-screen summary already conveys the same info -->
 
     <!-- Bowser vs Pump split -->
     <div class="rep-card">
@@ -6897,25 +6961,53 @@ function renderReports(){
       </div>
     </div>`:''}
 
-    <!-- Vendor breakdown -->
+    <!-- Vendor breakdown — V48: combined (purchases + pump fills) with drill-down -->
     ${vendorList.length?`
     <div class="rep-card">
-      <div class="rep-hd">🏪 VENDOR-WISE PURCHASES</div>
-      ${vendorList.map(([name,{L,amount,paid,count}])=>{
+      <div class="rep-hd">🏪 VENDOR-WISE BREAKDOWN — Tap a vendor to see entries</div>
+      ${vendorList.map(([name,{L,amount,paid,count,entries}],vIdx)=>{
         const due=amount-paid;
-        return `<div style="padding:12px 14px;border-top:1px solid var(--border)">
-          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px">
+        const purCount=entries.filter(e=>e.type==='purchase').length;
+        const pfCount=entries.filter(e=>e.type==='pumpFill').length;
+        const breakdown=[];
+        if(purCount) breakdown.push(`${purCount} bowser purchase${purCount===1?'':'s'}`);
+        if(pfCount) breakdown.push(`${pfCount} direct fill${pfCount===1?'':'s'}`);
+        return `<div style="border-top:1px solid var(--border)">
+          <div onclick="toggleVendorDetail(${vIdx})" style="padding:12px 14px;cursor:pointer;display:flex;align-items:flex-start;gap:8px">
+            <span id="ven-arr-${vIdx}" style="font-size:14px;color:var(--muted);margin-top:1px;transition:transform .15s">▶</span>
             <div style="flex:1">
-              <div style="font-family:var(--fh);font-size:13px;color:var(--white)">${name}</div>
-              <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:1px">${count} purchase${count===1?'':'s'} · ${fmt(L,0)} L</div>
-            </div>
-            <div style="text-align:right">
-              <div style="font-family:var(--fh);font-size:14px;color:var(--white)">${fmtINR(amount)}</div>
+              <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px">
+                <div style="flex:1">
+                  <div style="font-family:var(--fh);font-size:13px;color:var(--white)">${name}</div>
+                  <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:1px">${breakdown.join(' · ')} · ${fmt(L,0)} L</div>
+                </div>
+                <div style="text-align:right">
+                  <div style="font-family:var(--fh);font-size:14px;color:var(--white)">${fmtINR(amount)}</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:10px;font-size:11px;font-weight:700">
+                <span style="color:var(--green)">Paid: ${fmtINR(paid)}</span>
+                ${due>0?`<span style="color:var(--red);margin-left:auto">Due: ${fmtINR(due)}</span>`:`<span style="color:var(--green);margin-left:auto">✓ Cleared</span>`}
+              </div>
             </div>
           </div>
-          <div style="display:flex;gap:10px;font-size:11px;font-weight:700">
-            <span style="color:var(--green)">Paid: ${fmtINR(paid)}</span>
-            ${due>0?`<span style="color:var(--red);margin-left:auto">Due: ${fmtINR(due)}</span>`:`<span style="color:var(--green);margin-left:auto">✓ Cleared</span>`}
+          <div id="ven-detail-${vIdx}" style="display:none;background:var(--bg3);padding:6px 14px 12px 36px">
+            ${entries.sort((a,b)=>b.date.localeCompare(a.date)).map(e=>{
+              const eDue=e.amount-e.paid;
+              const tag=e.type==='purchase'
+                ?`<span style="font-size:9px;background:rgba(255,179,0,.15);color:var(--amber);padding:1px 5px;border-radius:3px;font-weight:700">BOWSER</span>`
+                :`<span style="font-size:9px;background:rgba(41,121,255,.15);color:var(--blue);padding:1px 5px;border-radius:3px;font-weight:700">DIRECT</span>`;
+              return `<div style="padding:6px 0;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;font-size:11px">
+                <div style="flex:1">
+                  <div style="color:var(--white);font-weight:600">${tag} ${fmtD(e.date)} → ${e.destination}</div>
+                  <div style="color:var(--muted);margin-top:2px">${fmt(e.litres,1)} L · ${fmtINR(e.amount)}${e.bill?' · '+e.bill:''}${e.by?' · by '+e.by:''}</div>
+                </div>
+                <div style="text-align:right">
+                  <div style="color:var(--green);font-weight:700">Paid ${fmtINR(e.paid)}</div>
+                  ${eDue>0?`<div style="color:var(--red);font-weight:700;font-size:10px">Due ${fmtINR(eDue)}</div>`:''}
+                </div>
+              </div>`;
+            }).join('')}
           </div>
         </div>`;
       }).join('')}
@@ -8199,7 +8291,10 @@ function exportRepPDF(){
     const purchasesAmt=allPurchases.reduce((a,p)=>a+(p.amount||0),0);
     const purchasesPaid=allPurchases.reduce((a,p)=>a+(p.paid||0),0);
     const purchasesDue=purchasesAmt-purchasesPaid;
-    const totalDue=purchases.reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0);
+    // V48: All-time dues include both bowser purchases and direct pump fills
+    const totalDue=
+      purchases.reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0) +
+      (pumpFills||[]).reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0);
     const purchasesL=allPurchases.reduce((a,p)=>a+p.litres,0);
     const reconciliation=purchasesL-bowserL;
 
@@ -8986,6 +9081,8 @@ async function saveEditMain(){
     if(changes.length)saveAudit(buildAuditEntry('pumpFill',pfId,changes));
     sv('pumpFills',pumpFills);flash('UPDATED!','Pump fill updated');closeEditModal();
     if(typeof renderReports==='function')renderReports();
+    // V48: Refresh purchases screen if it's currently the active view
+    if(document.getElementById('scr-purchases')?.classList.contains('on')) renderPurchases();
   } else {
     closeEditModal();
   }
