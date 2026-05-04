@@ -6057,46 +6057,103 @@ function openReadingEntry(vehId){
   document.getElementById('re-date').textContent=fmtD(today());
   const isMachVeh=['excavator','dozer','roller','paver','hmp','generator','tractor','other'].includes(veh.type);
   const calib=veh.calibration||null;
+
+  // V48: Find today's most recent reading for this vehicle (pre-fill if exists)
+  const todayReadings=(readings||[])
+    .filter(r=>r.vehicleId===vehId && r.date===today())
+    .sort((a,b)=>(b.ts||0)-(a.ts||0));
+  const todayR = todayReadings[0] || null;
+  // Store for save — so we overwrite instead of push
+  window._readingEditId = todayR?.id || null;
+
+  // History — last 10 entries excluding today, newest first
+  const histReadings=(readings||[])
+    .filter(r=>r.vehicleId===vehId && r.date<today())
+    .sort((a,b)=>b.date.localeCompare(a.date)||((b.ts||0)-(a.ts||0)))
+    .slice(0,10);
+
   let html='';
   if(isMachVeh){
-    document.getElementById('re-title').textContent='DIP READINGS';
-    html=`<div class="info-box info-blue" style="margin:10px 14px">Enter opening & closing dip to calculate actual fuel consumed for efficiency.</div>
+    document.getElementById('re-title').textContent=todayR?'UPDATE DIP READING':'DIP READINGS';
+    html=`
+    ${todayR?`<div class="info-box info-green" style="margin:10px 14px">✏️ Today's reading loaded — update and save to overwrite.</div>`
+            :`<div class="info-box info-blue" style="margin:10px 14px">Enter opening & closing dip to calculate actual fuel consumed for efficiency.</div>`}
     <div class="form-body">
       <div class="f-r2">
-        <div class="f-field"><label class="f-lbl">Opening Dip (cm)</label><input class="f-inp" id="re-open-cm" placeholder="e.g. 22" type="number" inputmode="decimal" oninput="calcDipLive('${vehId}')"></div>
-        <div class="f-field"><label class="f-lbl">Opening Litres</label><input class="f-inp ro" id="re-open-L" placeholder="${calib?'Auto':'Set calib first'}" readonly></div>
+        <div class="f-field"><label class="f-lbl">Opening Dip (cm)</label><input class="f-inp" id="re-open-cm" placeholder="e.g. 22" type="number" inputmode="decimal" value="${todayR?.openingCm||''}" oninput="calcDipLive('${vehId}')"></div>
+        <div class="f-field"><label class="f-lbl">Opening Litres</label><input class="f-inp ro" id="re-open-L" placeholder="${calib?'Auto':'Set calib first'}" value="${todayR&&calib?fmt((todayR.openingCm||0)*calib,1):''}" readonly></div>
       </div>
       <div class="f-r2">
-        <div class="f-field"><label class="f-lbl">Closing Dip (cm)</label><input class="f-inp" id="re-close-cm" placeholder="e.g. 14" type="number" inputmode="decimal" oninput="calcDipLive('${vehId}')"></div>
-        <div class="f-field"><label class="f-lbl">Closing Litres</label><input class="f-inp ro" id="re-close-L" placeholder="${calib?'Auto':'Set calib first'}" readonly></div>
+        <div class="f-field"><label class="f-lbl">Closing Dip (cm)</label><input class="f-inp" id="re-close-cm" placeholder="e.g. 14" type="number" inputmode="decimal" value="${todayR?.closingCm||''}" oninput="calcDipLive('${vehId}')"></div>
+        <div class="f-field"><label class="f-lbl">Closing Litres</label><input class="f-inp ro" id="re-close-L" placeholder="${calib?'Auto':'Set calib first'}" value="${todayR&&calib?fmt((todayR.closingCm||0)*calib,1):''}" readonly></div>
       </div>
-      <div class="f-field"><label class="f-lbl">Hourmeter Reading (hrs)</label><input class="f-inp" id="re-hours" placeholder="e.g. 2847" type="number" inputmode="decimal"></div>
+      <div class="f-field"><label class="f-lbl">Hourmeter Reading (hrs)</label><input class="f-inp" id="re-hours" placeholder="e.g. 2847" type="number" inputmode="decimal" value="${todayR?.reading||''}"></div>
       <div class="f-field"><label class="f-lbl">Period Date</label><input class="f-inp" id="re-date-field" type="date" value="${today()}" max="${today()}"></div>
-      <div class="f-field"><label class="f-lbl">Remarks (optional)</label><input class="f-inp" id="re-remarks" placeholder="" type="text"></div>
-      <button class="big-btn bb-go bb-full" style="height:58px;font-size:19px" onclick="saveReadingMach('${vehId}')">✓ SAVE READING</button>
+      <div class="f-field"><label class="f-lbl">Remarks (optional)</label><input class="f-inp" id="re-remarks" placeholder="" type="text" value="${todayR?.remarks||''}"></div>
+      <button class="big-btn bb-go bb-full" style="height:58px;font-size:19px" onclick="saveReadingMach('${vehId}')">${todayR?'✓ UPDATE READING':'✓ SAVE READING'}</button>
     </div>`;
   } else {
-    document.getElementById('re-title').textContent='VEHICLE READING';
-    html=`<div class="info-box info-amber" style="margin:10px 14px">Enter data from your company telematics platform for this ${veh.type}.</div>
+    document.getElementById('re-title').textContent=todayR?'UPDATE VEHICLE READING':'VEHICLE READING';
+    html=`
+    ${todayR?`<div class="info-box info-green" style="margin:10px 14px">✏️ Today's reading loaded — update and save to overwrite.</div>`
+            :`<div class="info-box info-amber" style="margin:10px 14px">Enter data from your company telematics platform for this ${veh.type}.</div>`}
     <div class="form-body">
       <div class="f-r2">
-        <div class="f-field"><label class="f-lbl">Opening KM</label><input class="f-inp" id="re-open-km" placeholder="e.g. 48200" type="number" inputmode="decimal"></div>
-        <div class="f-field"><label class="f-lbl">Closing KM</label><input class="f-inp" id="re-close-km" placeholder="e.g. 48650" type="number" inputmode="decimal"></div>
+        <div class="f-field"><label class="f-lbl">Opening KM</label><input class="f-inp" id="re-open-km" placeholder="e.g. 48200" type="number" inputmode="decimal" value="${todayR?.openingKm||''}"></div>
+        <div class="f-field"><label class="f-lbl">Closing KM</label><input class="f-inp" id="re-close-km" placeholder="e.g. 48650" type="number" inputmode="decimal" value="${todayR?.closingKm||''}"></div>
       </div>
       <div class="f-r2">
-        <div class="f-field"><label class="f-lbl">Opening Fuel %</label><input class="f-inp" id="re-open-pct" placeholder="e.g. 80" type="number" inputmode="decimal" max="100"></div>
-        <div class="f-field"><label class="f-lbl">Closing Fuel %</label><input class="f-inp" id="re-close-pct" placeholder="e.g. 25" type="number" inputmode="decimal" max="100"></div>
+        <div class="f-field"><label class="f-lbl">Opening Fuel %</label><input class="f-inp" id="re-open-pct" placeholder="e.g. 80" type="number" inputmode="decimal" max="100" value="${todayR?.openingPct||''}"></div>
+        <div class="f-field"><label class="f-lbl">Closing Fuel %</label><input class="f-inp" id="re-close-pct" placeholder="e.g. 25" type="number" inputmode="decimal" max="100" value="${todayR?.closingPct||''}"></div>
       </div>
       <div class="f-field"><label class="f-lbl">Period</label>
         <div class="f-r2">
-          <input class="f-inp" id="re-from-date" type="date" value="${today()}">
-          <input class="f-inp" id="re-to-date" type="date" value="${today()}">
+          <input class="f-inp" id="re-from-date" type="date" value="${todayR?.fromDate||today()}">
+          <input class="f-inp" id="re-to-date" type="date" value="${todayR?.toDate||today()}">
         </div>
       </div>
-      <div class="f-field"><label class="f-lbl">Remarks (optional)</label><input class="f-inp" id="re-remarks" placeholder="" type="text"></div>
-      <button class="big-btn bb-go bb-full" style="height:58px;font-size:19px" onclick="saveReadingRoad('${vehId}')">✓ SAVE READING</button>
+      <div class="f-field"><label class="f-lbl">Remarks (optional)</label><input class="f-inp" id="re-remarks" placeholder="" type="text" value="${todayR?.remarks||''}"></div>
+      <button class="big-btn bb-go bb-full" style="height:58px;font-size:19px" onclick="saveReadingRoad('${vehId}')">${todayR?'✓ UPDATE READING':'✓ SAVE READING'}</button>
     </div>`;
   }
+
+  // V48: History section — last 10 prior readings (read-only)
+  if(histReadings.length){
+    html += `<div style="margin:16px 14px 0">
+      <div style="font-family:var(--fh);font-size:11px;color:var(--muted);letter-spacing:.5px;margin-bottom:8px">📋 PREVIOUS READINGS</div>
+      ${histReadings.map(r=>{
+        const isMach=r.type==='dip';
+        const dateStr=r.fromDate&&r.toDate&&r.fromDate!==r.toDate
+          ? fmtD(r.fromDate)+' – '+fmtD(r.toDate)
+          : fmtD(r.date);
+        let detail='';
+        if(isMach){
+          const openL=calib&&r.openingCm!=null?fmt(r.openingCm*calib,1)+' L':'—';
+          const closeL=calib&&r.closingCm!=null?fmt(r.closingCm*calib,1)+' L':'—';
+          detail=`<div style="display:flex;gap:12px;flex-wrap:wrap">
+            <span>📐 ${r.openingCm??'—'}cm → ${r.closingCm??'—'}cm</span>
+            <span>💧 ${openL} → ${closeL}</span>
+            ${r.reading?`<span>⏱ ${r.reading} hrs</span>`:''}
+          </div>`;
+        } else {
+          const km=r.closingKm&&r.openingKm?(r.closingKm-r.openingKm)+' km run':'';
+          detail=`<div style="display:flex;gap:12px;flex-wrap:wrap">
+            <span>🛣 ${r.openingKm??'—'} → ${r.closingKm??'—'} KM${km?' ('+km+')':''}</span>
+            <span>⛽ ${r.openingPct??'—'}% → ${r.closingPct??'—'}%</span>
+          </div>`;
+        }
+        return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <div style="font-family:var(--fh);font-size:12px;color:var(--white)">${dateStr}</div>
+            <div style="font-size:10px;color:var(--muted)">${r.loggedByName||''}</div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600">${detail}</div>
+          ${r.remarks?`<div style="font-size:10px;color:var(--muted);margin-top:3px;font-style:italic">${r.remarks}</div>`:''}
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
   document.getElementById('re-content').innerHTML=html;
   show('scr-reading-entry');
 }
@@ -6119,17 +6176,27 @@ function saveReadingMach(vehId){
   const calib=veh?.calibration||null;
   const date=document.getElementById('re-date-field')?.value||today();
   if(isFutureDate(date)){alert('❌ Cannot enter readings for future dates.');return;}
-  readings.push({
-    id:uid(),date,ts:Date.now(),vehicleId:vehId,type:'dip',
+  const record={
+    id:window._readingEditId||uid(),
+    date,ts:Date.now(),vehicleId:vehId,type:'dip',
     openingCm:openCm,closingCm:closeCm,
     openingLtr:calib&&openCm!=null?openCm*calib:null,
     closingLtr:calib&&closeCm!=null?closeCm*calib:null,
     reading:hours,
     remarks:document.getElementById('re-remarks')?.value||'',
     loggedBy:sess.userId,loggedByName:sess.name,
-  });
+  };
+  // V48: overwrite today's entry if editing, else push new
+  if(window._readingEditId){
+    const idx=readings.findIndex(r=>r.id===window._readingEditId);
+    if(idx>=0){readings[idx]=record;}else{readings.push(record);}
+    flash('READING UPDATED!',veh?.name||'');
+  } else {
+    readings.push(record);
+    flash('READING SAVED!',veh?.name||'');
+  }
+  window._readingEditId=null;
   sv('readings',readings);
-  flash('READING SAVED!',veh?.name||'');
   show('scr-readings');
 }
 
@@ -6142,16 +6209,26 @@ function saveReadingRoad(vehId){
   const fromDate=document.getElementById('re-from-date')?.value||today();
   const toDate=document.getElementById('re-to-date')?.value||today();
   if(isFutureDate(fromDate)||isFutureDate(toDate)){alert('❌ Cannot enter readings for future dates.');return;}
-  readings.push({
-    id:uid(),date:toDate,ts:Date.now(),vehicleId:vehId,type:'km',
+  const record={
+    id:window._readingEditId||uid(),
+    date:toDate,ts:Date.now(),vehicleId:vehId,type:'km',
     openingKm:openKm,closingKm:closeKm,
     openingPct:openPct,closingPct:closePct,
     reading:closeKm,fromDate,toDate,
     remarks:document.getElementById('re-remarks')?.value||'',
     loggedBy:sess.userId,loggedByName:sess.name,
-  });
+  };
+  // V48: overwrite today's entry if editing, else push new
+  if(window._readingEditId){
+    const idx=readings.findIndex(r=>r.id===window._readingEditId);
+    if(idx>=0){readings[idx]=record;}else{readings.push(record);}
+    flash('READING UPDATED!',veh?.name||'');
+  } else {
+    readings.push(record);
+    flash('READING SAVED!',veh?.name||'');
+  }
+  window._readingEditId=null;
   sv('readings',readings);
-  flash('READING SAVED!',veh?.name||'');
   show('scr-readings');
 }
 
