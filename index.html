@@ -7578,19 +7578,24 @@ function renderReports(){
 
     // Build vehRows — classify role by VEHICLE type, not person type
     const vehRows=fleet.map(v=>{
-      let presentDays=0,absentDays=0,unmarkedDays=0;
+      let presentDays=0,halfDays=0,leaveDays=0,absentDays=0,unmarkedDays=0,advTotal=0;
       days.forEach(dt=>{
-        const m=(musters||[]).find(x=>x.vehicleId===v.id&&x.date===dt);
+        const m=(musters||[]).find(x=>x.vehicleId===v.id&&x.date===dt)||
+                 (musters||[]).find(x=>x.driverId&&x.driverId===(v.driverId||'__')&&x.date===dt);
         if(!m)unmarkedDays++;
         else if(m.status==='absent')absentDays++;
+        else if(m.status==='halfday')halfDays++;
+        else if(m.status==='leave')leaveDays++;
         else presentDays++;
+        if(m?.advance>0) advTotal+=m.advance;
       });
-      const latestM=[...(musters||[])].filter(x=>x.vehicleId===v.id&&days.includes(x.date)).sort((a,b)=>b.date.localeCompare(a.date))[0];
+      // Wage days: present=1, halfday=0.5, leave=1, absent=0
+      const wageDays=presentDays+(halfDays*0.5)+leaveDays;
+      const latestM=[...(musters||[])].filter(x=>(x.vehicleId===v.id||x.driverId===v.driverId)&&days.includes(x.date)).sort((a,b)=>b.date.localeCompare(a.date))[0];
       const drvId=latestM?.driverId||v.driverId;
       const drv=(drivers||[]).find(d=>d.id===drvId);
-      // ROLE comes from the vehicle, not the person — fixes double-count of 'both' type
       const role=isDriverVehicle(v.type)?'driver':'operator';
-      return{v,presentDays,absentDays,unmarkedDays,drvName:drv?.name||v.driverName||'—',role,personType:drv?.type||'driver'};
+      return{v,presentDays,halfDays,leaveDays,absentDays,unmarkedDays,wageDays,advTotal,drvName:drv?.name||v.driverName||'—',role,personType:drv?.type||'driver'};
     });
 
     // Helper labels/colors — based on role (vehicle-derived)
@@ -7599,12 +7604,13 @@ function renderReports(){
 
     if(!isMultiDay){
       const td=range.from;
-      const getMuster=vid=>(musters||[]).find(m=>m.vehicleId===vid&&m.date===td);
-      const present=vehRows.filter(({v})=>{const m=getMuster(v.id);return m&&m.status!=='absent';});
+      const getMuster=vid=>(musters||[]).find(m=>(m.vehicleId===vid||m.driverId===(fleet.find(f=>f.id===vid)?.driverId||'__'))&&m.date===td);
+      const present=vehRows.filter(({v})=>{const m=getMuster(v.id);return m&&m.status==='present';});
+      const halfday=vehRows.filter(({v})=>{const m=getMuster(v.id);return m&&m.status==='halfday';});
+      const leave=vehRows.filter(({v})=>{const m=getMuster(v.id);return m&&m.status==='leave';});
       const absent=vehRows.filter(({v})=>{const m=getMuster(v.id);return m&&m.status==='absent';});
       const unmarked=vehRows.filter(({v})=>!getMuster(v.id));
-
-      // Driver vs Operator counts from present list
+      const totalPresent=present.length+(halfday.length*0.5)+leave.length;
       const driversPresent=present.filter(x=>x.role==='driver').length;
       const opsPresent=present.filter(x=>x.role==='operator').length;
 
@@ -7612,15 +7618,16 @@ function renderReports(){
       <!-- Top counts -->
       <div style="margin:10px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;gap:0">
         <div style="flex:1;text-align:center">
-          <div style="font-family:var(--fh);font-size:24px;color:var(--green)">${present.length}</div>
+          <div style="font-family:var(--fh);font-size:22px;color:var(--green)">${totalPresent.toFixed(1).replace(/\.0$/,'')}</div>
           <div style="font-size:10px;color:var(--green);font-weight:700;letter-spacing:.5px">PRESENT</div>
+          ${halfday.length?`<div style="font-size:9px;color:var(--amber)">(${halfday.length} half)</div>`:''}
         </div>
         <div style="flex:1;text-align:center;border-left:1px solid var(--border);border-right:1px solid var(--border)">
-          <div style="font-family:var(--fh);font-size:24px;color:var(--red)">${absent.length}</div>
+          <div style="font-family:var(--fh);font-size:22px;color:var(--red)">${absent.length}</div>
           <div style="font-size:10px;color:var(--red);font-weight:700;letter-spacing:.5px">ABSENT</div>
         </div>
         <div style="flex:1;text-align:center">
-          <div style="font-family:var(--fh);font-size:24px;color:var(--muted)">${unmarked.length}</div>
+          <div style="font-family:var(--fh);font-size:22px;color:var(--muted)">${unmarked.length}</div>
           <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px">UNMARKED</div>
         </div>
       </div>
@@ -7643,52 +7650,23 @@ function renderReports(){
         </div>
       </div>
 
-      ${present.length?`<div class="rep-card" style="margin-top:10px">
-        <div class="rep-hd" style="color:var(--green)">✅ PRESENT (${present.length})</div>
-        ${present.map(({v,drvName,role})=>{
+      ${[{arr:present,col:'var(--green)',lbl:'✅ PRESENT'},{arr:halfday,col:'var(--amber)',lbl:'½ HALF DAY'},{arr:leave,col:'#7c83fd',lbl:'🏖 PAID LEAVE'},{arr:absent,col:'var(--red)',lbl:'❌ ABSENT'},{arr:unmarked,col:'var(--muted)',lbl:'⏳ UNMARKED'}].filter(g=>g.arr.length).map(({arr,col,lbl})=>`
+      <div class="rep-card" style="margin-top:10px">
+        <div class="rep-hd" style="color:${col}">${lbl} (${arr.length})</div>
+        ${arr.map(({v,drvName,role})=>{
           const m=getMuster(v.id);
+          const adv=m?.advance||0;
           return`<div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px">
             <span style="font-size:18px">${vIco(v.type)}</span>
             <div style="flex:1">
               <div style="font-family:var(--fh);font-size:13px;color:var(--white)">${v.name}</div>
-              <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">
-                👤 ${m?.driverName||drvName}
-                ${m?.swap?' · 🔄 Swap':''}
-              </div>
-            </div>
-            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-              <span style="font-size:10px;font-weight:700;color:${typeCol(role)};background:${typeCol(role)}18;padding:3px 8px;border-radius:6px">${typeLbl(role)}</span>
-              ${m?.swap?`<span style="font-size:10px;color:var(--blue);font-weight:700">SWAP</span>`:''}
-            </div>
-          </div>`;
-        }).join('')}
-      </div>`:''}
-
-      ${absent.length?`<div class="rep-card">
-        <div class="rep-hd" style="color:var(--red)">❌ ABSENT (${absent.length})</div>
-        ${absent.map(({v,drvName,role})=>`
-          <div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px">
-            <span style="font-size:18px">${vIco(v.type)}</span>
-            <div style="flex:1">
-              <div style="font-family:var(--fh);font-size:13px;color:var(--white)">${v.name}</div>
-              <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">👤 ${drvName}</div>
+              <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">👤 ${m?.driverName||drvName}${adv>0?` · Advance ₹${adv.toLocaleString('en-IN')}`:''}</div>
             </div>
             <span style="font-size:10px;font-weight:700;color:${typeCol(role)};background:${typeCol(role)}18;padding:3px 8px;border-radius:6px">${typeLbl(role)}</span>
-          </div>`).join('')}
-      </div>`:''}
-
-      ${unmarked.length?`<div class="rep-card">
-        <div class="rep-hd">— UNMARKED (${unmarked.length})</div>
-        ${unmarked.map(({v,drvName,role})=>`
-          <div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px">
-            <span style="font-size:18px">${vIco(v.type)}</span>
-            <div style="flex:1">
-              <div style="font-family:var(--fh);font-size:13px;color:var(--muted)">${v.name}</div>
-              <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">👤 ${drvName}</div>
-            </div>
-            <span style="font-size:10px;font-weight:700;color:var(--muted);padding:3px 8px;border-radius:6px;border:1px solid var(--border)">${typeLbl(role)}</span>
-          </div>`).join('')}
-      </div>`:''}`;
+          </div>`;
+        }).join('')}
+      </div>`).join('')}
+      `;
 
     } else {
       // Multi-day: cumulative table with driver/operator split
@@ -7721,25 +7699,24 @@ function renderReports(){
               <tr style="background:var(--bg3);color:var(--muted)">
                 <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.5px">VEHICLE</th>
                 <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">DRIVER / OP</th>
-                <th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700;color:var(--muted)">TYPE</th>
                 <th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700;color:var(--green)">✅</th>
+                <th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700;color:var(--amber)">½</th>
+                <th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700;color:#7c83fd">🏖</th>
                 <th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700;color:var(--red)">❌</th>
-                <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">%</th>
+                <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">WAGE DAYS</th>
               </tr>
             </thead>
             <tbody>
-              ${vehRows.filter(x=>x.presentDays>0||x.absentDays>0).sort((a,b)=>b.presentDays-a.presentDays).map(({v,presentDays,absentDays,unmarkedDays,drvName,role})=>{
-                const pct=days.length>0?Math.round(presentDays/days.length*100):0;
-                const col=pct>=80?'var(--green)':pct>=50?'var(--amber)':'var(--red)';
+              ${vehRows.sort((a,b)=>b.wageDays-a.wageDays).map(({v,presentDays,halfDays,leaveDays,absentDays,wageDays,advTotal,drvName,role})=>{
+                const col=wageDays>=days.length*0.8?'var(--green)':wageDays>=days.length*0.5?'var(--amber)':'var(--red)';
                 return`<tr style="border-top:1px solid var(--border)">
                   <td style="padding:9px 10px;color:var(--white);font-weight:600">${vIco(v.type)} ${v.name}</td>
-                  <td style="padding:9px 10px;color:var(--muted);font-size:11px">${drvName}</td>
-                  <td style="padding:9px 6px;text-align:center">
-                    <span style="font-size:10px;font-weight:700;color:${typeCol(role)}">${typeLbl(role)}</span>
-                  </td>
-                  <td style="padding:9px 6px;text-align:center;color:var(--green);font-weight:700">${presentDays}</td>
+                  <td style="padding:9px 10px;color:var(--muted);font-size:11px">${drvName}${advTotal>0?`<div style="font-size:10px;color:var(--red)">Adv ₹${advTotal.toLocaleString('en-IN')}</div>`:''}</td>
+                  <td style="padding:9px 6px;text-align:center;color:var(--green);font-weight:700">${presentDays||'—'}</td>
+                  <td style="padding:9px 6px;text-align:center;color:var(--amber);font-weight:700">${halfDays||'—'}</td>
+                  <td style="padding:9px 6px;text-align:center;color:#7c83fd;font-weight:700">${leaveDays||'—'}</td>
                   <td style="padding:9px 6px;text-align:center;color:var(--red);font-weight:700">${absentDays||'—'}</td>
-                  <td style="padding:9px 10px;text-align:right;font-family:var(--fh);color:${col}">${pct}%</td>
+                  <td style="padding:9px 10px;text-align:right;font-family:var(--fh);color:${col}">${wageDays.toFixed(1).replace(/\.0$/,'')}</td>
                 </tr>`;
               }).join('')}
             </tbody>
@@ -9513,94 +9490,187 @@ function renderDriverList(){
 function renderMuster(){
   const el=document.getElementById('muster-list');if(!el)return;
   const td=today();
-  if(!fleet.length){el.innerHTML='<div class="muted-txt">No fleet added yet</div>';return;}
+  const activeDrivers=(drivers||[]).filter(d=>d.active!==false);
+  if(!activeDrivers.length){el.innerHTML='<div class="muted-txt">No drivers/operators added yet</div>';return;}
 
-  // Search filter
+  // Search
   const q=(document.getElementById('muster-search')?.value||'').toLowerCase().trim();
 
-  let filteredFleet=fleet;
+  // Update count badge — count unique drivers marked today
+  const markedDriverIds=new Set((musters||[]).filter(m=>m.date===td&&m.driverId).map(m=>m.driverId));
+  const countEl=document.getElementById('muster-count');
+  if(countEl) countEl.textContent=markedDriverIds.size+'/'+activeDrivers.length+' marked';
+
+  // Filter by search
+  let filtered=activeDrivers;
   if(q){
-    filteredFleet=fleet.filter(f=>{
-      const m=musters.find(x=>x.vehicleId===f.id&&x.date===td);
-      const drvId=m?.driverId||f.driverId;
-      const drv=drivers.find(d=>d.id===drvId);
-      return f.name.toLowerCase().includes(q)||
-             (drv?.name||'').toLowerCase().includes(q)||
-             (f.siteName||'').toLowerCase().includes(q);
+    filtered=activeDrivers.filter(d=>{
+      const m=(musters||[]).find(x=>x.driverId===d.id&&x.date===td);
+      const veh=gV(m?.vehicleId||d.vehicleId||d.permVehicleId);
+      return d.name.toLowerCase().includes(q)||(veh?.name||'').toLowerCase().includes(q);
     });
   }
 
-  // Update count badge
-  const countEl=document.getElementById('muster-count');
-  const markedToday=musters.filter(m=>m.date===td).length;
-  if(countEl) countEl.textContent=markedToday+'/'+fleet.length+' marked';
-
-  if(!filteredFleet.length){
-    el.innerHTML=`<div class="muted-txt" style="padding:30px;text-align:center">No vehicles match "${q}"</div>`;
+  if(!filtered.length){
+    el.innerHTML=`<div class="muted-txt" style="padding:30px;text-align:center">No match for "${q}"</div>`;
     return;
   }
 
-  el.innerHTML=filteredFleet.map(f=>{
-    const m=musters.find(x=>x.vehicleId===f.id&&x.date===td)||null;
-    const assignedDriver=drivers.find(d=>d.id===f.driverId);
-    const todayDriverId=m?.driverId||f.driverId;
-    const todayDriver=drivers.find(d=>d.id===todayDriverId);
+  el.innerHTML=filtered.map(d=>{
+    const m=(musters||[]).find(x=>x.driverId===d.id&&x.date===td)||null;
     const status=m?.status||'pending';
-    const statusCol=status==='present'?'var(--green)':status==='absent'?'var(--red)':'var(--muted)';
-    const statusLbl=status==='present'?'✅ Present · '+(todayDriver?.name||'?'):status==='absent'?'❌ Absent':'⏳ Not marked';
-    const hasDriver=!!(f.driverId);
-    const driverPickerHtml=!hasDriver&&drivers.length?`
-      <div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-        <input list="drv-list-${f.id}" id="drv-pick-${f.id}" placeholder="Type or pick driver…"
-          style="flex:1;min-width:140px;background:var(--bg3);border:2px solid var(--amber);color:var(--white);padding:8px 10px;border-radius:8px;font-size:13px;font-family:var(--fb)">
-        <datalist id="drv-list-${f.id}">
-          ${drivers.map(d=>`<option value="${d.name}">${d.name} · ${d.type}</option>`).join('')}
-        </datalist>
-        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);font-weight:600;white-space:nowrap">
-          <input type="checkbox" id="drv-perm-${f.id}" style="width:15px;height:15px"> Set permanent
-        </label>
-      </div>`:!hasDriver?`<div style="font-size:10px;color:var(--muted);margin-top:6px">No drivers in system yet</div>`:'';
-    return `<div class="log-item" style="flex-direction:column;gap:8px;align-items:stretch;${status==='present'?'border-left:3px solid var(--green)':status==='absent'?'border-left:3px solid var(--red)':''}">
-      <div style="display:flex;gap:10px;align-items:flex-start">
-        <div class="li-ico" style="margin-top:2px;flex-shrink:0">${vIco(f.type)}</div>
-        <div class="li-main" style="flex:1;min-width:0">
-          <div class="li-name">${f.name}</div>
-          <div class="li-det" style="color:${statusCol}">${statusLbl}</div>
-          <div class="li-by">📍 ${f.siteName||'Mobile'} · 👤 ${assignedDriver?.name||'<span style="color:var(--amber)">Unassigned</span>'}</div>
-          ${driverPickerHtml}
+    const isDriver=d.type==='driver'||!d.type;
+    const roleBadge=`<span style="font-size:9px;background:${isDriver?'rgba(0,200,83,.15)':'rgba(41,121,255,.15)'};color:${isDriver?'var(--green)':'var(--blue)'};padding:1px 7px;border-radius:4px;font-weight:700;margin-left:6px">${isDriver?'DRIVER':'OPERATOR'}</span>`;
+
+    // Vehicle field — today's assigned vehicle (from muster record) or permanent
+    const todayVehId=m?.vehicleId||d.vehicleId||d.permVehicleId||'';
+    const todayVeh=gV(todayVehId);
+
+    // Status border
+    const borderCol=status==='present'?'var(--green)':status==='absent'?'var(--red)':status==='halfday'?'var(--amber)':status==='leave'?'#7c83fd':'var(--border)';
+
+    // Advance
+    const advance=m?.advance||0;
+    const advRemark=m?.advRemark||'';
+
+    // Vehicle search options
+    const vehOpts=(fleet||[]).map(f=>`<option value="${f.id}" ${f.id===todayVehId?'selected':''}>${f.name}${f.siteName?' · '+f.siteName:''}</option>`).join('');
+
+    return `<div style="background:var(--bg2);border:1.5px solid ${borderCol};border-radius:12px;margin:8px 14px;padding:12px 14px">
+
+      <!-- Header row: name + role -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div>
+          <span style="font-family:var(--fh);font-size:14px;color:var(--white)">${d.name}</span>${roleBadge}
+          ${d.phone?`<div style="font-size:10px;color:var(--muted);margin-top:2px">📱 ${d.phone}</div>`:''}
+        </div>
+        <div style="text-align:right;font-size:10px;color:var(--muted);font-weight:600">
+          ${status==='pending'?'⏳ Not marked':status==='present'?'<span style="color:var(--green)">✅ Present</span>':status==='absent'?'<span style="color:var(--red)">❌ Absent</span>':status==='halfday'?'<span style="color:var(--amber)">½ Half Day</span>':'<span style="color:#7c83fd">🏖 Paid Leave</span>'}
         </div>
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button style="flex:1;height:40px;background:rgba(0,200,83,.15);color:var(--green);border:2px solid var(--green);border-radius:8px;font-family:var(--fh);font-size:13px;cursor:pointer"
-          onclick="markPresentInline('${f.id}')">✅ PRESENT</button>
-        <button style="flex:1;height:40px;background:rgba(255,61,61,.12);color:var(--red);border:2px solid var(--red);border-radius:8px;font-family:var(--fh);font-size:13px;cursor:pointer"
-          onclick="markMuster('${f.id}','absent',null)">❌ ABSENT</button>
-        <button style="flex:1;height:40px;background:rgba(255,179,0,.12);color:var(--amber);border:2px solid var(--amber);border-radius:8px;font-family:var(--fh);font-size:13px;cursor:pointer"
-          onclick="openSwapDriver('${f.id}')">🔄 SWAP</button>
+
+      <!-- Vehicle picker -->
+      <div style="margin-bottom:10px">
+        <label style="font-size:10px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px">VEHICLE TODAY</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <select id="muster-veh-${d.id}" onchange="onMusterVehChange('${d.id}')"
+            style="flex:1;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);padding:8px 10px;border-radius:8px;font-size:12px;font-family:var(--fb)">
+            <option value="">-- No vehicle today --</option>
+            ${vehOpts}
+          </select>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap">
+            <input type="checkbox" id="muster-perm-${d.id}" style="width:14px;height:14px;accent-color:var(--amber)">
+            <span style="font-size:10px;color:var(--muted);font-weight:700">📌 Set permanent</span>
+          </label>
+        </div>
       </div>
+
+      <!-- Status buttons -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:5px;margin-bottom:10px">
+        <button onclick="markFleetMuster('${d.id}','present')"
+          style="height:38px;border-radius:8px;border:2px solid var(--green);background:${status==='present'?'var(--green)':'rgba(0,200,83,.12)'};color:${status==='present'?'#000':'var(--green)'};font-family:var(--fh);font-size:11px;cursor:pointer;font-weight:700">✅ PRESENT</button>
+        <button onclick="markFleetMuster('${d.id}','absent')"
+          style="height:38px;border-radius:8px;border:2px solid var(--red);background:${status==='absent'?'var(--red)':'rgba(255,61,61,.12)'};color:${status==='absent'?'#fff':'var(--red)'};font-family:var(--fh);font-size:11px;cursor:pointer;font-weight:700">❌ ABSENT</button>
+        <button onclick="markFleetMuster('${d.id}','halfday')"
+          style="height:38px;border-radius:8px;border:2px solid var(--amber);background:${status==='halfday'?'var(--amber)':'rgba(255,179,0,.12)'};color:${status==='halfday'?'#000':'var(--amber)'};font-family:var(--fh);font-size:11px;cursor:pointer;font-weight:700">½ HALF</button>
+        <button onclick="markFleetMuster('${d.id}','leave')"
+          style="height:38px;border-radius:8px;border:2px solid #7c83fd;background:${status==='leave'?'#7c83fd':'rgba(124,131,253,.12)'};color:${status==='leave'?'#fff':'#7c83fd'};font-family:var(--fh);font-size:11px;cursor:pointer;font-weight:700">🏖 LEAVE</button>
+      </div>
+
+      <!-- Advance row -->
+      <div style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:11px;color:var(--muted);font-weight:700;white-space:nowrap">Advance ₹</span>
+        <input id="muster-adv-${d.id}" type="number" inputmode="numeric" value="${advance||''}" placeholder="0"
+          onblur="saveFleetMusterAdvance('${d.id}')"
+          style="width:80px;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);padding:6px 8px;border-radius:8px;font-size:12px;font-family:var(--fh);outline:none;text-align:right">
+        <input id="muster-adv-rem-${d.id}" type="text" value="${advRemark}" placeholder="Remark"
+          onblur="saveFleetMusterAdvance('${d.id}')"
+          style="flex:1;background:var(--bg3);border:1.5px solid var(--border);color:var(--white);padding:6px 8px;border-radius:8px;font-size:12px;font-family:var(--fb);outline:none">
+      </div>
+
     </div>`;
   }).join('');
 }
 
-function markPresentInline(vehicleId){
-  const f=fleet.find(x=>x.id===vehicleId);if(!f)return;
-  if(!f.driverId){
-    const inp=document.getElementById('drv-pick-'+vehicleId);
-    const typedName=inp?.value.trim();
-    if(!typedName){alert('Please select or type a driver name first.');inp?.focus();return;}
-    const drv=drivers.find(d=>d.name.toLowerCase()===typedName.toLowerCase());
-    if(!drv){alert('Driver "'+typedName+'" not found. Please select from the list.');inp?.focus();return;}
-    const permanent=document.getElementById('drv-perm-'+vehicleId)?.checked;
-    if(permanent){
-      const idx=fleet.findIndex(x=>x.id===vehicleId);
-      if(idx>=0){fleet[idx]={...fleet[idx],driverId:drv.id,driverName:drv.name};}
-      sv('fleet',fleet);
-    }
-    markMuster(vehicleId,'present',drv.id);return;
+// V50: Vehicle select change — update today's muster record vehicleId live
+function onMusterVehChange(driverId){
+  const sel=document.getElementById('muster-veh-'+driverId);
+  const vehId=sel?.value||'';
+  const td=today();
+  const idx=(musters||[]).findIndex(m=>m.driverId===driverId&&m.date===td);
+  if(idx>=0){
+    musters[idx].vehicleId=vehId||null;
+    sv('musters',musters);
   }
-  markMuster(vehicleId,'present',f.driverId);
+  // If "set permanent" is checked, update fleet record
+  if(document.getElementById('muster-perm-'+driverId)?.checked && vehId){
+    const fIdx=fleet.findIndex(f=>f.id===vehId);
+    if(fIdx>=0){fleet[fIdx]={...fleet[fIdx],driverId,driverName:(drivers||[]).find(d=>d.id===driverId)?.name||''};sv('fleet',fleet);}
+    // Also update driver's permVehicleId
+    const dIdx=(drivers||[]).findIndex(d=>d.id===driverId);
+    if(dIdx>=0){drivers[dIdx]={...drivers[dIdx],vehicleId:vehId,permVehicleId:vehId};sv('drivers',drivers);}
+  }
 }
 
+// V50: Main fleet muster mark function — driver-centric
+function markFleetMuster(driverId, status){
+  const td=today();
+  const drv=(drivers||[]).find(d=>d.id===driverId);if(!drv)return;
+
+  // Read today's selected vehicle from the picker
+  const selVehId=document.getElementById('muster-veh-'+driverId)?.value||drv.vehicleId||drv.permVehicleId||null;
+
+  // Check "set permanent" checkbox
+  const setPerm=document.getElementById('muster-perm-'+driverId)?.checked;
+  if(setPerm && selVehId){
+    const fIdx=fleet.findIndex(f=>f.id===selVehId);
+    if(fIdx>=0){fleet[fIdx]={...fleet[fIdx],driverId,driverName:drv.name};sv('fleet',fleet);}
+    const dIdx=(drivers||[]).findIndex(d=>d.id===driverId);
+    if(dIdx>=0){drivers[dIdx]={...drivers[dIdx],vehicleId:selVehId,permVehicleId:selVehId};sv('drivers',drivers);}
+  }
+
+  const existing=(musters||[]).find(m=>m.driverId===driverId&&m.date===td);
+  const entry={
+    id:existing?.id||uid(),
+    date:td,
+    vehicleId:selVehId||null,
+    driverId,
+    driverName:drv.name,
+    status,
+    advance:existing?.advance||0,
+    advRemark:existing?.advRemark||'',
+    markedBy:sess.userId,markedByName:sess.name,ts:Date.now()
+  };
+  const idx=(musters||[]).findIndex(m=>m.driverId===driverId&&m.date===td);
+  if(idx>=0)musters[idx]=entry;else musters.push(entry);
+  sv('musters',musters);
+
+  const veh=gV(selVehId);
+  const statusLbl=status==='present'?'✅ PRESENT':status==='absent'?'❌ ABSENT':status==='halfday'?'½ HALF DAY':'🏖 PAID LEAVE';
+  flash(statusLbl, drv.name+(veh?' · '+veh.name:''));
+  renderMuster();
+  renderHome();
+}
+
+// V50: Save advance + remark on blur
+function saveFleetMusterAdvance(driverId){
+  const td=today();
+  const amt=Math.max(0,parseFloat(document.getElementById('muster-adv-'+driverId)?.value)||0);
+  const rem=document.getElementById('muster-adv-rem-'+driverId)?.value||'';
+  const idx=(musters||[]).findIndex(m=>m.driverId===driverId&&m.date===td);
+  if(idx>=0){
+    musters[idx]={...musters[idx],advance:amt,advRemark:rem};
+    sv('musters',musters);
+  } else if(amt>0){
+    // Create a stub record with pending status if no muster entry yet
+    const drv=(drivers||[]).find(d=>d.id===driverId);
+    musters.push({id:uid(),date:td,driverId,driverName:drv?.name||'',vehicleId:drv?.vehicleId||null,
+      status:'pending',advance:amt,advRemark:rem,markedBy:sess.userId,markedByName:sess.name,ts:Date.now()});
+    sv('musters',musters);
+  }
+}
+
+// Keep markMuster for backward compat — called from Quick Assign and report flows
 function markMuster(vehicleId,status,driverId){
   const td=today();
   const f=fleet.find(x=>x.id===vehicleId);
@@ -9608,6 +9678,8 @@ function markMuster(vehicleId,status,driverId){
   const idx=musters.findIndex(x=>x.vehicleId===vehicleId&&x.date===td);
   const entry={id:idx>=0?musters[idx].id:uid(),date:td,vehicleId,
     driverId:driverId||null,driverName:drv?.name||null,status,
+    advance:idx>=0?musters[idx].advance||0:0,
+    advRemark:idx>=0?musters[idx].advRemark||'':'',
     markedBy:sess.userId,markedByName:sess.name,ts:Date.now()};
   if(idx>=0)musters[idx]=entry;else musters.push(entry);
   sv('musters',musters);renderMuster();renderHome();
