@@ -6091,11 +6091,12 @@ async function applyPumpPayment(pumpId){
   if(isFutureDate(payDate)){alert('❌ Payment date cannot be in the future.');return;}
 
   // Gather all unpaid entries for this pump (purchases + fills) sorted oldest first
+  // V49: match by pumpId OR by name fallback for legacy entries
   const unpaidPurchases=(purchases||[])
-    .filter(x=>x.pumpId===pumpId&&(x.amount||0)-(x.paid||0)>0)
+    .filter(x=>(x.pumpId===pumpId||((!x.pumpId)&&x.vendor===pump?.name))&&(x.amount||0)-(x.paid||0)>0)
     .map(x=>({...x,_type:'purchase'}));
   const unpaidFills=(pumpFills||[])
-    .filter(x=>x.pumpId===pumpId&&(x.amount||0)-(x.paid||0)>0)
+    .filter(x=>(x.pumpId===pumpId||((!x.pumpId)&&x.pumpName===pump?.name))&&(x.amount||0)-(x.paid||0)>0)
     .map(x=>({...x,_type:'fill'}));
   const allUnpaid=[...unpaidPurchases,...unpaidFills].sort((a,b)=>a.date.localeCompare(b.date));
 
@@ -6138,11 +6139,12 @@ function renderPumpLog(){
   const fmtINR=n=>'₹'+Number(Math.round(n||0)).toLocaleString('en-IN');
   el.innerHTML=pumps.map(p=>{
     // Direct purchases linked to this pump (bulk buys)
-    const pPurchases=(purchases||[]).filter(x=>x.pumpId===p.id);
+    // V49: match by pumpId first, fallback to vendor name match for legacy entries without pumpId
+    const pPurchases=(purchases||[]).filter(x=>x.pumpId===p.id||((!x.pumpId)&&x.vendor===p.name));
     const purchaseAmt=pPurchases.reduce((a,x)=>a+(x.amount||0),0);
     const purchasePaid=pPurchases.reduce((a,x)=>a+(x.paid||0),0);
     // Vehicle fills from this pump (direct fill to vehicles)
-    const pFills=(pumpFills||[]).filter(x=>x.pumpId===p.id);
+    const pFills=(pumpFills||[]).filter(x=>x.pumpId===p.id||((!x.pumpId)&&x.pumpName===p.name));
     const fillAmt=pFills.reduce((a,x)=>a+(x.amount||0),0);
     const fillPaid=pFills.reduce((a,x)=>a+(x.paid||0),0);
     // Combined outstanding
