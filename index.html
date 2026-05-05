@@ -2975,6 +2975,9 @@ function renderOpsTab(el){
     <div class="sec-lbl" style="margin-top:4px">Accounts</div>
     <div class="act" onclick="show('scr-purchases')">
       <div class="act-ico">🛢</div><div class="act-txt"><div class="act-title">FUEL PURCHASE</div><div class="act-desc">Buy fuel · Track balance</div></div><div class="act-arr">›</div>
+    </div>
+    <div class="act" onclick="show('scr-pumps')">
+      <div class="act-ico">🏪</div><div class="act-txt"><div class="act-title">PUMP STATIONS</div><div class="act-desc">Record payments · Track dues</div></div><div class="act-arr">›</div>
     </div>`:''}
     <div class="pad-bot"></div>`;
 }
@@ -5606,6 +5609,55 @@ function savePurchase(){
   renderPurchases();
   flash('ADDED!',litres+' L from '+vendor);
 }
+// V49: Fuel Purchase screen — show/hide payment form
+function showFuelPaymentForm(){
+  const f=document.getElementById('fuel-pay-form');
+  if(!f) return;
+  f.style.display=f.style.display==='none'?'block':'none';
+  if(f.style.display==='block') setTimeout(()=>document.getElementById('fuel-pay-amt')?.focus(),100);
+}
+
+// V49: Apply payment from Fuel Purchase screen — delegates to applyPumpPayment
+async function applyFuelPayment(){
+  const pumpId=document.getElementById('fuel-pay-pump')?.value;
+  const amt=parseFloat(document.getElementById('fuel-pay-amt')?.value)||0;
+  const payDate=document.getElementById('fuel-pay-date')?.value||today();
+  if(!pumpId){alert('Select a pump');return;}
+  if(!amt||amt<=0){alert('Enter amount paid');return;}
+  if(isFutureDate(payDate)){alert('❌ Payment date cannot be in the future.');return;}
+  // Temporarily write values to the pump-pay fields applyPumpPayment reads
+  // (those fields only exist on the Pumps screen, so we inline the logic here)
+  const rem=document.getElementById('fuel-pay-rem')?.value||'';
+  const pump=pumps.find(p=>p.id===pumpId);
+  const unpaidPurchases=(purchases||[])
+    .filter(x=>(x.pumpId===pumpId||((!x.pumpId)&&x.vendor===pump?.name))&&(x.amount||0)-(x.paid||0)>0)
+    .map(x=>({...x,_type:'purchase'}));
+  const unpaidFills=(pumpFills||[])
+    .filter(x=>(x.pumpId===pumpId||((!x.pumpId)&&x.pumpName===pump?.name))&&(x.amount||0)-(x.paid||0)>0)
+    .map(x=>({...x,_type:'fill'}));
+  const allUnpaid=[...unpaidPurchases,...unpaidFills].sort((a,b)=>a.date.localeCompare(b.date));
+  if(!allUnpaid.length){alert('No outstanding entries for this pump');return;}
+  let remaining=amt, updatedCount=0;
+  allUnpaid.forEach(entry=>{
+    if(remaining<=0) return;
+    const due=(entry.amount||0)-(entry.paid||0);
+    const applying=Math.min(remaining,due);
+    if(entry._type==='purchase'){
+      const idx=purchases.findIndex(x=>x.id===entry.id);
+      if(idx>=0){purchases[idx]={...purchases[idx],paid:(purchases[idx].paid||0)+applying,payRemark:rem,payDate};updatedCount++;}
+    } else {
+      const idx=(pumpFills||[]).findIndex(x=>x.id===entry.id);
+      if(idx>=0){pumpFills[idx]={...pumpFills[idx],paid:(pumpFills[idx].paid||0)+applying,payRemark:rem,payDate};updatedCount++;}
+    }
+    remaining-=applying;
+  });
+  sv('purchases',purchases);sv('pumpFills',pumpFills);
+  const overpaid=remaining>0?` · ₹${Math.round(remaining).toLocaleString('en-IN')} credit`:'';
+  flash('✅ PAYMENT RECORDED',`₹${Math.round(amt).toLocaleString('en-IN')} applied to ${updatedCount} entr${updatedCount===1?'y':'ies'} at ${pump?.name||''}${overpaid}`);
+  document.getElementById('fuel-pay-form').style.display='none';
+  renderPurchases();
+}
+
 function delPurchase(id){
   if(!canDelEntry()){alert('Only Owner can delete');return;}
   const p=purchases.find(x=>x.id===id);
@@ -5639,7 +5691,35 @@ function renderPurchases(){
     <div style="text-align:right"><div class="bal-lbl">Entries</div><div class="bal-amt" style="font-size:20px;color:var(--white)">${totalEntries}</div>
       <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:4px">${purchases.length} bowser · ${pfList.length} direct</div>
     </div>
-  </div>`;
+  </div>
+  ${totalBal>0&&isOwner()?`
+  <button onclick="showFuelPaymentForm()" style="margin:6px 14px 0;width:calc(100% - 28px);background:linear-gradient(135deg,rgba(0,200,83,.15),rgba(0,200,83,.05));border:2px solid var(--green);color:var(--green);padding:10px;border-radius:10px;font-family:var(--fh);font-size:13px;cursor:pointer;display:block">
+    💰 RECORD PAYMENT TO PUMP
+  </button>
+  <div id="fuel-pay-form" style="display:none;margin:6px 14px 0;background:var(--bg3);border-radius:10px;padding:12px">
+    <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px">SELECT PUMP & RECORD PAYMENT</div>
+    <select id="fuel-pay-pump" style="width:100%;background:var(--bg2);border:1.5px solid var(--border);color:var(--white);padding:10px;border-radius:8px;font-size:13px;margin-bottom:8px;box-sizing:border-box">
+      <option value="">Select pump...</option>
+      ${pumps.map(p=>{
+        const pDue=(purchases||[]).filter(x=>x.pumpId===p.id||((!x.pumpId)&&x.vendor===p.name)).reduce((a,x)=>a+((x.amount||0)-(x.paid||0)),0)
+                  +(pumpFills||[]).filter(x=>x.pumpId===p.id||((!x.pumpId)&&x.pumpName===p.name)).reduce((a,x)=>a+((x.amount||0)-(x.paid||0)),0);
+        return pDue>0?`<option value="${p.id}">${p.name} — DUE ${fmtINR(pDue)}</option>`:'';
+      }).join('')}
+    </select>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <input id="fuel-pay-amt" type="number" inputmode="decimal" placeholder="Amount paid ₹"
+        style="flex:2;background:var(--bg2);border:1.5px solid var(--border);color:var(--white);padding:10px;border-radius:8px;font-size:13px;font-family:var(--fh);outline:none;box-sizing:border-box">
+      <input id="fuel-pay-date" type="date" value="${today()}" max="${today()}"
+        style="flex:1;background:var(--bg2);border:1.5px solid var(--border);color:var(--white);padding:10px;border-radius:8px;font-size:12px;outline:none;box-sizing:border-box">
+    </div>
+    <input id="fuel-pay-rem" type="text" placeholder="Remarks — NEFT, cheque no., cash..."
+      style="width:100%;background:var(--bg2);border:1.5px solid var(--border);color:var(--white);padding:10px;border-radius:8px;font-size:12px;outline:none;box-sizing:border-box;margin-bottom:8px">
+    <div style="display:flex;gap:8px">
+      <button onclick="applyFuelPayment()" style="flex:2;background:var(--green);color:#111;border:none;padding:12px;border-radius:8px;font-family:var(--fh);font-size:13px;font-weight:700;cursor:pointer">✓ APPLY PAYMENT</button>
+      <button onclick="document.getElementById('fuel-pay-form').style.display='none'" style="flex:1;background:var(--bg2);color:var(--muted);border:1px solid var(--border);padding:12px;border-radius:8px;font-size:13px;cursor:pointer">Cancel</button>
+    </div>
+  </div>`:''}`;
+
 
   const el=document.getElementById('pur-log');
   if(!totalEntries){el.innerHTML='<div class="muted-txt">No purchases yet</div>';return;}
