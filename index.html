@@ -803,7 +803,7 @@ input[type=file]{display:none}
 <div class="screen" id="scr-purchases">
   <div class="topbar">
     <button class="tb-back" onclick="show('scr-home')">‹</button>
-    <div><div class="tb-title">PUMP PURCHASES</div></div>
+    <div><div class="tb-title">FUEL PURCHASE</div></div>
   </div>
   <div id="pur-bal"></div>
   <div class="form-body">
@@ -2974,7 +2974,7 @@ function renderOpsTab(el){
     ${isOwner()||isAdmin()?`
     <div class="sec-lbl" style="margin-top:4px">Accounts</div>
     <div class="act" onclick="show('scr-purchases')">
-      <div class="act-ico">🛢</div><div class="act-txt"><div class="act-title">BOWSER PURCHASE</div><div class="act-desc">Buy fuel · Track balance</div></div><div class="act-arr">›</div>
+      <div class="act-ico">🛢</div><div class="act-txt"><div class="act-title">FUEL PURCHASE</div><div class="act-desc">Buy fuel · Track balance</div></div><div class="act-arr">›</div>
     </div>`:''}
     <div class="pad-bot"></div>`;
 }
@@ -5587,7 +5587,7 @@ function savePurchase(){
   // V48: auto-compute amount from litres×rate if user didn't (mobile keyboard event-miss safety)
   const amtField=parseFloat(document.getElementById('pur-amount').value)||0;
   const amount = amtField>0 ? amtField : (litres&&rate ? parseFloat((litres*rate).toFixed(2)) : 0);
-  const paid=parseFloat(document.getElementById('pur-paid').value)||0;
+  const paid=Math.max(0,parseFloat(document.getElementById('pur-paid').value)||0);
   purchases.push({
     id:uid(),date:purchaseDate,ts:Date.now(),vendor,pumpId:pumpId||null,litres,
     rate,amount,paid,
@@ -6028,7 +6028,7 @@ function savePumpFill(){
   // V48: auto-compute amount from litres×rate if the field was left blank or 0
   const amtField=parseFloat(document.getElementById('pf-amount').value)||0;
   const amount = amtField>0 ? amtField : (litres&&rate ? parseFloat((litres*rate).toFixed(2)) : 0);
-  const paid=parseFloat(document.getElementById('pf-paid').value)||0;
+  const paid=Math.max(0,parseFloat(document.getElementById('pf-paid').value)||0);
   pumpFills.push({
     id:uid(),date:today(),ts:Date.now(),
     vehicleId:gf.vehicleId,pumpId,pumpName:pump?.name||'',
@@ -6068,6 +6068,70 @@ function delPump(id){
     flash('REMOVED!',p?.name+' removed');
   });
 }
+
+// V49: Show/hide inline payment form on pump card
+function recordPumpPayment(pumpId){
+  const form=document.getElementById('pump-pay-form-'+pumpId);
+  if(!form) return;
+  form.style.display = form.style.display==='none' ? 'block' : 'none';
+  if(form.style.display==='block'){
+    const inp=document.getElementById('pump-pay-amt-'+pumpId);
+    if(inp) setTimeout(()=>inp.focus(),100);
+  }
+}
+
+// V49: Apply lump-sum payment to a pump — distributes oldest-first across purchases + pump fills
+async function applyPumpPayment(pumpId){
+  if(!isOwner()){alert('Only Owner can record payments');return;}
+  const amt=parseFloat(document.getElementById('pump-pay-amt-'+pumpId)?.value)||0;
+  const payDate=document.getElementById('pump-pay-date-'+pumpId)?.value||today();
+  const rem=document.getElementById('pump-pay-rem-'+pumpId)?.value||'';
+  const pump=pumps.find(p=>p.id===pumpId);
+  if(!amt||amt<=0){alert('Enter amount paid');return;}
+  if(isFutureDate(payDate)){alert('❌ Payment date cannot be in the future.');return;}
+
+  // Gather all unpaid entries for this pump (purchases + fills) sorted oldest first
+  const unpaidPurchases=(purchases||[])
+    .filter(x=>x.pumpId===pumpId&&(x.amount||0)-(x.paid||0)>0)
+    .map(x=>({...x,_type:'purchase'}));
+  const unpaidFills=(pumpFills||[])
+    .filter(x=>x.pumpId===pumpId&&(x.amount||0)-(x.paid||0)>0)
+    .map(x=>({...x,_type:'fill'}));
+  const allUnpaid=[...unpaidPurchases,...unpaidFills].sort((a,b)=>a.date.localeCompare(b.date));
+
+  if(!allUnpaid.length){alert('No outstanding entries for this pump');return;}
+
+  let remaining=amt;
+  let updatedCount=0;
+
+  allUnpaid.forEach(entry=>{
+    if(remaining<=0) return;
+    const due=(entry.amount||0)-(entry.paid||0);
+    const applying=Math.min(remaining, due);
+    if(entry._type==='purchase'){
+      const idx=purchases.findIndex(x=>x.id===entry.id);
+      if(idx>=0){
+        purchases[idx]={...purchases[idx],paid:(purchases[idx].paid||0)+applying,payRemark:rem,payDate};
+        updatedCount++;
+      }
+    } else {
+      const idx=(pumpFills||[]).findIndex(x=>x.id===entry.id);
+      if(idx>=0){
+        pumpFills[idx]={...pumpFills[idx],paid:(pumpFills[idx].paid||0)+applying,payRemark:rem,payDate};
+        updatedCount++;
+      }
+    }
+    remaining-=applying;
+  });
+
+  sv('purchases',purchases);
+  sv('pumpFills',pumpFills);
+  const overpaid=remaining>0?` · ₹${Math.round(remaining).toLocaleString('en-IN')} overpaid (credit)`:'';
+  flash('✅ PAYMENT RECORDED',`₹${Math.round(amt).toLocaleString('en-IN')} applied to ${updatedCount} entr${updatedCount===1?'y':'ies'} at ${pump?.name||''}${overpaid}`);
+  renderPumpLog();
+  // Also refresh purchases screen if visible
+  if(document.getElementById('scr-purchases')?.classList.contains('on')) renderPurchases();
+}
 function renderPumpLog(){
   const el=document.getElementById('pump-log');if(!el)return;
   if(!pumps.length){el.innerHTML='<div class="muted-txt">No pumps added yet</div>';return;}
@@ -6092,15 +6156,36 @@ function renderPumpLog(){
     const breakdown=[];
     if(pPurchases.length) breakdown.push(`${pPurchases.length} purchase${pPurchases.length!==1?'s':''}`);
     if(pFills.length) breakdown.push(`${pFills.length} vehicle fill${pFills.length!==1?'s':''}`);
-    return `<div class="log-item">
-      <div class="li-ico">🏪</div>
-      <div class="li-main">
-        <div class="li-name">${p.name}</div>
-        <div class="li-det">${p.location||'No location'}${p.defaultRate?' · ₹'+p.defaultRate+'/L':''}</div>
-        <div class="li-by">${breakdown.length?breakdown.join(' · ')+' · '+fmtINR(totalAmt)+' total':'No entries yet'}</div>
-        ${dueBadge}
+    return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;margin:8px 14px;padding:12px 14px">
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <span style="font-size:22px;flex-shrink:0">🏪</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-family:var(--fh);font-size:14px;color:var(--white)">${p.name}</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">${p.location||'No location'}${p.defaultRate?' · ₹'+p.defaultRate+'/L':''}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${breakdown.length?breakdown.join(' · ')+' · '+fmtINR(totalAmt)+' total':'No entries yet'}</div>
+          ${dueBadge}
+        </div>
+        ${isOwner()?`<button class="li-btn del" onclick="delPump('${p.id}')">🗑</button>`:''}
       </div>
-      ${isOwner()?`<button class="li-btn del" onclick="delPump('${p.id}')">🗑</button>`:''}
+      ${due>0&&isOwner()?`
+      <button onclick="recordPumpPayment('${p.id}')" style="margin-top:10px;width:100%;background:linear-gradient(135deg,rgba(0,200,83,.15),rgba(0,200,83,.05));border:2px solid var(--green);color:var(--green);padding:10px;border-radius:10px;font-family:var(--fh);font-size:13px;cursor:pointer">
+        💰 RECORD PAYMENT TO ${p.name}
+      </button>
+      <div id="pump-pay-form-${p.id}" style="display:none;margin-top:10px;background:var(--bg3);border-radius:10px;padding:12px">
+        <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px">RECORD PAYMENT — ${p.name} · Outstanding: ${fmtINR(due)}</div>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input id="pump-pay-amt-${p.id}" type="number" inputmode="decimal" placeholder="Amount paid ₹"
+            style="flex:2;background:var(--bg2);border:1.5px solid var(--border);color:var(--white);padding:10px;border-radius:8px;font-size:13px;font-family:var(--fh);outline:none;box-sizing:border-box">
+          <input id="pump-pay-date-${p.id}" type="date" value="${today()}" max="${today()}"
+            style="flex:1;background:var(--bg2);border:1.5px solid var(--border);color:var(--white);padding:10px;border-radius:8px;font-size:12px;outline:none;box-sizing:border-box">
+        </div>
+        <input id="pump-pay-rem-${p.id}" type="text" placeholder="Remarks — NEFT, cheque no., cash..."
+          style="width:100%;background:var(--bg2);border:1.5px solid var(--border);color:var(--white);padding:10px;border-radius:8px;font-size:12px;outline:none;box-sizing:border-box;margin-bottom:8px">
+        <div style="display:flex;gap:8px">
+          <button onclick="applyPumpPayment('${p.id}')" style="flex:2;background:var(--green);color:#111;border:none;padding:12px;border-radius:8px;font-family:var(--fh);font-size:13px;font-weight:700;cursor:pointer">✓ APPLY PAYMENT</button>
+          <button onclick="document.getElementById('pump-pay-form-${p.id}').style.display='none'" style="flex:1;background:var(--bg2);color:var(--muted);border:1px solid var(--border);padding:12px;border-radius:8px;font-size:13px;cursor:pointer">Cancel</button>
+        </div>
+      </div>`:''}
     </div>`;
   }).join('');
 }
@@ -6846,35 +6931,52 @@ function renderReports(){
     });
     const vendorList=Object.entries(vendorMap).sort((a,b)=>b[1].amount-a[1].amount);
 
-    // Reconciliation
-    const reconciliation=purchasesL-bowserL;
+    // V49: Sub-report selector state
+    if(typeof window._finSubReport==='undefined') window._finSubReport='summary';
+    const finSub=window._finSubReport;
 
     html=`
-    <!-- Header -->
-    <div style="margin:10px 14px 0;background:linear-gradient(135deg,rgba(41,121,255,.15),rgba(41,121,255,.03));
-                border:2px solid var(--blue);border-radius:14px;padding:14px 16px">
-      <div style="font-family:var(--fh);font-size:11px;color:var(--blue);letter-spacing:1.5px;margin-bottom:4px">FINANCIAL SUMMARY</div>
-      <div style="font-family:var(--fh);font-size:18px;color:var(--white)">${repFmtRange(range)}</div>
-      <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:3px">Fuel Rate: ₹${fmt(fuelRate,2)}/L · Chiddarwar Construction Co.</div>
+    <!-- V49: Sub-report selector -->
+    <div style="margin:10px 14px 0">
+      <select id="fin-sub-rep" onchange="window._finSubReport=this.value;renderReports()"
+        style="width:100%;background:var(--bg2);border:1.5px solid var(--border);color:var(--white);
+               padding:10px 12px;border-radius:10px;font-size:13px;font-family:var(--fb)">
+        <option value="summary"${finSub==='summary'?' selected':''}>📊 Summary</option>
+        <option value="vendor"${finSub==='vendor'?' selected':''}>🏪 Vendor-wise Breakdown</option>
+        <option value="site"${finSub==='site'?' selected':''}>🏗 Site-wise Cost Allocation</option>
+        <option value="split"${finSub==='split'?' selected':''}>⛽ Bowser vs Direct Pump Split</option>
+      </select>
     </div>
 
-    <!-- Headline numbers -->
+    <!-- Header strip -->
+    <div style="margin:8px 14px 0;background:linear-gradient(135deg,rgba(41,121,255,.15),rgba(41,121,255,.03));
+                border:2px solid var(--blue);border-radius:14px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-family:var(--fh);font-size:11px;color:var(--blue);letter-spacing:1.5px">FINANCIAL · ${repFmtRange(range)}</div>
+        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:2px">Fuel Rate: ₹${fmt(fuelRate,2)}/L</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-family:var(--fh);font-size:16px;color:${totalDue>0?'var(--red)':'var(--green)'}">${fmtINR(totalDue)}</div>
+        <div style="font-size:10px;color:var(--muted);font-weight:700">ALL-TIME DUE</div>
+      </div>
+    </div>
+
+    ${finSub==='summary'?`
+    <!-- Summary sub-report -->
     <div style="margin:10px 14px 0;display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px">
-        <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px;text-transform:uppercase">Fuel Purchased</div>
+        <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px">FUEL PURCHASED</div>
         <div style="font-family:var(--fh);font-size:20px;color:var(--green);margin-top:4px">${fmtINR(purchasesAmt)}</div>
-        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">${fmt(purchasesL,0)} L from ${allPurchases.length} purchase${allPurchases.length===1?'':'s'}</div>
+        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">${fmt(purchasesL,0)} L</div>
       </div>
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px">
-        <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px;text-transform:uppercase">Fuel Consumed</div>
+        <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px">FUEL CONSUMED</div>
         <div style="font-family:var(--fh);font-size:20px;color:var(--amber);margin-top:4px">${fmtINR(totalCost)}</div>
-        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">${fmt(totalL,0)} L in ${allDisbs.length+allPF.length} entries</div>
+        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">${fmt(totalL,0)} L · ${allDisbs.length+allPF.length} entries</div>
       </div>
     </div>
-
-    <!-- Payment status -->
     <div class="rep-card" style="margin-top:10px">
-      <div class="rep-hd">💳 PAYMENT STATUS</div>
+      <div class="rep-hd">💳 PAYMENT STATUS (Period)</div>
       <div style="padding:14px">
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
           <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
@@ -6886,85 +6988,24 @@ function renderReports(){
             <div style="font-family:var(--fh);font-size:15px;color:var(--green);margin-top:3px">${fmtINR(purchasesPaid)}</div>
           </div>
           <div style="background:${purchasesDue>0?'rgba(255,61,61,.1)':'var(--bg3)'};border:1px solid var(${purchasesDue>0?'--red':'--border'});border-radius:8px;padding:10px;text-align:center">
-            <div style="font-size:10px;color:var(${purchasesDue>0?'--red':'--muted'});font-weight:700">DUE (Period)</div>
+            <div style="font-size:10px;color:var(${purchasesDue>0?'--red':'--muted'});font-weight:700">DUE</div>
             <div style="font-family:var(--fh);font-size:15px;color:var(${purchasesDue>0?'--red':'--muted'});margin-top:3px">${fmtINR(purchasesDue)}</div>
           </div>
         </div>
         ${totalDue>0?`<div style="margin-top:12px;background:rgba(255,61,61,.08);border:1.5px solid var(--red);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px">
           <span style="font-size:20px">⚠️</span>
-          <div style="flex:1">
-            <div style="font-family:var(--fh);font-size:13px;color:var(--red)">TOTAL OUTSTANDING (ALL TIME)</div>
-            <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:1px">Across all purchases to date</div>
-          </div>
+          <div style="flex:1"><div style="font-family:var(--fh);font-size:13px;color:var(--red)">TOTAL OUTSTANDING (ALL TIME)</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:1px">Across all purchases to date</div></div>
           <div style="font-family:var(--fh);font-size:18px;color:var(--red)">${fmtINR(totalDue)}</div>
         </div>`:''}
       </div>
-    </div>
-
-    <!-- V48: Reconciliation card removed — top-of-screen summary already conveys the same info -->
-
-    <!-- Bowser vs Pump split -->
-    <div class="rep-card">
-      <div class="rep-hd">📊 BOWSER vs DIRECT PUMP</div>
-      <div style="padding:14px">
-        <div style="display:flex;gap:10px;margin-bottom:10px">
-          <div style="flex:1;background:var(--bg3);border-radius:8px;padding:10px">
-            <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px">BOWSER</div>
-            <div style="font-family:var(--fh);font-size:16px;color:var(--white);margin-top:3px">${fmt(bowserL,1)} L</div>
-            <div style="font-family:var(--fh);font-size:13px;color:var(--amber);margin-top:1px">${fmtINR(bowserCost)}</div>
-          </div>
-          <div style="flex:1;background:var(--bg3);border-radius:8px;padding:10px">
-            <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px">DIRECT PUMP</div>
-            <div style="font-family:var(--fh);font-size:16px;color:var(--white);margin-top:3px">${fmt(pumpL,1)} L</div>
-            <div style="font-family:var(--fh);font-size:13px;color:var(--amber);margin-top:1px">${fmtINR(pumpCost)}</div>
-          </div>
-        </div>
-        ${totalL>0?`<div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden;display:flex">
-          <div style="width:${Math.round(bowserL/totalL*100)}%;background:var(--amber);height:100%"></div>
-          <div style="width:${Math.round(pumpL/totalL*100)}%;background:var(--blue);height:100%"></div>
-        </div>
-        <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--muted);font-weight:700">
-          <span>${Math.round(bowserL/totalL*100)}% Bowser</span>
-          <span>${Math.round(pumpL/totalL*100)}% Pump</span>
-        </div>`:''}
-      </div>
-    </div>
-
-    <!-- Per-site cost -->
-    ${siteList.length?`
-    <div class="rep-card">
-      <div class="rep-hd">🏗 SITE-WISE COST ALLOCATION</div>
-      <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:12px">
-          <thead>
-            <tr style="background:var(--bg3);color:var(--muted)">
-              <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.5px">SITE</th>
-              <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">VEH</th>
-              <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">LITRES</th>
-              <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">COST</th>
-              <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">%</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${siteList.map(([name,{L,count,vehicles}])=>{
-              const pct=totalL>0?Math.round(L/totalL*100):0;
-              return `<tr style="border-top:1px solid var(--border)">
-                <td style="padding:10px;color:var(--white);font-weight:600">${name}</td>
-                <td style="padding:10px;text-align:right;color:var(--muted)">${vehicles.size}</td>
-                <td style="padding:10px;text-align:right;font-family:var(--fh);color:var(--white)">${fmt(L,0)}</td>
-                <td style="padding:10px;text-align:right;font-family:var(--fh);color:var(--amber)">${fmtINR(L*fuelRate)}</td>
-                <td style="padding:10px;text-align:right;color:var(--muted);font-weight:700">${pct}%</td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
     </div>`:''}
 
-    <!-- Vendor breakdown — V48: combined (purchases + pump fills) with drill-down -->
+    ${finSub==='vendor'?`
+    <!-- Vendor-wise breakdown sub-report -->
     ${vendorList.length?`
-    <div class="rep-card">
-      <div class="rep-hd">🏪 VENDOR-WISE BREAKDOWN — Tap a vendor to see entries</div>
+    <div class="rep-card" style="margin-top:10px">
+      <div class="rep-hd">🏪 VENDOR-WISE BREAKDOWN — Tap vendor to see entries</div>
       ${vendorList.map(([name,{L,amount,paid,count,entries}],vIdx)=>{
         const due=amount-paid;
         const purCount=entries.filter(e=>e.type==='purchase').length;
@@ -7011,7 +7052,68 @@ function renderReports(){
           </div>
         </div>`;
       }).join('')}
-    </div>`:''}
+    </div>`:`<div class="muted-txt" style="padding:40px;text-align:center">No purchases in this period</div>`}
+    `:''}
+
+    ${finSub==='site'?`
+    <!-- Site-wise sub-report -->
+    ${siteList.length?`
+    <div class="rep-card" style="margin-top:10px">
+      <div class="rep-hd">🏗 SITE-WISE COST ALLOCATION</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr style="background:var(--bg3);color:var(--muted)">
+            <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.5px">SITE</th>
+            <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">VEH</th>
+            <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">LITRES</th>
+            <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">COST</th>
+            <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">%</th>
+          </tr></thead>
+          <tbody>
+            ${siteList.map(([name,{L,count,vehicles}])=>{
+              const pct=totalL>0?Math.round(L/totalL*100):0;
+              return `<tr style="border-top:1px solid var(--border)">
+                <td style="padding:10px;color:var(--white);font-weight:600">${name}</td>
+                <td style="padding:10px;text-align:right;color:var(--muted)">${vehicles.size}</td>
+                <td style="padding:10px;text-align:right;font-family:var(--fh);color:var(--white)">${fmt(L,0)}</td>
+                <td style="padding:10px;text-align:right;font-family:var(--fh);color:var(--amber)">${fmtINR(L*fuelRate)}</td>
+                <td style="padding:10px;text-align:right;color:var(--muted);font-weight:700">${pct}%</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`:`<div class="muted-txt" style="padding:40px;text-align:center">No fuel consumption data in this period</div>`}
+    `:''}
+
+    ${finSub==='split'?`
+    <!-- Bowser vs Pump split sub-report -->
+    <div class="rep-card" style="margin-top:10px">
+      <div class="rep-hd">📊 BOWSER vs DIRECT PUMP</div>
+      <div style="padding:14px">
+        <div style="display:flex;gap:10px;margin-bottom:10px">
+          <div style="flex:1;background:var(--bg3);border-radius:8px;padding:10px">
+            <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px">BOWSER</div>
+            <div style="font-family:var(--fh);font-size:16px;color:var(--white);margin-top:3px">${fmt(bowserL,1)} L</div>
+            <div style="font-family:var(--fh);font-size:13px;color:var(--amber);margin-top:1px">${fmtINR(bowserCost)}</div>
+          </div>
+          <div style="flex:1;background:var(--bg3);border-radius:8px;padding:10px">
+            <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px">DIRECT PUMP</div>
+            <div style="font-family:var(--fh);font-size:16px;color:var(--white);margin-top:3px">${fmt(pumpL,1)} L</div>
+            <div style="font-family:var(--fh);font-size:13px;color:var(--amber);margin-top:1px">${fmtINR(pumpCost)}</div>
+          </div>
+        </div>
+        ${totalL>0?`<div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden;display:flex">
+          <div style="width:${Math.round(bowserL/totalL*100)}%;background:var(--amber);height:100%"></div>
+          <div style="width:${Math.round(pumpL/totalL*100)}%;background:var(--blue);height:100%"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--muted);font-weight:700">
+          <span>${Math.round(bowserL/totalL*100)}% Bowser</span>
+          <span>${Math.round(pumpL/totalL*100)}% Direct Pump</span>
+        </div>`:'<div class="muted-txt" style="padding:20px;text-align:center">No consumption data in this period</div>'}
+      </div>
+    </div>
+    `:''}
     `;
   // ═══ TAB: VEHICLE REPORTS ═══
   } else if(repActiveTab==='vehicle'){
@@ -8388,7 +8490,7 @@ function exportRepPDF(){
   } else if(repActiveTab==='muster'){
     // V43: Staff sub-tab uses different print render
     if(window._musterSubTab==='staff'){
-      html += renderStaffMusterReport(range, true);
+      body = renderStaffMusterReport(range, true);
     } else {
     const days=[];
     let dm=new Date(range.from);const endDm=new Date(range.to);
@@ -9014,7 +9116,7 @@ async function saveEditMain(){
     const litres=parseFloat(document.getElementById('ed-pL').value)||0;
     const rate=parseFloat(document.getElementById('ed-pr').value)||0;
     const amount=parseFloat(document.getElementById('ed-pa').value)||0;
-    const paid=parseFloat(document.getElementById('ed-pp').value)||0;
+    const paid=Math.max(0,parseFloat(document.getElementById('ed-pp').value)||0);
     const bill=document.getElementById('ed-pb').value;
     const changes=[];
     if(vendor!==orig.vendor)changes.push({field:'Vendor',oldVal:orig.vendor||'',newVal:vendor});
@@ -9069,7 +9171,7 @@ async function saveEditMain(){
     const L=parseFloat(document.getElementById('ed-pfL').value)||orig.litres;
     const rate=parseFloat(document.getElementById('ed-pfr').value)||orig.rate;
     const amt=parseFloat(document.getElementById('ed-pfamt').value)||orig.amount;
-    const paid=parseFloat(document.getElementById('ed-pfpaid').value)||orig.paid;
+    const paid=Math.max(0,parseFloat(document.getElementById('ed-pfpaid').value)||0);
     const bill=document.getElementById('ed-pfbill').value;
     const dateV=document.getElementById('ed-pfdate').value||orig.date;
     if(isFutureDate(dateV)){alert('❌ Cannot set entry to future dates.');return;}
