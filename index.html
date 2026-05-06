@@ -8255,29 +8255,52 @@ function exportWageReportPDF(){
   const daysCount=days.length;
   const isDriverVehicle=vt=>['tipper','truck','dumper','car','tanker','tractor','transit-mixer'].includes(vt);
 
-  // ── Fleet (Drivers & Operators) ──
-  const fleetRows=fleet.map(v=>{
+  // ── Fleet (Drivers & Operators) — aggregated by PERSON, not vehicle ──
+  // Collect all unique driver IDs that appear in musters for this period
+  const periodMusters=(musters||[]).filter(m=>days.includes(m.date));
+  const driverIdSet=new Set();
+  periodMusters.forEach(m=>{if(m.driverId)driverIdSet.add(m.driverId);});
+  // Also include drivers permanently assigned to fleet vehicles (even if no muster yet)
+  fleet.forEach(v=>{if(v.driverId)driverIdSet.add(v.driverId);});
+
+  const fleetRows=[...driverIdSet].map(drvId=>{
+    const drv=(drivers||[]).find(x=>x.id===drvId);
+    if(!drv)return null;
+    // All vehicles this person drove during period (for "Vehicles" column)
+    const drvMusters=periodMusters.filter(m=>m.driverId===drvId);
+    const vehIds=[...new Set(drvMusters.map(m=>m.vehicleId).filter(Boolean))];
+    const vehNames=vehIds.map(id=>fleet.find(f=>f.id===id)?.name||id).join(', ')||
+      fleet.find(f=>f.driverId===drvId)?.name||'—';
+    // Role from most recent vehicle type
+    const latestVehId=drvMusters.sort((a,b)=>b.date.localeCompare(a.date))[0]?.vehicleId||
+      fleet.find(f=>f.driverId===drvId)?.id;
+    const latestVeh=fleet.find(f=>f.id===latestVehId);
+    const role=isDriverVehicle(latestVeh?.type||'')?'Driver':'Operator';
+    // Attendance — one row per day (avoid double-counting if person had 2 vehicles same day)
     let presentDays=0,halfDays=0,leaveDays=0,advTotal=0;
     days.forEach(dt=>{
-      const m=(musters||[]).find(x=>(x.vehicleId===v.id||(x.driverId&&x.driverId===(v.driverId||'__')))&&x.date===dt);
-      if(m?.status==='halfday')halfDays++;
-      else if(m?.status==='leave')leaveDays++;
-      else if(m&&m.status!=='absent')presentDays++;
-      if(m?.advance>0)advTotal+=m.advance;
+      // Pick best muster for this driver on this date (present > halfday > leave > absent)
+      const dayMusters=drvMusters.filter(m=>m.date===dt);
+      if(!dayMusters.length)return;
+      const statusRank={present:4,leave:3,halfday:2,absent:1};
+      const best=dayMusters.sort((a,b)=>(statusRank[b.status]||0)-(statusRank[a.status]||0))[0];
+      if(best.status==='halfday')halfDays++;
+      else if(best.status==='leave')leaveDays++;
+      else if(best.status!=='absent')presentDays++;
+      // Advances — sum all entries for this driver this day
+      dayMusters.forEach(m=>{if(m.advance>0)advTotal+=m.advance;});
     });
     const wageDays=presentDays+(halfDays*0.5)+leaveDays;
-    const latestM=[...(musters||[])].filter(x=>(x.vehicleId===v.id||x.driverId===v.driverId)&&days.includes(x.date)).sort((a,b)=>b.date.localeCompare(a.date))[0];
-    const drvId=latestM?.driverId||v.driverId;
-    const drv=(drivers||[]).find(x=>x.id===drvId);
-    const drvSal=drv?.salary||0;
+    const drvSal=drv.salary||0;
     const dailyRate=drvSal>0?Math.round(drvSal/26):0;
-    const tripList=(window.trips||[]).filter(t=>t.driverId===drvId&&days.includes(t.date));
+    // Incentives — from trips logged against this driver in this period
+    const tripList=(trips||[]).filter(t=>t.driverId===drvId&&days.includes(t.date));
     const incentives=tripList.reduce((a,t)=>a+(t.driverIncentive||0),0);
     const grossWage=Math.round(wageDays*dailyRate)+incentives;
     const netWage=Math.max(0,grossWage-advTotal);
-    const role=isDriverVehicle(v.type)?'Driver':'Operator';
-    return{vName:v.name,drvName:drv?.name||v.driverName||'—',role,wageDays:+wageDays.toFixed(1),dailyRate,incentives,grossWage,advTotal,netWage};
-  }).filter(r=>r.wageDays>0||r.advTotal>0);
+    return{drvName:drv.name,role,vehNames,wageDays:+wageDays.toFixed(1),dailyRate,incentives,grossWage,advTotal,netWage};
+  }).filter(r=>r&&(r.wageDays>0||r.advTotal>0||r.incentives>0))
+    .sort((a,b)=>a.drvName.localeCompare(b.drvName));
 
   const fleetGross=fleetRows.reduce((a,r)=>a+r.grossWage,0);
   const fleetAdv=fleetRows.reduce((a,r)=>a+r.advTotal,0);
@@ -8333,14 +8356,15 @@ function exportWageReportPDF(){
 
   <h2>🚜 Fleet — Drivers & Operators (${fleetRows.length})</h2>
   ${fleetRows.length?`<table>
-    <thead><tr><th>#</th><th>Vehicle</th><th>Person</th><th>Role</th><th class="right">Days</th><th class="right">Rate/Day</th><th class="right">Incentive</th><th class="right">Gross</th><th class="right">Advance</th><th class="right">Net Payable</th></tr></thead>
+    <thead><tr><th>#</th><th>Name</th><th>Role</th><th>Vehicles</th><th class="right">Days</th><th class="right">Rate/Day</th><th class="right">Incentive</th><th class="right">Gross</th><th class="right">Advance</th><th class="right">Net Payable</th></tr></thead>
     <tbody>
       ${fleetRows.map((r,i)=>`<tr>
-        <td>${i+1}</td><td>${r.vName}</td><td>${r.drvName}</td>
+        <td>${i+1}</td><td style="font-weight:700">${r.drvName}</td>
         <td style="color:${r.role==='Driver'?'green':'#1565c0'};font-weight:700">${r.role}</td>
+        <td style="color:#666;font-size:10px">${r.vehNames}</td>
         <td class="right">${r.wageDays}</td>
         <td class="right">${r.dailyRate>0?fmtINR(r.dailyRate):'<span class="mut">—</span>'}</td>
-        <td class="right">${r.incentives>0?fmtINR(r.incentives):'—'}</td>
+        <td class="right" style="color:${r.incentives>0?'#e65100':'#999'};font-weight:${r.incentives>0?'700':'400'}">${r.incentives>0?fmtINR(r.incentives):'—'}</td>
         <td class="right">${fmtINR(r.grossWage)}</td>
         <td class="right" style="color:${r.advTotal>0?'#c62828':'#999'}">${r.advTotal>0?fmtINR(r.advTotal):'—'}</td>
         <td class="right" style="font-weight:700">${fmtINR(r.netWage)}</td>
