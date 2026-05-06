@@ -1100,6 +1100,7 @@ input[type=file]{display:none}
                outline:none;-webkit-appearance:none">
     </div>
   </div>
+  <div id="readings-compliance-line" style="padding:8px 14px;font-size:12px;font-weight:700;color:var(--muted);flex-shrink:0"></div>
   <div class="veh-grid" id="readings-veh-grid" style="padding-top:4px"></div>
   <div class="pad-bot"></div>
 </div>
@@ -6279,6 +6280,19 @@ function renderPumpLog(){
 // ════════════════════════════════════
 function renderReadingsVehGrid(filter=''){
   const el=document.getElementById('readings-veh-grid');if(!el)return;
+  // V51: Compliance line (Owner + Manager only)
+  if(isOwner()||isManager()){
+    const cl=document.getElementById('readings-compliance-line');
+    if(cl){
+      const td=today();
+      const doneCount=fleet.filter(f=>(readings||[]).some(r=>r.vehicleId===f.id&&r.date===td)).length;
+      const total=fleet.length;
+      const missing=fleet.filter(f=>!(readings||[]).some(r=>r.vehicleId===f.id&&r.date===td)).map(f=>f.name);
+      const col=doneCount===total?'var(--green)':doneCount>=Math.ceil(total*0.7)?'var(--amber)':'var(--red)';
+      cl.innerHTML=`<span style="color:${col}">📍 Today: ${doneCount}/${total} readings entered</span>`
+        +(missing.length?`<span onclick="const nx=this.nextElementSibling;nx.style.display=nx.style.display?'':'block';this.textContent=this.textContent.includes('▼')?'▲ hide':'▼ see missing'" style="color:var(--amber);margin-left:8px;cursor:pointer;font-size:11px">▼ see missing</span><div style="display:none;font-size:11px;color:var(--muted);margin-top:4px;line-height:1.8;padding:4px 0">${missing.join(', ')}</div>`:'');
+    }
+  }
   if(!fleet.length){el.innerHTML='<div class="no-fleet"><div class="nf-ico">🚜</div><div class="nf-ttl">No Fleet</div><div class="nf-sub">Add vehicles first</div></div>';return;}
   const filtered = filter ? fleet.filter(f=>f.name.toLowerCase().includes(filter.toLowerCase())) : fleet;
   if(!filtered.length){el.innerHTML='<div style="padding:30px;text-align:center;color:var(--muted);font-size:14px;font-weight:600">No vehicles match your search</div>';return;}
@@ -6289,21 +6303,25 @@ function renderReadingsVehGrid(filter=''){
     html += `<div style="padding:8px 14px 4px;font-size:10px;color:var(--amber);font-weight:700;letter-spacing:.8px;text-transform:uppercase">⚡ Recently Used</div>`;
     html += recentVehs.map(f=>{
       const lastR=[...readings].filter(r=>r.vehicleId===f.id).sort((a,b)=>b.date.localeCompare(a.date))[0];
+      const _hasTodayR=(readings||[]).some(r=>r.vehicleId===f.id&&r.date===today());
+      const _badge=_hasTodayR?'<span style="font-size:16px;margin-right:2px">✅</span>':'<span style="font-size:16px;margin-right:2px">🔴</span>';
       return `<div class="veh-tile" onclick="openReadingEntry('${f.id}')">
         <div class="vt-ico">${vIco(f.type)}</div>
         <div style="flex:1"><div class="vt-name">${f.name}</div>
         <div class="vt-sub">${f.type} · Last: ${lastR?fmtD(lastR.date):'No entries'}</div></div>
-        <div class="vt-arr">›</div></div>`;
+        ${_badge}<div class="vt-arr">›</div></div>`;
     }).join('');
     html += `<div style="padding:8px 14px 4px;font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.8px;text-transform:uppercase;border-top:1px solid var(--border);margin-top:4px">All Vehicles</div>`;
   }
   html += filtered.map(f=>{
     const lastR=[...readings].filter(r=>r.vehicleId===f.id).sort((a,b)=>b.date.localeCompare(a.date))[0];
+    const _hasTodayR2=(readings||[]).some(r=>r.vehicleId===f.id&&r.date===today());
+    const _badge2=_hasTodayR2?'<span style="font-size:16px;margin-right:2px">✅</span>':'<span style="font-size:16px;margin-right:2px">🔴</span>';
     return `<div class="veh-tile" onclick="openReadingEntry('${f.id}')">
       <div class="vt-ico">${vIco(f.type)}</div>
       <div style="flex:1"><div class="vt-name">${f.name}</div>
       <div class="vt-sub">${f.type} · Last: ${lastR?fmtD(lastR.date):'No entries'}</div></div>
-      <div class="vt-arr">›</div></div>`;
+      ${_badge2}<div class="vt-arr">›</div></div>`;
   }).join('');
   el.innerHTML = html;
 }
@@ -6319,13 +6337,24 @@ function openReadingEntry(vehId){
   const isMachVeh=['excavator','dozer','roller','paver','hmp','generator','tractor','other'].includes(veh.type);
   const calib=veh.calibration||null;
 
-  // V48: Find today's most recent reading for this vehicle (pre-fill if exists)
+  // V51: Find today's reading AND prior closing for carry-forward
   const todayReadings=(readings||[])
     .filter(r=>r.vehicleId===vehId && r.date===today())
     .sort((a,b)=>(b.ts||0)-(a.ts||0));
   const todayR = todayReadings[0] || null;
   // Store for save — so we overwrite instead of push
   window._readingEditId = todayR?.id || null;
+
+  // V51: Carry-forward — most recent prior reading (before today)
+  const priorR = (readings||[])
+    .filter(r=>r.vehicleId===vehId && r.date<today())
+    .sort((a,b)=>b.date.localeCompare(a.date)||((b.ts||0)-(a.ts||0)))[0] || null;
+  const carryLabel = priorR ? `<div style="font-size:10px;color:var(--amber);font-weight:600;margin-top:3px">↩ Carried from ${fmtD(priorR.date)}</div>` : '';
+  // Pre-fill opening from prior closing only if today has no entry yet
+  const carryOpenCm  = (!todayR && priorR?.closingCm  != null) ? priorR.closingCm  : (todayR?.openingCm  ?? '');
+  const carryOpenKm  = (!todayR && priorR?.closingKm  != null) ? priorR.closingKm  : (todayR?.openingKm  ?? '');
+  const carryOpenPct = (!todayR && priorR?.closingPct != null) ? priorR.closingPct : (todayR?.openingPct ?? '');
+  const wasCarried   = !todayR && !!priorR;
 
   // History — last 10 entries excluding today, newest first
   const histReadings=(readings||[])
@@ -6341,7 +6370,7 @@ function openReadingEntry(vehId){
             :`<div class="info-box info-blue" style="margin:10px 14px">Enter opening & closing dip to calculate actual fuel consumed for efficiency.</div>`}
     <div class="form-body">
       <div class="f-r2">
-        <div class="f-field"><label class="f-lbl">Opening Dip (cm)</label><input class="f-inp" id="re-open-cm" placeholder="e.g. 22" type="number" inputmode="decimal" value="${todayR?.openingCm||''}" oninput="calcDipLive('${vehId}')"></div>
+        <div class="f-field"><label class="f-lbl">Opening Dip (cm)</label><input class="f-inp" id="re-open-cm" placeholder="e.g. 22" type="number" inputmode="decimal" value="${carryOpenCm}" oninput="calcDipLive('${vehId}')">${wasCarried&&priorR?.closingCm!=null?carryLabel:''}</div>
         <div class="f-field"><label class="f-lbl">Opening Litres</label><input class="f-inp ro" id="re-open-L" placeholder="${calib?'Auto':'Set calib first'}" value="${todayR&&calib?fmt((todayR.openingCm||0)*calib,1):''}" readonly></div>
       </div>
       <div class="f-r2">
@@ -6360,11 +6389,11 @@ function openReadingEntry(vehId){
             :`<div class="info-box info-amber" style="margin:10px 14px">Enter data from your company telematics platform for this ${veh.type}.</div>`}
     <div class="form-body">
       <div class="f-r2">
-        <div class="f-field"><label class="f-lbl">Opening KM</label><input class="f-inp" id="re-open-km" placeholder="e.g. 48200" type="number" inputmode="decimal" value="${todayR?.openingKm||''}"></div>
+        <div class="f-field"><label class="f-lbl">Opening KM</label><input class="f-inp" id="re-open-km" placeholder="e.g. 48200" type="number" inputmode="decimal" value="${carryOpenKm}">${wasCarried&&priorR?.closingKm!=null?carryLabel:''}</div>
         <div class="f-field"><label class="f-lbl">Closing KM</label><input class="f-inp" id="re-close-km" placeholder="e.g. 48650" type="number" inputmode="decimal" value="${todayR?.closingKm||''}"></div>
       </div>
       <div class="f-r2">
-        <div class="f-field"><label class="f-lbl">Opening Fuel %</label><input class="f-inp" id="re-open-pct" placeholder="e.g. 80" type="number" inputmode="decimal" max="100" value="${todayR?.openingPct||''}"></div>
+        <div class="f-field"><label class="f-lbl">Opening Fuel %</label><input class="f-inp" id="re-open-pct" placeholder="e.g. 80" type="number" inputmode="decimal" max="100" value="${carryOpenPct}"></div>
         <div class="f-field"><label class="f-lbl">Closing Fuel %</label><input class="f-inp" id="re-close-pct" placeholder="e.g. 25" type="number" inputmode="decimal" max="100" value="${todayR?.closingPct||''}"></div>
       </div>
       <div class="f-field"><label class="f-lbl">Period</label>
@@ -6391,16 +6420,22 @@ function openReadingEntry(vehId){
         if(isMach){
           const openL=calib&&r.openingCm!=null?fmt(r.openingCm*calib,1)+' L':'—';
           const closeL=calib&&r.closingCm!=null?fmt(r.closingCm*calib,1)+' L':'—';
+          const fuelUsedL=calib&&r.openingCm!=null&&r.closingCm!=null?fmt((r.openingCm-r.closingCm)*calib,1):null;
           detail=`<div style="display:flex;gap:12px;flex-wrap:wrap">
             <span>📐 ${r.openingCm??'—'}cm → ${r.closingCm??'—'}cm</span>
             <span>💧 ${openL} → ${closeL}</span>
+            ${fuelUsedL!=null&&parseFloat(fuelUsedL)>0?`<span style="color:var(--amber);font-weight:700">🔥 ${fuelUsedL} L used</span>`:''}
             ${r.reading?`<span>⏱ ${r.reading} hrs</span>`:''}
           </div>`;
         } else {
-          const km=r.closingKm&&r.openingKm?(r.closingKm-r.openingKm)+' km run':'';
+          const km=r.closingKm&&r.openingKm?(r.closingKm-r.openingKm):null;
+          const fuelUsedPct=r.openingPct!=null&&r.closingPct!=null?(r.openingPct-r.closingPct):null;
+          const fuelUsedL2=veh.tank&&fuelUsedPct!=null?fmt(fuelUsedPct/100*veh.tank,1):null;
+          const kmL=km!=null&&fuelUsedL2!=null&&parseFloat(fuelUsedL2)>0?fmt(km/parseFloat(fuelUsedL2),2):null;
           detail=`<div style="display:flex;gap:12px;flex-wrap:wrap">
-            <span>🛣 ${r.openingKm??'—'} → ${r.closingKm??'—'} KM${km?' ('+km+')':''}</span>
-            <span>⛽ ${r.openingPct??'—'}% → ${r.closingPct??'—'}%</span>
+            <span>🛣 ${r.openingKm??'—'} → ${r.closingKm??'—'} KM${km!=null?` <b>(${km} km)</b>`:''}</span>
+            <span>⛽ ${r.openingPct??'—'}% → ${r.closingPct??'—'}%${fuelUsedL2!=null?` (${fuelUsedL2} L used)`:''}</span>
+            ${kmL!=null?`<span style="color:var(--green);font-weight:700">📈 ${kmL} km/L</span>`:''}
           </div>`;
         }
         return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:6px">
@@ -7560,7 +7595,9 @@ function renderReports(){
       <div style="display:flex;gap:6px;padding:0 14px 4px 14px;margin-top:10px">
         <button onclick="setMusterSub('fleet')" style="flex:1;padding:9px 0;border-radius:8px;border:none;cursor:pointer;font-family:var(--fh);font-size:13px;font-weight:700;background:${window._musterSubTab==='fleet'?'var(--amber)':'var(--bg3)'};color:${window._musterSubTab==='fleet'?'#000':'var(--muted)'}">🚜 FLEET</button>
         <button onclick="setMusterSub('staff')" style="flex:1;padding:9px 0;border-radius:8px;border:none;cursor:pointer;font-family:var(--fh);font-size:13px;font-weight:700;background:${window._musterSubTab==='staff'?'var(--amber)':'var(--bg3)'};color:${window._musterSubTab==='staff'?'#000':'var(--muted)'}">🧑 STAFF</button>
-      </div>`;
+      </div>
+      ${isOwner()?`<div style="padding:0 14px 6px"><button onclick="exportWageReportPDF()" style="width:100%;padding:9px 0;border-radius:8px;cursor:pointer;font-family:var(--fh);font-size:12px;font-weight:700;background:rgba(255,179,0,.1);color:var(--amber);border:1px solid var(--amber)">📄 EXPORT WAGE REPORT PDF</button></div>`:''}
+    `;
 
     if(window._musterSubTab==='staff'){
       html = subToggleHTML + renderStaffMusterReport(range, false);
@@ -8207,6 +8244,138 @@ function renderReports(){
 }
 
 // Delete fuel entry (Owner only)
+// ── V51: Combined Wage Report PDF (Owner only) ──
+function exportWageReportPDF(){
+  if(!isOwner()){alert('Owner only');return;}
+  const range=repGetRange();
+  const fmtINR=n=>'₹'+Number(Math.round(n)).toLocaleString('en-IN');
+  const days=[];
+  let dm=new Date(range.from);const endDm=new Date(range.to);
+  while(dm<=endDm){days.push(dm.toISOString().slice(0,10));dm.setDate(dm.getDate()+1);}
+  const daysCount=days.length;
+  const isDriverVehicle=vt=>['tipper','truck','dumper','car','tanker','tractor','transit-mixer'].includes(vt);
+
+  // ── Fleet (Drivers & Operators) ──
+  const fleetRows=fleet.map(v=>{
+    let presentDays=0,halfDays=0,leaveDays=0,advTotal=0;
+    days.forEach(dt=>{
+      const m=(musters||[]).find(x=>(x.vehicleId===v.id||(x.driverId&&x.driverId===(v.driverId||'__')))&&x.date===dt);
+      if(m?.status==='halfday')halfDays++;
+      else if(m?.status==='leave')leaveDays++;
+      else if(m&&m.status!=='absent')presentDays++;
+      if(m?.advance>0)advTotal+=m.advance;
+    });
+    const wageDays=presentDays+(halfDays*0.5)+leaveDays;
+    const latestM=[...(musters||[])].filter(x=>(x.vehicleId===v.id||x.driverId===v.driverId)&&days.includes(x.date)).sort((a,b)=>b.date.localeCompare(a.date))[0];
+    const drvId=latestM?.driverId||v.driverId;
+    const drv=(drivers||[]).find(x=>x.id===drvId);
+    const drvSal=drv?.salary||0;
+    const dailyRate=drvSal>0?Math.round(drvSal/26):0;
+    const tripList=(window.trips||[]).filter(t=>t.driverId===drvId&&days.includes(t.date));
+    const incentives=tripList.reduce((a,t)=>a+(t.driverIncentive||0),0);
+    const grossWage=Math.round(wageDays*dailyRate)+incentives;
+    const netWage=Math.max(0,grossWage-advTotal);
+    const role=isDriverVehicle(v.type)?'Driver':'Operator';
+    return{vName:v.name,drvName:drv?.name||v.driverName||'—',role,wageDays:+wageDays.toFixed(1),dailyRate,incentives,grossWage,advTotal,netWage};
+  }).filter(r=>r.wageDays>0||r.advTotal>0);
+
+  const fleetGross=fleetRows.reduce((a,r)=>a+r.grossWage,0);
+  const fleetAdv=fleetRows.reduce((a,r)=>a+r.advTotal,0);
+  const fleetNet=fleetRows.reduce((a,r)=>a+r.netWage,0);
+
+  // ── Staff ──
+  const daysInMonth=new Date(new Date(range.to).getFullYear(),new Date(range.to).getMonth()+1,0).getDate();
+  const staffRows=(staff||[]).filter(s=>s.active!==false).map(s=>{
+    const isDW=s.category==='Daily Wage';
+    const dailyRate=isDW?(s.dailyRate||0):Math.round((s.salary||0)/daysInMonth);
+    let presentDays=0,halfDays=0,leaveDays=0,advTotal=0;
+    days.forEach(dt=>{
+      const m=(staffMusters||[]).find(x=>x.staffId===s.id&&x.date===dt);
+      if(!m)return;
+      if(m.status==='halfday')halfDays++;
+      else if(m.status==='leave')leaveDays++;
+      else if(m.status==='present')presentDays++;
+      if(m.advance>0)advTotal+=m.advance;
+    });
+    const wageDays=presentDays+(halfDays*0.5)+leaveDays;
+    const grossWage=Math.round(wageDays*dailyRate);
+    const netWage=Math.max(0,grossWage-advTotal);
+    return{name:s.name,category:s.category,wageDays:+wageDays.toFixed(1),dailyRate,grossWage,advTotal,netWage};
+  }).filter(r=>r.wageDays>0||r.advTotal>0);
+
+  const staffGross=staffRows.reduce((a,r)=>a+r.grossWage,0);
+  const staffAdv=staffRows.reduce((a,r)=>a+r.advTotal,0);
+  const staffNet=staffRows.reduce((a,r)=>a+r.netWage,0);
+  const grandNet=fleetNet+staffNet;
+
+  const CSS=`*{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;padding:24px;color:#111;font-size:12px}
+    .hdr{border-bottom:3px solid #e65100;padding-bottom:12px;margin-bottom:20px}
+    .hdr h1{font-size:22px;color:#e65100}.hdr .sub{color:#666;font-size:11px;margin-top:4px}
+    h2{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#e65100;border-bottom:1px solid #eee;padding-bottom:6px;margin:20px 0 10px}
+    table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px}
+    th{background:#f5f5f5;padding:7px 8px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.4px;border-bottom:2px solid #ddd}
+    td{padding:7px 8px;border-bottom:1px solid #eee}
+    tr:last-child td{border-bottom:none}
+    .tf td{font-weight:700;background:#fff8e1;border-top:2px solid #ddd}
+    .right{text-align:right}.mut{color:#999}
+    .grand{background:#e65100;color:#fff;font-size:16px;font-weight:700;padding:16px 18px;border-radius:6px;margin-top:16px;display:flex;justify-content:space-between;align-items:center}
+    .footer{margin-top:24px;font-size:10px;color:#999;border-top:1px solid #eee;padding-top:10px;text-align:center}
+    @media print{body{padding:12px}}`;
+
+  const periodStr=range.from===range.to?new Date(range.from).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'}):`${new Date(range.from).toLocaleDateString('en-IN',{day:'numeric',month:'short'})} – ${new Date(range.to).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}`;
+
+  const body=`
+  <div class="hdr">
+    <h1>💰 WAGE REPORT</h1>
+    <div class="sub">Chiddarwar Construction Co. Pvt. Ltd. &nbsp;·&nbsp; Period: ${periodStr} (${daysCount} day${daysCount>1?'s':''}) &nbsp;·&nbsp; Generated: ${new Date().toLocaleString('en-IN')}</div>
+  </div>
+
+  <h2>🚜 Fleet — Drivers & Operators (${fleetRows.length})</h2>
+  ${fleetRows.length?`<table>
+    <thead><tr><th>#</th><th>Vehicle</th><th>Person</th><th>Role</th><th class="right">Days</th><th class="right">Rate/Day</th><th class="right">Incentive</th><th class="right">Gross</th><th class="right">Advance</th><th class="right">Net Payable</th></tr></thead>
+    <tbody>
+      ${fleetRows.map((r,i)=>`<tr>
+        <td>${i+1}</td><td>${r.vName}</td><td>${r.drvName}</td>
+        <td style="color:${r.role==='Driver'?'green':'#1565c0'};font-weight:700">${r.role}</td>
+        <td class="right">${r.wageDays}</td>
+        <td class="right">${r.dailyRate>0?fmtINR(r.dailyRate):'<span class="mut">—</span>'}</td>
+        <td class="right">${r.incentives>0?fmtINR(r.incentives):'—'}</td>
+        <td class="right">${fmtINR(r.grossWage)}</td>
+        <td class="right" style="color:${r.advTotal>0?'#c62828':'#999'}">${r.advTotal>0?fmtINR(r.advTotal):'—'}</td>
+        <td class="right" style="font-weight:700">${fmtINR(r.netWage)}</td>
+      </tr>`).join('')}
+    </tbody>
+    <tfoot><tr class="tf"><td colspan="7">FLEET SUBTOTAL</td><td class="right">${fmtINR(fleetGross)}</td><td class="right">${fmtINR(fleetAdv)}</td><td class="right">${fmtINR(fleetNet)}</td></tr></tfoot>
+  </table>`:'<p style="color:#999;font-size:12px;padding:8px 0">No fleet muster data for this period.</p>'}
+
+  <h2>🧑 Staff (${staffRows.length})</h2>
+  ${staffRows.length?`<table>
+    <thead><tr><th>#</th><th>Name</th><th>Category</th><th class="right">Days</th><th class="right">Rate/Day</th><th class="right">Gross</th><th class="right">Advance</th><th class="right">Net Payable</th></tr></thead>
+    <tbody>
+      ${staffRows.map((r,i)=>`<tr>
+        <td>${i+1}</td><td>${r.name}</td><td>${r.category}</td>
+        <td class="right">${r.wageDays}</td>
+        <td class="right">${fmtINR(r.dailyRate)}</td>
+        <td class="right">${fmtINR(r.grossWage)}</td>
+        <td class="right" style="color:${r.advTotal>0?'#c62828':'#999'}">${r.advTotal>0?fmtINR(r.advTotal):'—'}</td>
+        <td class="right" style="font-weight:700">${fmtINR(r.netWage)}</td>
+      </tr>`).join('')}
+    </tbody>
+    <tfoot><tr class="tf"><td colspan="5">STAFF SUBTOTAL</td><td class="right">${fmtINR(staffGross)}</td><td class="right">${fmtINR(staffAdv)}</td><td class="right">${fmtINR(staffNet)}</td></tr></tfoot>
+  </table>`:'<p style="color:#999;font-size:12px;padding:8px 0">No staff muster data for this period.</p>'}
+
+  <div class="grand"><span>💰 GRAND TOTAL NET PAYABLE</span><span>${fmtINR(grandNet)}</span></div>
+
+  <div class="footer">FuelLog · Chiddarwar Construction Co. Pvt. Ltd. · Owner-only · ${fleetRows.length+staffRows.length} persons · Period: ${periodStr}</div>`;
+
+  const w=window.open('','_blank');
+  if(!w){alert('Pop-up blocked — please allow pop-ups for this site.');return;}
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Wage Report</title><style>${CSS}</style></head><body>${body}</body></html>`);
+  w.document.close();
+  setTimeout(()=>w.print(),600);
+}
+
 function deleteEntry(type,id){
   if(!isOwner()){alert('Only Owner can delete entries');return;}
   showConfirm('Delete this entry? This cannot be undone.',function(){
