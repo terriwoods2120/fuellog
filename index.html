@@ -10349,11 +10349,15 @@ async function fbAuth(){
   const refreshToken = localStorage.getItem('fb_refresh');
   if(refreshToken){
     try {
+      const ctrl1 = new AbortController();
+      const t1 = setTimeout(()=>ctrl1.abort(), 6000);
       const r = await fetch('https://securetoken.googleapis.com/v1/token?key='+FB_KEY, {
         method:'POST',
         headers:{'Content-Type':'application/x-www-form-urlencoded'},
-        body:'grant_type=refresh_token&refresh_token='+encodeURIComponent(refreshToken)
+        body:'grant_type=refresh_token&refresh_token='+encodeURIComponent(refreshToken),
+        signal: ctrl1.signal
       });
+      clearTimeout(t1);
       if(r.ok){
         const d = await r.json();
         fbAuthToken = d.id_token || d.access_token;
@@ -10367,11 +10371,15 @@ async function fbAuth(){
   }
   // Fresh anonymous signup
   try {
+    const ctrl2 = new AbortController();
+    const t2 = setTimeout(()=>ctrl2.abort(), 6000);
     const r = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signUp?key='+FB_KEY, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({returnSecureToken:true})
+      body:JSON.stringify({returnSecureToken:true}),
+      signal: ctrl2.signal
     });
+    clearTimeout(t2);
     if(r.ok){
       const d = await r.json();
       fbAuthToken = d.idToken;
