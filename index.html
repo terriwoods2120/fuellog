@@ -10572,8 +10572,16 @@ async function fbInit(){
     document.body.appendChild(overlay);
   }
 
+  // Hard safety net — if overlay still showing after 20s, remove unconditionally
+  // Protects against any unforeseen hang on iOS Safari or slow networks
+  setTimeout(()=>{
+    const ol=document.getElementById('fb-loading-overlay');
+    if(ol){ console.warn('[fbInit] 20s safety timeout — forcing overlay removal'); ol.remove(); }
+  }, 20000);
+
   fbSetStatus('syncing');
 
+  try {
   // Get Firebase auth token first (anonymous auth)
   await fbAuth();
 
@@ -10676,6 +10684,14 @@ async function fbInit(){
 
   // Remove loading overlay
   overlay.remove();
+
+  } catch(e){
+    console.error('[fbInit] unexpected error:', e);
+  } finally {
+    // ALWAYS remove the overlay — even if something above threw
+    const ol = document.getElementById('fb-loading-overlay');
+    if(ol) ol.remove();
+  }
 
   // Restore session if user was previously logged in
   // This runs AFTER data is loaded (Firebase or localStorage) so validity check works
