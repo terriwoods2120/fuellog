@@ -1512,6 +1512,10 @@ input[type=file]{display:none}
 // ════════════════════════════════════
 const SK={users:'fl7_users',fleet:'fl7_fleet',disbs:'fl7_disbs',readings:'fl7_readings',purchases:'fl7_purchases',pumps:'fl7_pumps',pumpFills:'fl7_pumpFills',sites:'fl7_sites',drivers:'fl7_drivers',musters:'fl7_musters',checklistTemplates:'fl7_clTemplates',checklistRecords:'fl7_clRecords',trips:'fl7_trips',customers:'fl7_customers',materials:'fl7_materials',staff:'fl7_staff',staffMusters:'fl7_staffMusters'};
 const ld=k=>{try{return JSON.parse(localStorage.getItem(SK[k])||'[]')}catch{return[]}};
+// Keys too large to cache in localStorage (Safari 5MB limit).
+// These are loaded fresh from Firebase on every login — no need to persist locally.
+// Trips, fleet, users, drivers, sessions ARE cached (small + needed for offline/session restore).
+const LS_NO_CACHE = new Set(['disbs','purchases','pumpFills','musters','staffMusters','checklistRecords']);
 // ═══ OFFLINE SYNC QUEUE (Item 3 + 4) ═══
 // Every save goes through a queue. Failed writes retry automatically.
 // Users see real status: SYNCING / SAVED / QUEUED (offline)
@@ -3224,7 +3228,7 @@ function showFbDiagnostics(){
           In memory (after normalize): <strong style="color:var(--text)">${tp.afterNormalize!=null?tp.afterNormalize:'?'}</strong><br>
           <strong>Lost: <span style="color:${lostColor};font-size:14px">${lost}</span></strong>${lost>0?' ← ROOT CAUSE FOUND':'  ✅'}
         </div>
-        ${d.quotaError?'<div style="margin-top:8px;background:rgba(244,67,54,.1);border:1px solid var(--red);border-radius:6px;padding:8px;font-size:12px;color:var(--red);font-weight:700">⚠️ STORAGE QUOTA EXCEEDED — some keys could not be saved to this device. This is the likely cause of missing data.</div>':''}
+        ${d.quotaError?'<div style="margin-top:8px;background:rgba(255,179,0,.1);border:1px solid var(--amber);border-radius:6px;padding:8px;font-size:12px;color:var(--amber);font-weight:700">⚠️ Quota was hit during this sync. Large keys (disbs/purchases) are now skipped from localStorage automatically — trips should be safe.</div>':''}
       </div>
 
       <div style="background:var(--card);border-radius:10px;padding:12px;margin-bottom:12px;border:1px solid var(--border)">
@@ -10775,8 +10779,8 @@ async function fbPushAll(){
         const missing = fbArr.filter(e=>e&&e.id&&!localIds.has(e.id)&&!tombstoneIds.has(e.id));
         if(missing.length > 0){
           localVal = [...localVal, ...missing];
-          // Update localStorage too so this device stays current
-          localStorage.setItem(localKey, JSON.stringify(localVal));
+          // Update localStorage only for small/critical keys
+          if(!LS_NO_CACHE.has(k)) localStorage.setItem(localKey, JSON.stringify(localVal));
           if(k==='trips') trips = localVal.map(_normalizeTrip);
           else if(k==='disbs') disbs = localVal;
           else if(k==='pumpFills') pumpFills = localVal;
@@ -10800,8 +10804,8 @@ async function fbPullAll(){
   if(!data){ fbSetStatus('offline'); return false; }
   FB_KEYS.forEach(k => {
     const localKey = SK[k] || ('fl7_' + k);
-    if(data[k] !== undefined){
-      localStorage.setItem(localKey, JSON.stringify(data[k] || []));
+    if(data[k] !== undefined && !LS_NO_CACHE.has(k)){
+      try { localStorage.setItem(localKey, JSON.stringify(data[k] || [])); } catch(e){}
     }
   });
   fbSetStatus('online');
@@ -10953,12 +10957,14 @@ async function fbInit(){
       }
       _diag.afterMerge = Array.isArray(val) ? val.length : 0;
 
-      // ── SAFE localStorage.setItem with QuotaExceededError catch ──
-      try { localStorage.setItem(localKey, JSON.stringify(val)); }
-      catch(qe){
-        console.warn('[FBDiag] localStorage QUOTA EXCEEDED writing key:', k, '— size approx:', Math.round(JSON.stringify(val).length/1024)+'KB');
-        _diag.quotaError = true;
-        window._fbDiagnostics.quotaError = true;
+      // ── Skip localStorage for large keys — write only small/critical keys ──
+      if(!LS_NO_CACHE.has(k)){
+        try { localStorage.setItem(localKey, JSON.stringify(val)); }
+        catch(qe){
+          console.warn('[FBDiag] localStorage quota exceeded for key:', k, Math.round(JSON.stringify(val).length/1024)+'KB');
+          _diag.quotaError = true;
+          window._fbDiagnostics.quotaError = true;
+        }
       }
 
       // Update in-memory variables immediately
@@ -11175,9 +11181,11 @@ async function refreshData(){
         if(val===null||val===undefined) return;
         if(typeof val==='object'&&!Array.isArray(val)) val=Object.values(val).filter(Boolean);
         const localKey=SK[k]||('fl7_'+k);
-        // ── SAFE setItem: catch QuotaExceededError so refresh doesn't silently fail ──
-        try { localStorage.setItem(localKey, JSON.stringify(val)); }
-        catch(qe){ console.warn('[refresh] localStorage quota exceeded for key:', k); }
+        // Skip large keys — they don't need localStorage caching
+        if(!LS_NO_CACHE.has(k)){
+          try { localStorage.setItem(localKey, JSON.stringify(val)); }
+          catch(qe){ console.warn('[refresh] localStorage quota exceeded for key:', k); }
+        }
         if(k==='users') users=val;
         else if(k==='fleet') fleet=val;
         else if(k==='disbs') disbs=val;
@@ -11258,7 +11266,7 @@ setInterval(async()=>{
           }
         }catch(me){}
       }
-      localStorage.setItem(localKey, JSON.stringify(val));
+      if(!LS_NO_CACHE.has(k)){ try{ localStorage.setItem(localKey, JSON.stringify(val)); }catch(e){} }
       if(k==='users') users=val;
       else if(k==='fleet') fleet=val;
       else if(k==='disbs') disbs=val;
