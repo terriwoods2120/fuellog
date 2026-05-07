@@ -7720,8 +7720,7 @@ function renderReports(){
     const vehRows=fleet.map(v=>{
       let presentDays=0,halfDays=0,leaveDays=0,absentDays=0,unmarkedDays=0,advTotal=0;
       days.forEach(dt=>{
-        const m=(musters||[]).find(x=>x.vehicleId===v.id&&x.date===dt)||
-                 (musters||[]).find(x=>x.driverId&&x.driverId===(v.driverId||'__')&&x.date===dt);
+        const m=(musters||[]).find(x=>x.vehicleId===v.id&&x.date===dt);
         if(!m)unmarkedDays++;
         else if(m.status==='absent')absentDays++;
         else if(m.status==='halfday')halfDays++;
@@ -7731,7 +7730,7 @@ function renderReports(){
       });
       // Wage days: present=1, halfday=0.5, leave=1, absent=0
       const wageDays=presentDays+(halfDays*0.5)+leaveDays;
-      const latestM=[...(musters||[])].filter(x=>(x.vehicleId===v.id||x.driverId===v.driverId)&&days.includes(x.date)).sort((a,b)=>b.date.localeCompare(a.date))[0];
+      const latestM=[...(musters||[])].filter(x=>x.vehicleId===v.id&&days.includes(x.date)).sort((a,b)=>b.date.localeCompare(a.date))[0];
       const drvId=latestM?.driverId||v.driverId;
       const drv=(drivers||[]).find(d=>d.id===drvId);
       const role=isDriverVehicle(v.type)?'driver':'operator';
@@ -7744,7 +7743,7 @@ function renderReports(){
 
     if(!isMultiDay){
       const td=range.from;
-      const getMuster=vid=>(musters||[]).find(m=>(m.vehicleId===vid||m.driverId===(fleet.find(f=>f.id===vid)?.driverId||'__'))&&m.date===td);
+      const getMuster=vid=>(musters||[]).find(m=>m.vehicleId===vid&&m.date===td);
       const present=vehRows.filter(({v})=>{const m=getMuster(v.id);return m&&m.status==='present';});
       const halfday=vehRows.filter(({v})=>{const m=getMuster(v.id);return m&&m.status==='halfday';});
       const leave=vehRows.filter(({v})=>{const m=getMuster(v.id);return m&&m.status==='leave';});
