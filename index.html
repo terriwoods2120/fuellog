@@ -3159,6 +3159,101 @@ function renderFleetTab(el){
 }
 
 // ── MORE TAB ──
+function showFbDiagnostics(){
+  const d = window._fbDiagnostics;
+  const el = document.getElementById('home-actions');
+  if(!el) return;
+
+  // Measure current localStorage usage
+  let lsUsedKB = 0, lsKeys = [];
+  try {
+    for(let i=0; i<localStorage.length; i++){
+      const k = localStorage.key(i);
+      const v = localStorage.getItem(k)||'';
+      const kb = Math.round(v.length/1024);
+      lsUsedKB += kb;
+      lsKeys.push({k, kb});
+    }
+    lsKeys.sort((a,b)=>b.kb-a.kb);
+  } catch(e){}
+
+  const topKeys = lsKeys.slice(0,8).map(x=>`
+    <tr><td style="padding:4px 8px;color:var(--muted);font-size:11px;word-break:break-all">${x.k}</td>
+        <td style="padding:4px 8px;text-align:right;font-weight:700;color:${x.kb>200?'var(--red)':x.kb>50?'var(--amber)':'var(--text)'};font-size:12px">${x.kb} KB</td></tr>`).join('');
+
+  if(!d){
+    el.innerHTML=`<div style="padding:20px;text-align:center;color:var(--muted)">
+      <div style="font-size:32px">🔬</div>
+      <div style="margin-top:12px;font-weight:700">No diagnostic data yet</div>
+      <div style="font-size:12px;margin-top:6px">Diagnostics are collected on next app load/login</div>
+      <button onclick="bnavTab('more')" style="margin-top:20px;background:var(--amber);color:#111;border:none;padding:10px 24px;border-radius:8px;font-weight:700;cursor:pointer">← Back</button>
+    </div>`;
+    return;
+  }
+
+  const tp = d.perKey && d.perKey.trips ? d.perKey.trips : {};
+  const lost = Math.max(0, (tp.afterObjectValues||0) - (tp.afterNormalize!=null?tp.afterNormalize:(tp.afterMerge||0)));
+  const lostColor = lost > 0 ? 'var(--red)' : 'var(--green)';
+  const failRows = (tp.normalizeFailed||[]).map(f=>`<tr><td style="padding:3px 8px;font-size:11px;color:var(--muted)">${f.index}</td><td style="padding:3px 8px;font-size:11px;color:var(--muted)">${f.id||'?'}</td><td style="padding:3px 8px;font-size:11px;color:var(--red)">${f.error}</td></tr>`).join('') || '<tr><td colspan="3" style="padding:4px 8px;color:var(--green);font-size:11px">None — all trips normalized OK</td></tr>';
+
+  const keyRows = Object.entries(d.perKey||{}).map(([k,v])=>`
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:4px 8px;font-size:11px;color:var(--muted)">${k}</td>
+      <td style="padding:4px 8px;text-align:center;font-size:11px">${v.rawCount||0}</td>
+      <td style="padding:4px 8px;text-align:center;font-size:11px">${v.afterObjectValues!=null?v.afterObjectValues:'-'}</td>
+      <td style="padding:4px 8px;text-align:center;font-size:11px">${v.afterMerge!=null?v.afterMerge:'-'}</td>
+      <td style="padding:4px 8px;text-align:center;font-size:11px;color:${v.quotaError?'var(--red)':'var(--muted)'}">${v.quotaError?'⚠️ QUOTA':'-'}</td>
+    </tr>`).join('');
+
+  el.innerHTML=`
+    <div style="padding:16px 12px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <button onclick="bnavTab('more')" style="background:transparent;border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:8px;font-weight:700;cursor:pointer">← Back</button>
+        <div style="font-family:var(--fh);font-size:16px;color:var(--amber)">🔬 FIREBASE DIAGNOSTICS</div>
+      </div>
+
+      <div style="background:var(--card);border-radius:10px;padding:12px;margin-bottom:12px;border:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px">LAST SYNC — ${d.fetchedAt ? new Date(d.fetchedAt).toLocaleString() : 'unknown'}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text)">Response size: <span style="color:var(--amber)">${d.responseKB} KB</span></div>
+        <div style="margin-top:6px;font-size:13px;font-weight:700">Trips summary:</div>
+        <div style="margin-top:4px;font-size:12px;line-height:1.8;color:var(--muted)">
+          Firebase raw count: <strong style="color:var(--text)">${tp.rawCount||0}</strong><br>
+          Firebase type: <strong style="color:${tp.firebaseType==='array'?'var(--green)':'var(--amber)'}">${tp.firebaseType||'?'}</strong>${tp.firebaseType!=='array'?' ⚠️ not an array — Object.values conversion needed':''}<br>
+          After Object.values: <strong style="color:var(--text)">${tp.afterObjectValues||0}</strong><br>
+          After merge: <strong style="color:var(--text)">${tp.afterMerge||0}</strong><br>
+          In memory (after normalize): <strong style="color:var(--text)">${tp.afterNormalize!=null?tp.afterNormalize:'?'}</strong><br>
+          <strong>Lost: <span style="color:${lostColor};font-size:14px">${lost}</span></strong>${lost>0?' ← ROOT CAUSE FOUND':'  ✅'}
+        </div>
+        ${d.quotaError?'<div style="margin-top:8px;background:rgba(244,67,54,.1);border:1px solid var(--red);border-radius:6px;padding:8px;font-size:12px;color:var(--red);font-weight:700">⚠️ STORAGE QUOTA EXCEEDED — some keys could not be saved to this device. This is the likely cause of missing data.</div>':''}
+      </div>
+
+      <div style="background:var(--card);border-radius:10px;padding:12px;margin-bottom:12px;border:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px">_normalizeTrip FAILURES</div>
+        <table style="width:100%;border-collapse:collapse">
+          <tr style="background:var(--border)"><th style="padding:4px 8px;text-align:left;font-size:10px">IDX</th><th style="padding:4px 8px;text-align:left;font-size:10px">TRIP ID</th><th style="padding:4px 8px;text-align:left;font-size:10px">ERROR</th></tr>
+          ${failRows}
+        </table>
+      </div>
+
+      <div style="background:var(--card);border-radius:10px;padding:12px;margin-bottom:12px;border:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px">ALL KEYS — Firebase → Memory</div>
+        <table style="width:100%;border-collapse:collapse">
+          <tr style="background:var(--border)"><th style="padding:4px 8px;text-align:left;font-size:10px">KEY</th><th style="padding:4px 8px;font-size:10px">FB</th><th style="padding:4px 8px;font-size:10px">OBJ.VAL</th><th style="padding:4px 8px;font-size:10px">MERGE</th><th style="padding:4px 8px;font-size:10px">STATUS</th></tr>
+          ${keyRows}
+        </table>
+      </div>
+
+      <div style="background:var(--card);border-radius:10px;padding:12px;margin-bottom:12px;border:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px">localStorage USAGE — Top 8 keys (Total: ${lsUsedKB} KB)</div>
+        <table style="width:100%;border-collapse:collapse">${topKeys}</table>
+        <div style="margin-top:8px;font-size:11px;color:var(--muted)">Safari iOS limit: ~5MB (5,120 KB). ${lsUsedKB>4000?'<strong style="color:var(--red)">⚠️ NEAR LIMIT</strong>':lsUsedKB>3000?'<strong style="color:var(--amber)">⚠️ Getting large</strong>':'<strong style="color:var(--green)">OK</strong>'}</div>
+      </div>
+
+      <button onclick="bnavTab('more')" style="width:100%;background:var(--amber);color:#111;border:none;padding:12px;border-radius:8px;font-weight:700;cursor:pointer;font-family:var(--fh)">← BACK TO MORE</button>
+      <div class="pad-bot"></div>
+    </div>`;
+}
+
 function renderMoreTab(el){
   el.innerHTML=`
     ${isOwner()||isAdmin()||isManager()?`
@@ -3196,6 +3291,10 @@ function renderMoreTab(el){
     <div class="act" onclick="backupData()">
       <div class="act-ico">💾</div><div class="act-txt"><div class="act-title">BACKUP DATA</div><div class="act-desc">Download all data as JSON file</div></div><div class="act-arr">›</div>
     </div>
+    ${isOwner()?`
+    <div class="act" onclick="showFbDiagnostics()">
+      <div class="act-ico">🔬</div><div class="act-txt"><div class="act-title">FIREBASE DIAGNOSTICS</div><div class="act-desc">Debug trips data · Last sync counts · Storage check</div></div><div class="act-arr">›</div>
+    </div>`:''}
     <div class="act" onclick="restoreBackup()">
       <div class="act-ico">📂</div><div class="act-txt"><div class="act-title">RESTORE FROM BACKUP</div><div class="act-desc">Import JSON backup file to restore data</div></div><div class="act-arr">›</div>
     </div>
@@ -10795,16 +10894,45 @@ async function fbInit(){
   fbSetStatus('online');
 
   if(data){
+    // ── DIAGNOSTICS: record Firebase response size ──
+    let _responseKB = 0;
+    try { _responseKB = Math.round(JSON.stringify(data).length / 1024); } catch(e){}
+    window._fbDiagnostics = {
+      fetchedAt: new Date().toISOString(),
+      responseKB: _responseKB,
+      perKey: {},
+      summary: '',
+      quotaError: false
+    };
+    console.log('[FBDiag] Firebase response size: ' + _responseKB + ' KB');
+
     FB_KEYS.forEach(k => {
       const localKey = SK[k] || ('fl7_' + k);
       let val = data[k];
+
+      // ── DIAGNOSTICS: record raw Firebase type/count for this key ──
+      const _diag = {
+        firebaseType: val === null ? 'null' : Array.isArray(val) ? 'array' : typeof val,
+        rawCount: val === null || val === undefined ? 0 : Array.isArray(val) ? val.length : (typeof val === 'object' ? Object.keys(val).length : 1),
+        afterObjectValues: null,
+        afterMerge: null,
+        afterNormalize: null,
+        normalizeFailed: [],
+        quotaError: false
+      };
+
       // If Firebase returns null/empty for this key, prefer localStorage
       if(val === null || val === undefined){
         try{ val = JSON.parse(localStorage.getItem(localKey)||'[]'); }
         catch(e){ val = []; }
       } else if(!Array.isArray(val) && typeof val === 'object'){
+        const _beforeOV = Object.keys(val).length;
         val = Object.values(val).filter(Boolean);
+        _diag.afterObjectValues = val.length;
+        if(k==='trips') console.log('[FBDiag] trips: Firebase returned OBJECT ('+_beforeOV+' keys) → Object.values → '+val.length+' entries — POSSIBLE BUG if '+val.length+' < '+_beforeOV);
       }
+      if(_diag.afterObjectValues === null) _diag.afterObjectValues = Array.isArray(val) ? val.length : 0;
+
       // MERGE FIX: For transactional keys, never discard local entries that
       // Firebase doesn't have yet (e.g. saved offline, not yet pushed).
       if(MERGE_KEYS.has(k) && Array.isArray(val)){
@@ -10817,13 +10945,22 @@ async function fbInit(){
             if(localOnly.length > 0){
               console.log('[StartupMerge] '+k+': preserving '+localOnly.length+' local-only entries not yet in Firebase');
               val = [...val, ...localOnly];
-              // Push the merged result back to Firebase so it's not lost
+              // Push the merged result back to Firebase so it’s not lost
               _fbWrite(k, val).then(ok=>{ if(ok) console.log('[StartupMerge] '+k+': pushed '+localOnly.length+' recovered entries to Firebase'); });
             }
           }
         } catch(me){ /* merge failed — use Firebase value as-is */ }
       }
-      localStorage.setItem(localKey, JSON.stringify(val));
+      _diag.afterMerge = Array.isArray(val) ? val.length : 0;
+
+      // ── SAFE localStorage.setItem with QuotaExceededError catch ──
+      try { localStorage.setItem(localKey, JSON.stringify(val)); }
+      catch(qe){
+        console.warn('[FBDiag] localStorage QUOTA EXCEEDED writing key:', k, '— size approx:', Math.round(JSON.stringify(val).length/1024)+'KB');
+        _diag.quotaError = true;
+        window._fbDiagnostics.quotaError = true;
+      }
+
       // Update in-memory variables immediately
       if(k==='users') users=val;
       else if(k==='fleet') fleet=val;
@@ -10837,12 +10974,34 @@ async function fbInit(){
       else if(k==='musters') musters=val;
       else if(k==='checklistTemplates') checklistTemplates=val;
       else if(k==='checklistRecords') checklistRecords=val;
-      else if(k==='trips') trips=(val||[]).map(_normalizeTrip);
+      else if(k==='trips'){
+        // ── DIAGNOSTICS: wrap _normalizeTrip per-entry, catch failures ──
+        const _normalized = [];
+        (val||[]).forEach((t,i)=>{
+          try { _normalized.push(_normalizeTrip(t)); }
+          catch(ne){
+            console.error('[FBDiag] _normalizeTrip FAILED entry', i, 'id:', t&&t.id, 'error:', ne.message);
+            _diag.normalizeFailed.push({index:i, id:t&&t.id, error:ne.message});
+          }
+        });
+        trips = _normalized;
+        _diag.afterNormalize = _normalized.length;
+        const _lost = _diag.afterMerge - _diag.afterNormalize;
+        console.log('[FBDiag] trips: rawCount='+_diag.rawCount+' afterObjectValues='+_diag.afterObjectValues+' afterMerge='+_diag.afterMerge+' inMemory='+_diag.afterNormalize+(_lost>0?' ⚠️ LOST='+_lost:''));
+      }
       else if(k==='customers') customers=val;
       else if(k==='materials') materials=val;
       else if(k==='staff') staff=val;
       else if(k==='staffMusters') staffMusters=val;
+
+      window._fbDiagnostics.perKey[k] = _diag;
     });
+
+    // Build summary
+    const _td = window._fbDiagnostics.perKey.trips || {};
+    const _mem = _td.afterNormalize != null ? _td.afterNormalize : (_td.afterMerge||0);
+    window._fbDiagnostics.summary = 'Firebase: '+(_td.rawCount||0)+' trips | After convert: '+(_td.afterObjectValues||0)+' | Memory: '+_mem+' | Lost: '+Math.max(0,(_td.afterObjectValues||0)-_mem)+(window._fbDiagnostics.quotaError?' | ⚠️ QUOTA EXCEEDED':'');
+    console.log('[FBDiag] SUMMARY:', window._fbDiagnostics.summary);
     console.log('Loaded from Firebase — disbs:',disbs.length,'fleet:',fleet.length,'users:',users.length,'staff:',staff.length);
     // Only seed default materials if Firebase confirms none exist
     if(materials.length===0) _seedMaterials();
@@ -11016,7 +11175,9 @@ async function refreshData(){
         if(val===null||val===undefined) return;
         if(typeof val==='object'&&!Array.isArray(val)) val=Object.values(val).filter(Boolean);
         const localKey=SK[k]||('fl7_'+k);
-        localStorage.setItem(localKey, JSON.stringify(val));
+        // ── SAFE setItem: catch QuotaExceededError so refresh doesn't silently fail ──
+        try { localStorage.setItem(localKey, JSON.stringify(val)); }
+        catch(qe){ console.warn('[refresh] localStorage quota exceeded for key:', k); }
         if(k==='users') users=val;
         else if(k==='fleet') fleet=val;
         else if(k==='disbs') disbs=val;
@@ -11040,7 +11201,8 @@ async function refreshData(){
       flash('⚠ NO DATA','Could not reach Firebase — check connection');
     }
   } catch(e){
-    flash('❌ FAILED','Could not refresh — '+e.message);
+    const _isQuota = e && (e.name==='QuotaExceededError' || (e.message&&e.message.toLowerCase().includes('quota')));
+    flash('❌ FAILED', _isQuota ? 'Storage full on this device — see Diagnostics in More tab' : 'Could not refresh — '+e.message);
   } finally {
     if(btn){setTimeout(()=>{btn.style.transform='';btn.style.transition='';btn.disabled=false;},700);}
   }
