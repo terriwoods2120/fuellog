@@ -941,7 +941,14 @@ input[type=file]{display:none}
 <div class="screen" id="scr-muster">
   <div class="topbar">
     <button class="tb-back" onclick="show('scr-home')">‹</button>
-    <div><div class="tb-title">MORNING MUSTER</div><div class="tb-sub" id="muster-date"></div></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div><div class="tb-title">MORNING MUSTER</div><div class="tb-sub" id="muster-date"></div></div>
+      <input type="date" id="muster-backdate-input" onchange="setMusterBackdate(this.value)"
+        style="position:absolute;opacity:0;pointer-events:none;width:0;height:0">
+      <button id="muster-cal-btn" onclick="if(isOwner()){document.getElementById('muster-backdate-input').showPicker()}"
+        style="display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:2px 4px;line-height:1;filter:drop-shadow(0 0 4px var(--amber))"
+        title="Select past date">📅</button>
+    </div>
     <div style="margin-left:auto;font-family:var(--fh);font-size:11px;color:var(--muted)" id="muster-count"></div>
   </div>
   <!-- FLEET / STAFF tab bar -->
@@ -956,6 +963,12 @@ input[type=file]{display:none}
              background:var(--bg2);color:var(--muted);border-bottom:3px solid transparent">
       👷 STAFF
     </button>
+  </div>
+
+  <!-- Backdate banner -->
+  <div id="muster-backdate-banner" style="display:none;background:rgba(255,179,0,.12);border-bottom:2px solid var(--amber);padding:8px 14px;align-items:center;justify-content:space-between;flex-shrink:0">
+    <span style="font-family:var(--fh);font-size:12px;color:var(--amber);font-weight:700">📅 BACKDATE MODE &mdash; editing past attendance</span>
+    <button onclick="clearMusterBackdate()" style="background:none;border:1px solid var(--amber);color:var(--amber);border-radius:6px;padding:3px 10px;font-size:11px;font-family:var(--fh);cursor:pointer;font-weight:700">✕ Back to Today</button>
   </div>
 
   <!-- FLEET TAB CONTENT -->
@@ -1815,7 +1828,7 @@ function onEnter(id){
   if(id==='scr-sites')     renderSitesLog();
   if(id==='scr-drivers')   { renderDriverList(); const sw=document.getElementById('drv-salary-wrap'); if(sw) sw.style.display=isOwner()?'':'none'; }
   if(id==='scr-staff')     { if(!isOwner()){show('scr-home');return;} renderStaffList(); }
-  if(id==='scr-muster'){const el=document.getElementById('muster-date');if(el)el.textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'});initMusterTabs();}
+  if(id==='scr-muster'){initMusterTabs();}
   if(id==='scr-readings')  {const s=document.getElementById('readings-veh-search');if(s)s.value='';renderReadingsVehGrid();}
   if(id==='scr-purchases') {renderPurchases();document.getElementById('pur-by').value=sess?.name||'';document.getElementById('pur-date').value=today();document.getElementById('pur-date').setAttribute('max',today());}
   if(id==='scr-reports'){
@@ -3338,17 +3351,16 @@ function _seedMaterials(){
   if(localStorage.getItem('fl7_materialsSeeded') === '1') return;
   // Only seed if truly first time on this device AND no materials anywhere
   materials=[
-    {id:uid(),name:'Sand',unit:'brass',rate:null,notes:'River sand / wash sand'},
-    {id:uid(),name:'Aggregate / Khadi',unit:'brass',rate:null,notes:''},
-    {id:uid(),name:'Crushed Stone',unit:'brass',rate:null,notes:''},
-    {id:uid(),name:'GSB',unit:'brass',rate:null,notes:'Granular sub base'},
-    {id:uid(),name:'Murum',unit:'brass',rate:null,notes:''},
-    {id:uid(),name:'WBM Metal',unit:'brass',rate:null,notes:''},
-    {id:uid(),name:'Paver Blocks',unit:'sqft',rate:null,notes:''},
-    {id:uid(),name:'RMC',unit:'cum',rate:null,notes:'Ready Mix Concrete'},
+    {id:'seed-001',name:'Sand',unit:'brass',rate:null,notes:'River sand / wash sand'},
+    {id:'seed-002',name:'Aggregate / Khadi',unit:'brass',rate:null,notes:''},
+    {id:'seed-003',name:'Crushed Stone',unit:'brass',rate:null,notes:''},
+    {id:'seed-004',name:'GSB',unit:'brass',rate:null,notes:'Granular sub base'},
+    {id:'seed-005',name:'Murum',unit:'brass',rate:null,notes:''},
+    {id:'seed-006',name:'WBM Metal',unit:'brass',rate:null,notes:''},
+    {id:'seed-007',name:'Paver Blocks',unit:'sqft',rate:null,notes:''},
+    {id:'seed-008',name:'RMC',unit:'cum',rate:null,notes:'Ready Mix Concrete'},
   ];
-  sv('materials',materials);
-  localStorage.setItem('fl7_materialsSeeded', '1');
+  // NO sv() call — seed is display-only fallback, never writes to Firebase
 }
 
 // ── TRIPS TAB (bottom nav) ──
@@ -9784,7 +9796,7 @@ function renderDriverList(){
 // ════════════════════════════════════
 function renderMuster(){
   const el=document.getElementById('muster-list');if(!el)return;
-  const td=today();
+  const td=_musterDate||today();
   const activeDrivers=(drivers||[]).filter(d=>d.active!==false);
   if(!activeDrivers.length){el.innerHTML='<div class="muted-txt">No drivers/operators added yet</div>';return;}
 
@@ -9891,7 +9903,7 @@ function renderMuster(){
 function onMusterVehChange(driverId){
   const sel=document.getElementById('muster-veh-'+driverId);
   const vehId=sel?.value||'';
-  const td=today();
+  const td=_musterDate||today();
   const idx=(musters||[]).findIndex(m=>m.driverId===driverId&&m.date===td);
   if(idx>=0){
     musters[idx].vehicleId=vehId||null;
@@ -9909,7 +9921,22 @@ function onMusterVehChange(driverId){
 
 // V50: Main fleet muster mark function — driver-centric
 function markFleetMuster(driverId, status){
-  const td=today();
+  const td=_musterDate||today();
+  // Backdate mode — require remark if record already exists and was previously marked
+  if(_musterDate){
+    const existing=(musters||[]).find(m=>m.driverId===driverId&&m.date===td);
+    if(existing && existing.status && existing.status!=='pending'){
+      const remark=prompt('⚠️ Attendance for this day was already marked as "'+existing.status.toUpperCase()+'" by '+(existing.markedByName||'manager')+'.\n\nEnter reason for change (required):','');
+      if(remark===null) return;
+      if(!remark.trim()){alert('A reason is required to edit past attendance.');return;}
+      _doMarkFleetMuster(driverId,status,td,remark.trim());
+      return;
+    }
+  }
+  _doMarkFleetMuster(driverId,status,td,null);
+}
+
+function _doMarkFleetMuster(driverId, status, td, editRemark){
   const drv=(drivers||[]).find(d=>d.id===driverId);if(!drv)return;
 
   // Read today's selected vehicle from the picker
@@ -9934,7 +9961,8 @@ function markFleetMuster(driverId, status){
     status,
     advance:existing?.advance||0,
     advRemark:existing?.advRemark||'',
-    markedBy:sess.userId,markedByName:sess.name,ts:Date.now()
+    markedBy:sess.userId,markedByName:sess.name,ts:Date.now(),
+    ...(editRemark?{editRemark,editBy:sess.name,editTs:Date.now()}:{})
   };
   const idx=(musters||[]).findIndex(m=>m.driverId===driverId&&m.date===td);
   if(idx>=0)musters[idx]=entry;else musters.push(entry);
@@ -9949,7 +9977,7 @@ function markFleetMuster(driverId, status){
 
 // V50: Save advance + remark on blur
 function saveFleetMusterAdvance(driverId){
-  const td=today();
+  const td=_musterDate||today();
   const amt=Math.max(0,parseFloat(document.getElementById('muster-adv-'+driverId)?.value)||0);
   const rem=document.getElementById('muster-adv-rem-'+driverId)?.value||'';
   const idx=(musters||[]).findIndex(m=>m.driverId===driverId&&m.date===td);
@@ -11981,6 +12009,7 @@ function saveEdit(){
 // ════════════════════════════════════
 let activeMusterTab = 'fleet';
 let activeStaffCat = 'All';
+let _musterDate = null; // null = today; 'YYYY-MM-DD' = backdate mode (Owner only)
 
 const STAFF_CATS = ['All','Crusher Team','HMP Gang','Paver Gang','Concrete Pump Gang','Office Staff','Daily Wage'];
 const STAFF_CAT_ICO = {'All':'👥','Crusher Team':'⛏️','HMP Gang':'🏭','Paver Gang':'🛣️','Concrete Pump Gang':'🏗️','Office Staff':'🖥️','Daily Wage':'💰'};
@@ -11988,7 +12017,53 @@ const STAFF_CAT_ICO = {'All':'👥','Crusher Team':'⛏️','HMP Gang':'🏭','P
 function initMusterTabs(){
   activeMusterTab = 'fleet';
   activeStaffCat = 'All';
+  _musterDate = null;
+  // Show calendar icon for Owner only
+  const calBtn = document.getElementById('muster-cal-btn');
+  if(calBtn) calBtn.style.display = isOwner() ? 'inline-block' : 'none';
+  // Set max date on picker to yesterday
+  const picker = document.getElementById('muster-backdate-input');
+  if(picker){ const y=new Date(); y.setDate(y.getDate()-1); picker.max=y.toISOString().split('T')[0]; picker.value=''; }
+  _refreshMusterDateLabel();
+  const banner = document.getElementById('muster-backdate-banner');
+  if(banner) banner.style.display = 'none';
   switchMusterTab('fleet');
+}
+
+function _refreshMusterDateLabel(){
+  const el = document.getElementById('muster-date');
+  if(!el) return;
+  if(_musterDate){
+    const d = new Date(_musterDate+'T00:00:00');
+    el.textContent = d.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'});
+    el.style.color = 'var(--amber)';
+    el.style.fontWeight = '700';
+  } else {
+    el.textContent = new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'});
+    el.style.color = '';
+    el.style.fontWeight = '';
+  }
+}
+
+function setMusterBackdate(val){
+  if(!isOwner()) return;
+  _musterDate = val || null;
+  _refreshMusterDateLabel();
+  const banner = document.getElementById('muster-backdate-banner');
+  if(banner) banner.style.display = _musterDate ? 'flex' : 'none';
+  updateMusterCount();
+  if(activeMusterTab==='fleet') renderMuster(); else renderStaffMuster();
+}
+
+function clearMusterBackdate(){
+  _musterDate = null;
+  const picker = document.getElementById('muster-backdate-input');
+  if(picker) picker.value = '';
+  _refreshMusterDateLabel();
+  const banner = document.getElementById('muster-backdate-banner');
+  if(banner) banner.style.display = 'none';
+  updateMusterCount();
+  if(activeMusterTab==='fleet') renderMuster(); else renderStaffMuster();
 }
 
 function switchMusterTab(tab){
@@ -12013,7 +12088,7 @@ function switchMusterTab(tab){
 }
 
 function updateMusterCount(){
-  const td = today();
+  const td = _musterDate||today();
   const fleetMarked = (musters||[]).filter(m=>m.date===td).length;
   const staffMarked = (staffMusters||[]).filter(m=>m.date===td).length;
   const el = document.getElementById('muster-count');
@@ -12043,7 +12118,7 @@ function setStaffCat(cat){
 function renderStaffMuster(){
   const el = document.getElementById('staff-muster-list');
   if(!el) return;
-  const td = today();
+  const td = _musterDate||today();
   const activeStaff = (staff||[]).filter(s=>s.active!==false);
   if(!activeStaff.length){
     el.innerHTML='<div class="muted-txt" style="padding:40px;text-align:center">No staff added yet.<br><br><button class="big-btn bb-amber" style="margin-top:12px" onclick="if(!isOwner()){alert(\'Owner only\');return;}show(\'scr-staff\')">+ Add Staff</button></div>';
@@ -12110,10 +12185,26 @@ function renderStaffMuster(){
 
 function markStaffMuster(staffId, status){
   if(!isOwner()&&!isAdmin()&&!isManager()){alert('Access denied');return;}
-  const td = today();
+  const td = _musterDate||today();
+  // Backdate mode — require remark if record already exists and was previously marked
+  if(_musterDate){
+    const existing = staffMusters.find(m=>m.staffId===staffId&&m.date===td);
+    if(existing && existing.status && existing.status!=='pending'){
+      const remark=prompt('⚠️ Attendance for this day was already marked as "'+existing.status.toUpperCase()+'" by '+(existing.by||'manager')+'.\n\nEnter reason for change (required):','');
+      if(remark===null) return;
+      if(!remark.trim()){alert('A reason is required to edit past attendance.');return;}
+      _doMarkStaffMuster(staffId,status,td,remark.trim());
+      return;
+    }
+  }
+  _doMarkStaffMuster(staffId,status,td,null);
+}
+
+function _doMarkStaffMuster(staffId, status, td, editRemark){
   const idx = staffMusters.findIndex(m=>m.staffId===staffId&&m.date===td);
   const existing = idx>=0 ? staffMusters[idx] : null;
-  const rec = {id: existing?.id||uid(), staffId, date:td, status, advance:existing?.advance||0, advRemark:existing?.advRemark||'', by:sess?.name||'', ts:Date.now()};
+  const rec = {id: existing?.id||uid(), staffId, date:td, status, advance:existing?.advance||0, advRemark:existing?.advRemark||'', by:sess?.name||'', ts:Date.now(),
+    ...(editRemark?{editRemark,editBy:sess.name,editTs:Date.now()}:{})};
   if(idx>=0) staffMusters[idx]=rec; else staffMusters.push(rec);
   sv('staffMusters',staffMusters);
   renderStaffMuster();
@@ -12121,7 +12212,7 @@ function markStaffMuster(staffId, status){
 }
 
 function saveStaffAdvance(staffId){
-  const td = today();
+  const td = _musterDate||today();
   const amt = parseFloat(document.getElementById('adv-amt-'+staffId)?.value)||0;
   const rem = document.getElementById('adv-rem-'+staffId)?.value.trim()||'';
   const idx = staffMusters.findIndex(m=>m.staffId===staffId&&m.date===td);
