@@ -1360,6 +1360,34 @@ input[type=file]{display:none}
   <div class="pad-bot"></div>
 </div>
 
+<!-- ═══ DIP GAUGE REVIEW ═══ -->
+<div class="screen" id="scr-dip-review">
+  <div class="topbar">
+    <button class="tb-back" onclick="show('scr-home')">‹</button>
+    <div><div class="tb-title">DIP GAUGE REVIEW</div><div class="tb-sub" id="dip-review-sub">Issuance & Daily Machinery</div></div>
+    <div style="margin-left:auto;padding-right:4px">
+      <input type="date" id="dip-review-from" style="background:var(--bg3);border:1px solid var(--border);color:var(--white);padding:5px 7px;border-radius:7px;font-size:11px;font-family:var(--fb)" onchange="renderDipReview()">
+      <span style="color:var(--muted);font-size:11px;font-weight:700;margin:0 2px">–</span>
+      <input type="date" id="dip-review-to" style="background:var(--bg3);border:1px solid var(--border);color:var(--white);padding:5px 7px;border-radius:7px;font-size:11px;font-family:var(--fb)" onchange="renderDipReview()">
+    </div>
+  </div>
+  <!-- Toggle: Issuance / Daily -->
+  <div style="display:flex;gap:6px;padding:10px 14px 6px;flex-shrink:0">
+    <button id="dip-tab-issuance" onclick="setDipTab('issuance')" style="flex:1;padding:9px 0;border-radius:8px;border:none;cursor:pointer;font-family:var(--fh);font-size:13px;font-weight:700;background:var(--amber);color:#000">⛽ ISSUANCE</button>
+    <button id="dip-tab-daily" onclick="setDipTab('daily')" style="flex:1;padding:9px 0;border-radius:8px;border:none;cursor:pointer;font-family:var(--fh);font-size:13px;font-weight:700;background:var(--bg3);color:var(--muted)">📏 DAILY DIP</button>
+  </div>
+  <!-- Status filter (Issuance only) -->
+  <div id="dip-status-filter-row" style="padding:0 14px 6px;flex-shrink:0">
+    <select id="dip-status-filter" onchange="renderDipReview()" style="width:100%;background:var(--bg2);border:1.5px solid var(--border);color:var(--white);padding:8px 12px;border-radius:8px;font-size:12px;font-family:var(--fb)">
+      <option value="all">All Records</option>
+      <option value="ok">✅ OK (within ±5 L)</option>
+      <option value="variance">⚠️ Variance (>5 L)</option>
+      <option value="nodip">🔴 Not Verified</option>
+    </select>
+  </div>
+  <div id="dip-review-list" style="overflow-y:auto;flex:1;padding-bottom:16px"></div>
+</div>
+
 <!-- ═══ REPORTS ═══ -->
 <div class="screen" id="scr-reports">
   <div class="topbar">
@@ -3282,6 +3310,9 @@ function renderMoreTab(el){
       <div class="act-ico">🔧</div><div class="act-txt"><div class="act-title">CHECKLIST REVIEW</div><div class="act-desc">Driver submissions · Issues · Resolutions</div></div>
       <span id="chk-badge-more" style="display:none;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-right:6px"></span>
       <div class="act-arr">›</div>
+    </div>
+    <div class="act" onclick="showDipGaugeReview()">
+      <div class="act-ico">📏</div><div class="act-txt"><div class="act-title">DIP GAUGE REVIEW</div><div class="act-desc">Issuance verification · Daily machinery dips</div></div><div class="act-arr">›</div>
     </div>`:''}
     ${isOwner()||isAdmin()?`
     <div class="sec-lbl" style="margin-top:4px">Administration</div>
@@ -5100,6 +5131,225 @@ function renderHomePendingPill(){
 function showChecklistReview(){
   show('scr-checklist-review');
   renderChecklistReview();
+}
+
+// ════════════════════════════════════
+// DIP GAUGE REVIEW
+// ════════════════════════════════════
+let _dipReviewTab='issuance'; // 'issuance' | 'daily'
+
+function showDipGaugeReview(){
+  // Default date range: last 30 days
+  const fromEl=document.getElementById('dip-review-from');
+  const toEl=document.getElementById('dip-review-to');
+  if(fromEl&&!fromEl.value){
+    const d=new Date();d.setDate(d.getDate()-29);
+    fromEl.value=d.toISOString().slice(0,10);
+  }
+  if(toEl&&!toEl.value) toEl.value=today();
+  show('scr-dip-review');
+  renderDipReview();
+}
+
+function setDipTab(t){
+  _dipReviewTab=t;
+  const tabs=['issuance','daily'];
+  tabs.forEach(k=>{
+    const b=document.getElementById('dip-tab-'+k);
+    if(b){b.style.background=k===t?'var(--amber)':'var(--bg3)';b.style.color=k===t?'#000':'var(--muted)';}
+  });
+  // Show/hide status filter (only for issuance tab)
+  const fr=document.getElementById('dip-status-filter-row');
+  if(fr) fr.style.display=t==='issuance'?'block':'none';
+  renderDipReview();
+}
+
+function renderDipReview(){
+  const el=document.getElementById('dip-review-list');if(!el)return;
+  const from=document.getElementById('dip-review-from')?.value||today();
+  const to=document.getElementById('dip-review-to')?.value||today();
+  const subEl=document.getElementById('dip-review-sub');
+
+  if(_dipReviewTab==='issuance'){
+    if(subEl) subEl.textContent='Issuance Verification Dips';
+    _renderIssuanceDips(el,from,to);
+  } else {
+    if(subEl) subEl.textContent='Daily Machinery Dips';
+    _renderDailyDips(el,from,to);
+  }
+}
+
+function _renderIssuanceDips(el,from,to){
+  const statusFilter=document.getElementById('dip-status-filter')?.value||'all';
+  const TOLE=5; // ±5L tolerance
+
+  // All disbs in range — include verified dips AND unverified for 'nodip' filter
+  let records=(disbs||[]).filter(d=>d.date>=from&&d.date<=to);
+
+  // Compute per-record status
+  records=records.map(d=>{
+    if(d.dipStatus==='verified'){
+      const variance=d.diff!==null&&d.diff!==undefined?Math.abs(d.diff):null;
+      const statusKey=variance===null?'nodip':variance<=TOLE?'ok':'variance';
+      return{...d,_statusKey:statusKey,_variance:variance};
+    } else {
+      return{...d,_statusKey:'nodip',_variance:null};
+    }
+  });
+
+  // Apply filter
+  if(statusFilter==='ok') records=records.filter(d=>d._statusKey==='ok');
+  else if(statusFilter==='variance') records=records.filter(d=>d._statusKey==='variance');
+  else if(statusFilter==='nodip') records=records.filter(d=>d._statusKey==='nodip');
+
+  // Sort newest first
+  records.sort((a,b)=>(b.ts||0)-(a.ts||0));
+
+  if(!records.length){
+    el.innerHTML=`<div style="padding:40px;text-align:center;color:var(--muted);font-size:13px">No records found for this filter &amp; date range.</div>`;
+    return;
+  }
+
+  const okCount=records.filter(d=>d._statusKey==='ok').length;
+  const varCount=records.filter(d=>d._statusKey==='variance').length;
+  const nodipCount=records.filter(d=>d._statusKey==='nodip').length;
+
+  let html=`
+  <!-- Summary strip -->
+  <div style="margin:6px 14px 2px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+    <div style="background:rgba(0,200,83,.08);border:1px solid var(--green);border-radius:8px;padding:8px;text-align:center">
+      <div style="font-family:var(--fh);font-size:18px;color:var(--green)">${okCount}</div>
+      <div style="font-size:9px;color:var(--muted);font-weight:700">✅ OK</div>
+    </div>
+    <div style="background:rgba(255,179,0,.08);border:1px solid var(--amber);border-radius:8px;padding:8px;text-align:center">
+      <div style="font-family:var(--fh);font-size:18px;color:var(--amber)">${varCount}</div>
+      <div style="font-size:9px;color:var(--muted);font-weight:700">⚠️ VARIANCE</div>
+    </div>
+    <div style="background:rgba(255,61,61,.08);border:1px solid var(--red);border-radius:8px;padding:8px;text-align:center">
+      <div style="font-family:var(--fh);font-size:18px;color:var(--red)">${nodipCount}</div>
+      <div style="font-size:9px;color:var(--muted);font-weight:700">🔴 NOT VERIFIED</div>
+    </div>
+  </div>`;
+
+  records.forEach(d=>{
+    const veh=gV(d.vehicleId);
+    const vName=veh?.name||d.vehicleId||'Unknown';
+    const calib=veh?.calibration;
+    const sk=d._statusKey;
+    const variance=d._variance;
+
+    // Status badge
+    const badge=sk==='ok'
+      ?`<span style="background:rgba(0,200,83,.15);color:var(--green);font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;white-space:nowrap">✅ OK</span>`
+      :sk==='variance'
+      ?`<span style="background:rgba(255,179,0,.15);color:var(--amber);font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;white-space:nowrap">⚠️ VARIANCE</span>`
+      :`<span style="background:rgba(255,61,61,.12);color:var(--red);font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;white-space:nowrap">🔴 NOT VERIFIED</span>`;
+
+    const borderColor=sk==='ok'?'var(--green)':sk==='variance'?'var(--amber)':'var(--red)';
+
+    let dipDetail='';
+    if(d.dipStatus==='verified'){
+      dipDetail=`
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:6px;background:var(--bg3);border-radius:6px;padding:6px 8px">
+          <div style="text-align:center"><div style="font-size:10px;color:var(--muted);font-weight:700">BEFORE</div><div style="font-family:var(--fh);font-size:13px;color:var(--white)">${fmt(d.gaugeBefore,1)} cm</div></div>
+          <div style="text-align:center"><div style="font-size:10px;color:var(--muted);font-weight:700">AFTER</div><div style="font-family:var(--fh);font-size:13px;color:var(--white)">${fmt(d.gaugeAfter,1)} cm</div></div>
+          <div style="text-align:center"><div style="font-size:10px;color:var(--muted);font-weight:700">DIP RISE</div><div style="font-family:var(--fh);font-size:13px;color:var(--white)">${fmt(d.gaugeIncreaseCm,1)} cm</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-top:4px">
+          <div style="background:var(--bg2);border-radius:6px;padding:6px 8px;text-align:center">
+            <div style="font-size:9px;color:var(--muted);font-weight:700">ISSUED</div>
+            <div style="font-family:var(--fh);font-size:14px;color:var(--white)">${fmt(d.litres,1)} L</div>
+          </div>
+          <div style="background:var(--bg2);border-radius:6px;padding:6px 8px;text-align:center">
+            <div style="font-size:9px;color:var(--muted);font-weight:700">DIP CALC${calib?` @${calib}L/cm`:''}</div>
+            <div style="font-family:var(--fh);font-size:14px;color:var(--white)">${d.gaugeIncreaseLtr!=null?fmt(d.gaugeIncreaseLtr,1)+' L':'No calib'}</div>
+          </div>
+          <div style="background:${sk==='ok'?'rgba(0,200,83,.1)':sk==='variance'?'rgba(255,179,0,.1)':'var(--bg2)'};border-radius:6px;padding:6px 8px;text-align:center">
+            <div style="font-size:9px;color:var(--muted);font-weight:700">VARIANCE</div>
+            <div style="font-family:var(--fh);font-size:14px;color:${sk==='ok'?'var(--green)':sk==='variance'?'var(--amber)':'var(--muted)'}">${variance!=null?'±'+fmt(variance,1)+' L':'—'}</div>
+          </div>
+        </div>
+        ${d.dipRemarks?`<div style="font-size:10px;color:var(--muted);font-style:italic;margin-top:4px">"${d.dipRemarks}"</div>`:''}
+      `;
+    } else {
+      dipDetail=`<div style="font-size:11px;color:var(--muted);margin-top:4px">Dip not taken — ${fmt(d.litres,1)} L issued without gauge verification</div>`;
+    }
+
+    html+=`
+    <div style="margin:6px 14px 0;background:var(--bg2);border:1.5px solid ${borderColor};border-radius:12px;padding:10px 12px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px">
+        <div>
+          <div style="font-family:var(--fh);font-size:13px;color:var(--white)">${vIco(veh?.type||'')} ${vName}</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:1px">${fmtD(d.date)} · ${d.loggedByName||'?'}</div>
+        </div>
+        ${badge}
+      </div>
+      <div style="display:flex;gap:10px;font-size:11px;color:var(--muted);font-weight:600;margin-bottom:2px">
+        <span>👤 Driver: ${d.driverName||'—'}</span>
+        ${d.dipTakenByName?`<span>👔 Verified by: ${d.dipTakenByName}</span>`:''}
+      </div>
+      ${dipDetail}
+    </div>`;
+  });
+
+  el.innerHTML=html;
+}
+
+function _renderDailyDips(el,from,to){
+  const recs=(readings||[]).filter(r=>r.type==='dip'&&r.date>=from&&r.date<=to)
+    .sort((a,b)=>b.date.localeCompare(a.date)||(b.ts||0)-(a.ts||0));
+
+  if(!recs.length){
+    el.innerHTML=`<div style="padding:40px;text-align:center;color:var(--muted);font-size:13px">No daily dip readings found for this date range.</div>`;
+    return;
+  }
+
+  // Summary
+  const totalConsumed=recs.reduce((sum,r)=>{
+    const consumed=(r.openingLtr||0)-(r.closingLtr||0);
+    return sum+(consumed>0?consumed:0);
+  },0);
+
+  let html=`
+  <div style="margin:6px 14px 2px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center">
+      <div style="font-family:var(--fh);font-size:20px;color:var(--amber)">${recs.length}</div>
+      <div style="font-size:9px;color:var(--muted);font-weight:700">READINGS</div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center">
+      <div style="font-family:var(--fh);font-size:20px;color:var(--red)">${fmt(totalConsumed,0)} L</div>
+      <div style="font-size:9px;color:var(--muted);font-weight:700">TOTAL CONSUMED</div>
+    </div>
+  </div>`;
+
+  recs.forEach(r=>{
+    const veh=gV(r.vehicleId);
+    const vName=veh?.name||r.vehicleId||'Unknown';
+    const calib=veh?.calibration;
+    const consumed=(r.openingLtr!=null&&r.closingLtr!=null)?r.openingLtr-r.closingLtr:null;
+    const consumedCm=(r.openingCm!=null&&r.closingCm!=null)?r.openingCm-r.closingCm:null;
+    const hasFullData=r.openingCm!=null&&r.closingCm!=null;
+
+    html+=`
+    <div style="margin:6px 14px 0;background:var(--bg2);border:1.5px solid ${hasFullData?'var(--border)':'var(--amber)'};border-radius:12px;padding:10px 12px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div style="font-family:var(--fh);font-size:13px;color:var(--white)">${vIco(veh?.type||'')} ${vName}</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:1px">${fmtD(r.date)} · ${r.loggedByName||'?'}</div>
+        </div>
+        ${consumed!=null&&consumed>=0?`<div style="text-align:right"><div style="font-family:var(--fh);font-size:16px;color:var(--red)">-${fmt(consumed,1)} L</div><div style="font-size:9px;color:var(--muted);font-weight:700">CONSUMED</div></div>`:''}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:8px;background:var(--bg3);border-radius:6px;padding:6px 8px">
+        <div style="text-align:center"><div style="font-size:9px;color:var(--muted);font-weight:700">OPENING</div><div style="font-family:var(--fh);font-size:13px;color:var(--white)">${r.openingCm!=null?fmt(r.openingCm,1)+' cm':'—'}</div>${r.openingLtr!=null?`<div style="font-size:9px;color:var(--muted)">${fmt(r.openingLtr,0)} L</div>`:''}</div>
+        <div style="text-align:center"><div style="font-size:9px;color:var(--muted);font-weight:700">CLOSING</div><div style="font-family:var(--fh);font-size:13px;color:var(--white)">${r.closingCm!=null?fmt(r.closingCm,1)+' cm':'—'}</div>${r.closingLtr!=null?`<div style="font-size:9px;color:var(--muted)">${fmt(r.closingLtr,0)} L</div>`:''}</div>
+        <div style="text-align:center"><div style="font-size:9px;color:var(--muted);font-weight:700">DROP${calib?` @${calib}L/cm`:''}</div><div style="font-family:var(--fh);font-size:13px;color:${consumedCm!=null&&consumedCm>0?'var(--amber)':'var(--white)'}">${consumedCm!=null?fmt(consumedCm,1)+' cm':'—'}</div></div>
+      </div>
+      ${r.reading!=null?`<div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:4px">⏱ Hours: ${fmt(r.reading,1)} hrs</div>`:''}
+      ${r.remarks?`<div style="font-size:10px;color:var(--muted);font-style:italic;margin-top:3px">"${r.remarks}"</div>`:''}
+    </div>`;
+  });
+
+  el.innerHTML=html;
 }
 
 function renderChecklistReview(){
@@ -7110,7 +7360,7 @@ function renderReports(){
   // ═══ TAB 2: FINANCIAL SUMMARY ═══
   } else if(repActiveTab==='financial'){
     // V48: All period purchase totals include BOTH bowser purchases AND direct pump fills
-    const purchasesL=allPurchases.reduce((a,p)=>a+p.litres,0)+allPF.reduce((a,p)=>a+(p.litres||0),0);
+    const purchasesL=allPurchases.reduce((a,p)=>a+(p.litres||0),0)+allPF.reduce((a,p)=>a+(p.litres||0),0);
     const purchasesAmt=allPurchases.reduce((a,p)=>a+(p.amount||0),0)+allPF.reduce((a,p)=>a+(p.amount||0),0);
     const purchasesPaid=allPurchases.reduce((a,p)=>a+(p.paid||0),0)+allPF.reduce((a,p)=>a+(p.paid||0),0);
     const purchasesDue=purchasesAmt-purchasesPaid;
@@ -7194,44 +7444,33 @@ function renderReports(){
     </div>
 
     ${finSub==='summary'?`
-    <!-- Summary sub-report -->
-    <div style="margin:10px 14px 0;display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px">
-        <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px">FUEL PURCHASED</div>
-        <div style="font-family:var(--fh);font-size:20px;color:var(--green);margin-top:4px">${fmtINR(purchasesAmt)}</div>
-        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">${fmt(purchasesL,0)} L</div>
+    <!-- Summary sub-report: Amount → Paid → Due, simple and clean -->
+    <div style="margin:10px 14px 0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center">
+        <div style="font-size:9px;color:var(--muted);font-weight:700;letter-spacing:.5px">INVOICED</div>
+        <div style="font-family:var(--fh);font-size:18px;color:var(--white);margin-top:4px">${fmtINR(purchasesAmt)}</div>
+        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:2px">${fmt(purchasesL,0)} L</div>
       </div>
-      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px">
-        <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px">FUEL CONSUMED</div>
-        <div style="font-family:var(--fh);font-size:20px;color:var(--amber);margin-top:4px">${fmtINR(totalCost)}</div>
-        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">${fmt(totalL,0)} L · ${allDisbs.length+allPF.length} entries</div>
+      <div style="background:rgba(0,200,83,.08);border:1px solid var(--green);border-radius:12px;padding:12px;text-align:center">
+        <div style="font-size:9px;color:var(--green);font-weight:700;letter-spacing:.5px">PAID</div>
+        <div style="font-family:var(--fh);font-size:18px;color:var(--green);margin-top:4px">${fmtINR(purchasesPaid)}</div>
+        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:2px">${purchasesAmt>0?Math.round(purchasesPaid/purchasesAmt*100):0}%</div>
+      </div>
+      <div style="background:${purchasesDue>0?'rgba(255,61,61,.1)':'rgba(0,200,83,.05)'};border:1px solid var(${purchasesDue>0?'--red':'--green'});border-radius:12px;padding:12px;text-align:center">
+        <div style="font-size:9px;color:var(${purchasesDue>0?'--red':'--green'});font-weight:700;letter-spacing:.5px">DUE (PERIOD)</div>
+        <div style="font-family:var(--fh);font-size:18px;color:var(${purchasesDue>0?'--red':'--green'});margin-top:4px">${fmtINR(purchasesDue)}</div>
+        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:2px">${purchasesDue<=0?'✓ Cleared':''}</div>
       </div>
     </div>
-    <div class="rep-card" style="margin-top:10px">
-      <div class="rep-hd">💳 PAYMENT STATUS (Period)</div>
-      <div style="padding:14px">
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-          <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
-            <div style="font-size:10px;color:var(--muted);font-weight:700">INVOICED</div>
-            <div style="font-family:var(--fh);font-size:15px;color:var(--white);margin-top:3px">${fmtINR(purchasesAmt)}</div>
-          </div>
-          <div style="background:rgba(0,200,83,.1);border:1px solid var(--green);border-radius:8px;padding:10px;text-align:center">
-            <div style="font-size:10px;color:var(--green);font-weight:700">PAID</div>
-            <div style="font-family:var(--fh);font-size:15px;color:var(--green);margin-top:3px">${fmtINR(purchasesPaid)}</div>
-          </div>
-          <div style="background:${purchasesDue>0?'rgba(255,61,61,.1)':'var(--bg3)'};border:1px solid var(${purchasesDue>0?'--red':'--border'});border-radius:8px;padding:10px;text-align:center">
-            <div style="font-size:10px;color:var(${purchasesDue>0?'--red':'--muted'});font-weight:700">DUE</div>
-            <div style="font-family:var(--fh);font-size:15px;color:var(${purchasesDue>0?'--red':'--muted'});margin-top:3px">${fmtINR(purchasesDue)}</div>
-          </div>
-        </div>
-        ${totalDue>0?`<div style="margin-top:12px;background:rgba(255,61,61,.08);border:1.5px solid var(--red);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px">
-          <span style="font-size:20px">⚠️</span>
-          <div style="flex:1"><div style="font-family:var(--fh);font-size:13px;color:var(--red)">TOTAL OUTSTANDING (ALL TIME)</div>
-          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:1px">Across all purchases to date</div></div>
-          <div style="font-family:var(--fh);font-size:18px;color:var(--red)">${fmtINR(totalDue)}</div>
-        </div>`:''}
+    ${totalDue>0?`<div style="margin:8px 14px 0;background:rgba(255,61,61,.08);border:1.5px solid var(--red);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:20px">⚠️</span>
+      <div style="flex:1">
+        <div style="font-family:var(--fh);font-size:12px;color:var(--red);letter-spacing:.5px">TOTAL OUTSTANDING — ALL TIME</div>
+        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:2px">All pumps · All dates · Amount − Paid</div>
       </div>
-    </div>`:''}
+      <div style="font-family:var(--fh);font-size:20px;color:var(--red)">${fmtINR(totalDue)}</div>
+    </div>`:`<div style="margin:8px 14px 0;background:rgba(0,200,83,.06);border:1px solid var(--green);border-radius:10px;padding:10px 14px;text-align:center;font-family:var(--fh);font-size:12px;color:var(--green)">✓ All accounts cleared — no outstanding dues</div>`}
+    `:''}
 
     ${finSub==='vendor'?`
     <!-- Vendor-wise breakdown sub-report -->
@@ -7319,32 +7558,68 @@ function renderReports(){
     `:''}
 
     ${finSub==='split'?`
-    <!-- Bowser vs Pump split sub-report -->
+    <!-- Bowser vs Pump split sub-report — actual invoice amounts, not estimates -->
+    ${(()=>{
+      const bowserAmt=allPurchases.reduce((a,p)=>a+(p.amount||0),0);
+      const bowserPaid=allPurchases.reduce((a,p)=>a+(p.paid||0),0);
+      const bowserDue=bowserAmt-bowserPaid;
+      const pfAmt=allPF.reduce((a,p)=>a+(p.amount||0),0);
+      const pfPaid=allPF.reduce((a,p)=>a+(p.paid||0),0);
+      const pfDue=pfAmt-pfPaid;
+      const splitTotal=bowserAmt+pfAmt;
+      return `
     <div class="rep-card" style="margin-top:10px">
-      <div class="rep-hd">📊 BOWSER vs DIRECT PUMP</div>
-      <div style="padding:14px">
-        <div style="display:flex;gap:10px;margin-bottom:10px">
-          <div style="flex:1;background:var(--bg3);border-radius:8px;padding:10px">
-            <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px">BOWSER</div>
-            <div style="font-family:var(--fh);font-size:16px;color:var(--white);margin-top:3px">${fmt(bowserL,1)} L</div>
-            <div style="font-family:var(--fh);font-size:13px;color:var(--amber);margin-top:1px">${fmtINR(bowserCost)}</div>
-          </div>
-          <div style="flex:1;background:var(--bg3);border-radius:8px;padding:10px">
-            <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px">DIRECT PUMP</div>
-            <div style="font-family:var(--fh);font-size:16px;color:var(--white);margin-top:3px">${fmt(pumpL,1)} L</div>
-            <div style="font-family:var(--fh);font-size:13px;color:var(--amber);margin-top:1px">${fmtINR(pumpCost)}</div>
+      <div class="rep-hd">📊 BOWSER PURCHASES vs DIRECT PUMP FILLS</div>
+      <div style="padding:10px 14px">
+        <!-- Bowser row -->
+        <div style="margin-bottom:8px">
+          <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px;margin-bottom:4px">🛢 BOWSER PURCHASES · ${fmt(allPurchases.reduce((a,p)=>a+(p.litres||0),0),0)} L · ${allPurchases.length} entries</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px">
+            <div style="background:var(--bg3);border-radius:6px;padding:8px;text-align:center">
+              <div style="font-size:9px;color:var(--muted);font-weight:700">INVOICED</div>
+              <div style="font-family:var(--fh);font-size:13px;color:var(--white);margin-top:2px">${fmtINR(bowserAmt)}</div>
+            </div>
+            <div style="background:rgba(0,200,83,.08);border:1px solid var(--green);border-radius:6px;padding:8px;text-align:center">
+              <div style="font-size:9px;color:var(--green);font-weight:700">PAID</div>
+              <div style="font-family:var(--fh);font-size:13px;color:var(--green);margin-top:2px">${fmtINR(bowserPaid)}</div>
+            </div>
+            <div style="background:${bowserDue>0?'rgba(255,61,61,.08)':'var(--bg3)'};border:1px solid var(${bowserDue>0?'--red':'--border'});border-radius:6px;padding:8px;text-align:center">
+              <div style="font-size:9px;color:var(${bowserDue>0?'--red':'--muted'});font-weight:700">DUE</div>
+              <div style="font-family:var(--fh);font-size:13px;color:var(${bowserDue>0?'--red':'--muted'});margin-top:2px">${fmtINR(bowserDue)}</div>
+            </div>
           </div>
         </div>
-        ${totalL>0?`<div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden;display:flex">
-          <div style="width:${Math.round(bowserL/totalL*100)}%;background:var(--amber);height:100%"></div>
-          <div style="width:${Math.round(pumpL/totalL*100)}%;background:var(--blue);height:100%"></div>
+        <!-- Direct pump fills row -->
+        <div style="margin-bottom:8px">
+          <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px;margin-bottom:4px">⛽ DIRECT PUMP FILLS · ${fmt(allPF.reduce((a,p)=>a+(p.litres||0),0),0)} L · ${allPF.length} entries</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px">
+            <div style="background:var(--bg3);border-radius:6px;padding:8px;text-align:center">
+              <div style="font-size:9px;color:var(--muted);font-weight:700">INVOICED</div>
+              <div style="font-family:var(--fh);font-size:13px;color:var(--white);margin-top:2px">${fmtINR(pfAmt)}</div>
+            </div>
+            <div style="background:rgba(0,200,83,.08);border:1px solid var(--green);border-radius:6px;padding:8px;text-align:center">
+              <div style="font-size:9px;color:var(--green);font-weight:700">PAID</div>
+              <div style="font-family:var(--fh);font-size:13px;color:var(--green);margin-top:2px">${fmtINR(pfPaid)}</div>
+            </div>
+            <div style="background:${pfDue>0?'rgba(255,61,61,.08)':'var(--bg3)'};border:1px solid var(${pfDue>0?'--red':'--border'});border-radius:6px;padding:8px;text-align:center">
+              <div style="font-size:9px;color:var(${pfDue>0?'--red':'--muted'});font-weight:700">DUE</div>
+              <div style="font-family:var(--fh);font-size:13px;color:var(${pfDue>0?'--red':'--muted'});margin-top:2px">${fmtINR(pfDue)}</div>
+            </div>
+          </div>
         </div>
-        <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--muted);font-weight:700">
-          <span>${Math.round(bowserL/totalL*100)}% Bowser</span>
-          <span>${Math.round(pumpL/totalL*100)}% Direct Pump</span>
-        </div>`:'<div class="muted-txt" style="padding:20px;text-align:center">No consumption data in this period</div>'}
+        ${splitTotal>0?`
+        <div style="font-size:9px;color:var(--muted);font-weight:700;letter-spacing:.5px;margin-bottom:3px">VOLUME SPLIT</div>
+        <div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden;display:flex">
+          <div style="width:${Math.round(bowserL/(bowserL+pumpL||1)*100)}%;background:var(--amber);height:100%"></div>
+          <div style="width:${Math.round(pumpL/(bowserL+pumpL||1)*100)}%;background:var(--blue);height:100%"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:3px;font-size:10px;color:var(--muted);font-weight:700">
+          <span style="color:var(--amber)">${Math.round(bowserL/(bowserL+pumpL||1)*100)}% Bowser</span>
+          <span style="color:var(--blue)">${Math.round(pumpL/(bowserL+pumpL||1)*100)}% Direct Pump</span>
+        </div>`:''}
       </div>
-    </div>
+    </div>`;
+    })()}
     `:''}
     `;
   // ═══ TAB: VEHICLE REPORTS ═══
@@ -7370,6 +7645,7 @@ function renderReports(){
         <option value="consumers"${reportType==='consumers'?' selected':''}>🏆 Top 10 Fuel Consumers</option>
         <option value="machine"${reportType==='machine'?' selected':''}>⚙️ Machine Hours Efficiency (L/hr)</option>
         ${(isOwner()||isAdmin())?`<option value="theft"${reportType==='theft'?' selected':''}>🚨 Fuel Theft Register</option>`:''}
+        ${(isOwner()||isAdmin()||isManager())?`<option value="dip"${reportType==='dip'?' selected':''}>📏 Dip Gauge Report</option>`:''}
       </select>
     </div>
     ${reportType==='summary'?`
@@ -7701,9 +7977,82 @@ function renderReports(){
           </div>`;
         }).join('')}`;
       }
+    } // end vehicle tab reportType blocks
+    if(reportType==='dip'&&(isOwner()||isAdmin()||isManager())){
+      // 📏 DIP GAUGE REPORT — vehicle tab, filtered by date range
+      const TOLE=5;
+      // Sub-toggle state
+      if(typeof window._dipRepTab==='undefined') window._dipRepTab='issuance';
+      const drt=window._dipRepTab;
+
+      const toggleHTML=`
+      <div style="display:flex;gap:6px;padding:0 14px 6px;margin-top:4px">
+        <button onclick="window._dipRepTab='issuance';renderReports()" style="flex:1;padding:8px 0;border-radius:8px;border:none;cursor:pointer;font-family:var(--fh);font-size:12px;font-weight:700;background:${drt==='issuance'?'var(--amber)':'var(--bg3)'};color:${drt==='issuance'?'#000':'var(--muted)'}">⛽ ISSUANCE</button>
+        <button onclick="window._dipRepTab='daily';renderReports()" style="flex:1;padding:8px 0;border-radius:8px;border:none;cursor:pointer;font-family:var(--fh);font-size:12px;font-weight:700;background:${drt==='daily'?'var(--amber)':'var(--bg3)'};color:${drt==='daily'?'#000':'var(--muted)'}">📏 DAILY DIP</button>
+      </div>`;
+
+      if(drt==='issuance'){
+        const recs=allDisbs.map(d=>{
+          if(d.dipStatus==='verified'){
+            const variance=d.diff!=null?Math.abs(d.diff):null;
+            return{...d,_sk:variance===null?'nodip':variance<=TOLE?'ok':'variance',_var:variance};
+          }
+          return{...d,_sk:'nodip',_var:null};
+        }).sort((a,b)=>(b.ts||0)-(a.ts||0));
+
+        const okC=recs.filter(d=>d._sk==='ok').length;
+        const varC=recs.filter(d=>d._sk==='variance').length;
+        const nodipC=recs.filter(d=>d._sk==='nodip').length;
+
+        html=toggleHTML+`
+        <div style="margin:0 14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+          <div style="background:rgba(0,200,83,.08);border:1px solid var(--green);border-radius:8px;padding:8px;text-align:center"><div style="font-family:var(--fh);font-size:18px;color:var(--green)">${okC}</div><div style="font-size:9px;color:var(--muted);font-weight:700">✅ OK</div></div>
+          <div style="background:rgba(255,179,0,.08);border:1px solid var(--amber);border-radius:8px;padding:8px;text-align:center"><div style="font-family:var(--fh);font-size:18px;color:var(--amber)">${varC}</div><div style="font-size:9px;color:var(--muted);font-weight:700">⚠️ VARIANCE</div></div>
+          <div style="background:rgba(255,61,61,.08);border:1px solid var(--red);border-radius:8px;padding:8px;text-align:center"><div style="font-family:var(--fh);font-size:18px;color:var(--red)">${nodipC}</div><div style="font-size:9px;color:var(--muted);font-weight:700">🔴 NOT VERIFIED</div></div>
+        </div>`;
+
+        recs.forEach(d=>{
+          const veh=gV(d.vehicleId);
+          const sk=d._sk;
+          const borderColor=sk==='ok'?'var(--green)':sk==='variance'?'var(--amber)':'var(--red)';
+          const badge=sk==='ok'?`<span style="background:rgba(0,200,83,.15);color:var(--green);font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px">✅ OK</span>`
+            :sk==='variance'?`<span style="background:rgba(255,179,0,.15);color:var(--amber);font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px">⚠️ ${fmt(d._var,1)}L off</span>`
+            :`<span style="background:rgba(255,61,61,.12);color:var(--red);font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px">🔴 NO DIP</span>`;
+          html+=`
+          <div style="margin:6px 14px 0;background:var(--bg2);border-left:3px solid ${borderColor};border-radius:10px;padding:8px 12px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div><div style="font-family:var(--fh);font-size:12px;color:var(--white)">${veh?.name||'?'} · ${fmtD(d.date)}</div>
+              <div style="font-size:10px;color:var(--muted)">Issued: ${fmt(d.litres,1)}L${d.gaugeIncreaseLtr!=null?' · Dip: '+fmt(d.gaugeIncreaseLtr,1)+'L':''} · ${d.driverName||'—'}</div></div>
+              ${badge}
+            </div>
+          </div>`;
+        });
+      } else {
+        // Daily dip sub-tab
+        const recs=(readings||[]).filter(r=>r.type==='dip'&&r.date>=range.from&&r.date<=range.to)
+          .sort((a,b)=>b.date.localeCompare(a.date));
+        const totalConsumed=recs.reduce((s,r)=>{const c=(r.openingLtr||0)-(r.closingLtr||0);return s+(c>0?c:0);},0);
+        html=toggleHTML+`
+        <div style="margin:0 14px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center"><div style="font-family:var(--fh);font-size:18px;color:var(--amber)">${recs.length}</div><div style="font-size:9px;color:var(--muted);font-weight:700">READINGS</div></div>
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center"><div style="font-family:var(--fh);font-size:18px;color:var(--red)">${fmt(totalConsumed,0)} L</div><div style="font-size:9px;color:var(--muted);font-weight:700">TOTAL CONSUMED</div></div>
+        </div>`;
+        recs.forEach(r=>{
+          const veh=gV(r.vehicleId);
+          const consumed=(r.openingLtr!=null&&r.closingLtr!=null)?r.openingLtr-r.closingLtr:null;
+          html+=`
+          <div style="margin:6px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:8px 12px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div><div style="font-family:var(--fh);font-size:12px;color:var(--white)">${veh?.name||'?'} · ${fmtD(r.date)}</div>
+              <div style="font-size:10px;color:var(--muted)">Open: ${r.openingCm!=null?fmt(r.openingCm,1)+'cm':'—'} → Close: ${r.closingCm!=null?fmt(r.closingCm,1)+'cm':'—'} · ${r.loggedByName||'?'}</div></div>
+              ${consumed!=null&&consumed>0?`<div style="font-family:var(--fh);font-size:14px;color:var(--red)">-${fmt(consumed,1)}L</div>`:''}
+            </div>
+          </div>`;
+        });
+        if(!recs.length) html+=`<div style="padding:30px;text-align:center;color:var(--muted);font-size:12px">No daily dip readings in this period</div>`;
+      }
     }
-  // ═══ TAB: MUSTER REPORT ═══
-  } else if(repActiveTab==='muster'){
+    // V43: Fleet/Staff sub-toggle — NOTE: this code is inside repActiveTab==='muster' block (line ~9180), not here. Keeping blank for structure.
     // V43: Fleet/Staff sub-toggle
     if(typeof window._musterSubTab==='undefined') window._musterSubTab='fleet';
     const subToggleHTML = `
