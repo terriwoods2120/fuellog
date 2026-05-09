@@ -6044,11 +6044,12 @@ function delPumpFill(id){
 function renderPurchases(){
   populatePurPumpSelect();
   // V48: Combined view — bowser purchases + direct pump fills
-  const fmtINR=n=>'₹'+Number(Math.round(n||0)).toLocaleString('en-IN');
-  const purBal=purchases.reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0);
+  const _clamp=n=>Math.round(n*100)/100||0; // kills -0 and rounds to paise
+  const fmtINR=n=>'₹'+Math.abs(Math.round(n||0)).toLocaleString('en-IN');
+  const purBal=_clamp(purchases.reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0));
   const pfList=(pumpFills||[]);
-  const pfBal=pfList.reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0);
-  const totalBal=purBal+pfBal;
+  const pfBal=_clamp(pfList.reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0));
+  const totalBal=_clamp(purBal+pfBal);
   const totalEntries=purchases.length+pfList.length;
   document.getElementById('pur-bal').innerHTML=`<div class="bal-ban ${totalBal>0?'bal-owing':'bal-clear'}">
     <div><div class="bal-lbl">Total Balance Due</div><div class="bal-amt ${totalBal>0?'ba-red':'ba-grn'}">${fmtINR(totalBal)}</div>
@@ -6058,7 +6059,7 @@ function renderPurchases(){
       <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:4px">${purchases.length} bowser · ${pfList.length} direct</div>
     </div>
   </div>
-  ${totalBal>0&&isOwner()?`
+  ${totalBal>=0.01&&isOwner()?`
   <button onclick="showFuelPaymentForm()" style="margin:6px 14px 0;width:calc(100% - 28px);background:linear-gradient(135deg,rgba(0,200,83,.15),rgba(0,200,83,.05));border:2px solid var(--green);color:var(--green);padding:10px;border-radius:10px;font-family:var(--fh);font-size:13px;cursor:pointer;display:block">
     💰 RECORD PAYMENT TO PUMP
   </button>
@@ -6582,23 +6583,20 @@ async function applyPumpPayment(pumpId){
 function renderPumpLog(){
   const el=document.getElementById('pump-log');if(!el)return;
   if(!pumps.length){el.innerHTML='<div class="muted-txt">No pumps added yet</div>';return;}
-  const fmtINR=n=>'₹'+Number(Math.round(n||0)).toLocaleString('en-IN');
+  const fmtINR=n=>'₹'+Math.abs(Math.round(n||0)).toLocaleString('en-IN');
+  const _clamp=n=>Math.round(n*100)/100||0;
   el.innerHTML=pumps.map(p=>{
-    // Direct purchases linked to this pump (bulk buys)
-    // V49: match by pumpId first, fallback to vendor name match for legacy entries without pumpId
     const pPurchases=(purchases||[]).filter(x=>x.pumpId===p.id||((!x.pumpId)&&x.vendor===p.name));
     const purchaseAmt=pPurchases.reduce((a,x)=>a+(x.amount||0),0);
     const purchasePaid=pPurchases.reduce((a,x)=>a+(x.paid||0),0);
-    // Vehicle fills from this pump (direct fill to vehicles)
     const pFills=(pumpFills||[]).filter(x=>x.pumpId===p.id||((!x.pumpId)&&x.pumpName===p.name));
     const fillAmt=pFills.reduce((a,x)=>a+(x.amount||0),0);
     const fillPaid=pFills.reduce((a,x)=>a+(x.paid||0),0);
-    // Combined outstanding
     const totalAmt=purchaseAmt+fillAmt;
     const totalPaid=purchasePaid+fillPaid;
-    const due=totalAmt-totalPaid;
+    const due=_clamp(totalAmt-totalPaid);
     const entryCount=pPurchases.length+pFills.length;
-    const dueBadge=due>0
+    const dueBadge=due>=0.01
       ?`<span style="font-size:10px;background:rgba(255,61,61,.15);color:var(--red);padding:2px 8px;border-radius:6px;font-weight:700;margin-top:4px;display:inline-block">DUE ${fmtINR(due)}</span>`
       :(entryCount?`<span style="font-size:10px;background:rgba(0,200,83,.1);color:var(--green);padding:2px 8px;border-radius:6px;font-weight:700;margin-top:4px;display:inline-block">CLEAR</span>`:'');
     const breakdown=[];
@@ -6615,7 +6613,7 @@ function renderPumpLog(){
         </div>
         ${isOwner()?`<button class="li-btn del" onclick="delPump('${p.id}')">🗑</button>`:''}
       </div>
-      ${due>0&&isOwner()?`
+      ${due>=0.01&&isOwner()?`
       <button onclick="recordPumpPayment('${p.id}')" style="margin-top:10px;width:100%;background:linear-gradient(135deg,rgba(0,200,83,.15),rgba(0,200,83,.05));border:2px solid var(--green);color:var(--green);padding:10px;border-radius:10px;font-family:var(--fh);font-size:13px;cursor:pointer">
         💰 RECORD PAYMENT TO ${p.name}
       </button>
