@@ -6059,7 +6059,7 @@ function renderPurchases(){
       <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:4px">${purchases.length} bowser · ${pfList.length} direct</div>
     </div>
   </div>
-  ${totalBal>=0.01&&isOwner()?`
+  ${isOwner()?`
   <button onclick="showFuelPaymentForm()" style="margin:6px 14px 0;width:calc(100% - 28px);background:linear-gradient(135deg,rgba(0,200,83,.15),rgba(0,200,83,.05));border:2px solid var(--green);color:var(--green);padding:10px;border-radius:10px;font-family:var(--fh);font-size:13px;cursor:pointer;display:block">
     💰 RECORD PAYMENT TO PUMP
   </button>
@@ -6613,7 +6613,7 @@ function renderPumpLog(){
         </div>
         ${isOwner()?`<button class="li-btn del" onclick="delPump('${p.id}')">🗑</button>`:''}
       </div>
-      ${due>=0.01&&isOwner()?`
+      ${isOwner()?`
       <button onclick="recordPumpPayment('${p.id}')" style="margin-top:10px;width:100%;background:linear-gradient(135deg,rgba(0,200,83,.15),rgba(0,200,83,.05));border:2px solid var(--green);color:var(--green);padding:10px;border-radius:10px;font-family:var(--fh);font-size:13px;cursor:pointer">
         💰 RECORD PAYMENT TO ${p.name}
       </button>
@@ -8050,7 +8050,8 @@ function renderReports(){
         if(!recs.length) html+=`<div style="padding:30px;text-align:center;color:var(--muted);font-size:12px">No daily dip readings in this period</div>`;
       }
     }
-    // V43: Fleet/Staff sub-toggle — NOTE: this code is inside repActiveTab==='muster' block (line ~9180), not here. Keeping blank for structure.
+  // ═══ TAB: MUSTER REPORT ═══
+  } else if(repActiveTab==='muster'){
     // V43: Fleet/Staff sub-toggle
     if(typeof window._musterSubTab==='undefined') window._musterSubTab='fleet';
     const subToggleHTML = `
