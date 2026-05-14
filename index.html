@@ -1113,7 +1113,7 @@ input[type=file]{display:none}
                outline:none;-webkit-appearance:none">
     </div>
   </div>
-  <div id="readings-compliance-line" style="padding:8px 14px;font-size:12px;font-weight:700;color:var(--muted);flex-shrink:0"></div>
+  <div id="readings-compliance-line" style="flex-shrink:0"></div>
   <div class="veh-grid" id="readings-veh-grid" style="padding-top:4px"></div>
   <div class="pad-bot"></div>
 </div>
@@ -2868,15 +2868,6 @@ function renderDashboard(dash,alerts){
     </div>
 
     <!-- Today Coverage -->
-    <div class="dash-progress-wrap">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px">🚚 Today's Coverage</div>
-        <div style="font-family:var(--fh);font-size:13px;color:var(--amber)">${fuelled} / ${totalVeh} vehicles</div>
-      </div>
-      <div class="dash-prog-bar"><div class="dash-prog-fill" style="width:${fuelledPct}%"></div></div>
-      <div style="font-size:10px;color:var(--muted);font-weight:600">${fuelledPct}% of fleet fuelled today</div>
-    </div>
-
     <!-- KPI Grid -->
     <div style="margin:8px 14px 0;border-radius:14px;overflow:hidden;border:1px solid var(--border)">
       <div class="dash-kpi-grid">
@@ -2901,6 +2892,26 @@ function renderDashboard(dash,alerts){
         </div>`}
       </div>
     </div>
+
+    <!-- V54: Today's Status Strip (Owner + Manager) -->
+    ${(isOwner()||isManager())?`
+    <div style="margin:10px 14px 0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+      <div onclick="show('scr-readings')" style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 8px;text-align:center;cursor:pointer">
+        <div style="font-size:20px;margin-bottom:2px">📍</div>
+        <div style="font-family:var(--fh);font-size:17px;color:${(()=>{const d=(readings||[]).filter(r=>r.date===td);const ids=new Set(d.map(r=>r.vehicleId));return ids.size===fleet.length?'var(--green)':ids.size>0?'var(--amber)':'var(--red)'})()}">${(()=>{const ids=new Set((readings||[]).filter(r=>r.date===td).map(r=>r.vehicleId));return ids.size+'/'+fleet.length})()}</div>
+        <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:1px">READINGS</div>
+      </div>
+      <div onclick="bnavTab('ops');setTimeout(()=>show('scr-source'),50)" style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 8px;text-align:center;cursor:pointer">
+        <div style="font-size:20px;margin-bottom:2px">⛽</div>
+        <div style="font-family:var(--fh);font-size:17px;color:${fuelled===fleet.length?'var(--green)':fuelled>0?'var(--amber)':'var(--red)'}">${fuelled}/${fleet.length}</div>
+        <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:1px">FUELLED</div>
+      </div>
+      <div onclick="bnavTab('trips')" style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 8px;text-align:center;cursor:pointer">
+        <div style="font-size:20px;margin-bottom:2px">📦</div>
+        <div style="font-family:var(--fh);font-size:17px;color:var(--amber)">${(trips||[]).filter(t=>t.date===td).length}</div>
+        <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:1px">TRIPS TODAY</div>
+      </div>
+    </div>`:''}
 
     <!-- Quick action -->
     <div style="margin:10px 14px 0">
@@ -6643,17 +6654,39 @@ function renderPumpLog(){
 // ════════════════════════════════════
 function renderReadingsVehGrid(filter=''){
   const el=document.getElementById('readings-veh-grid');if(!el)return;
-  // V51: Compliance line (Owner + Manager only)
+  // V54: Compliance panel (Owner + Manager only) — pill badges + backdate picker
   if(isOwner()||isManager()){
     const cl=document.getElementById('readings-compliance-line');
     if(cl){
-      const td=today();
-      const doneCount=fleet.filter(f=>(readings||[]).some(r=>r.vehicleId===f.id&&r.date===td)).length;
+      const bdVal=window._readingsBdDate||today();
+      const isToday=bdVal===today();
+      const doneVehs=fleet.filter(f=>(readings||[]).some(r=>r.vehicleId===f.id&&r.date===bdVal));
+      const missVehs=fleet.filter(f=>!(readings||[]).some(r=>r.vehicleId===f.id&&r.date===bdVal));
       const total=fleet.length;
-      const missing=fleet.filter(f=>!(readings||[]).some(r=>r.vehicleId===f.id&&r.date===td)).map(f=>f.name);
+      const doneCount=doneVehs.length;
       const col=doneCount===total?'var(--green)':doneCount>=Math.ceil(total*0.7)?'var(--amber)':'var(--red)';
-      cl.innerHTML=`<span style="color:${col}">📍 Today: ${doneCount}/${total} readings entered</span>`
-        +(missing.length?`<span onclick="const nx=this.nextElementSibling;nx.style.display=nx.style.display?'':'block';this.textContent=this.textContent.includes('▼')?'▲ hide':'▼ see missing'" style="color:var(--amber);margin-left:8px;cursor:pointer;font-size:11px">▼ see missing</span><div style="display:none;font-size:11px;color:var(--muted);margin-top:4px;line-height:1.8;padding:4px 0">${missing.join(', ')}</div>`:'');
+      const bdPicker=isOwner()?`<input type="date" id="readings-bd-date" value="${bdVal}" max="${today()}"
+        onchange="window._readingsBdDate=this.value;renderReadingsVehGrid(document.getElementById('readings-veh-search')?.value||'')"
+        style="background:var(--bg3);border:1px solid var(--border);color:var(--white);padding:4px 8px;border-radius:6px;font-size:11px;font-family:var(--fb);outline:none;margin-left:auto">`:
+        `<span style="font-size:11px;color:var(--muted);margin-left:auto">${isToday?'Today':fmtD(bdVal)}</span>`;
+      const panelId='rcl-panel-'+bdVal.replace(/-/g,'');
+      cl.innerHTML=`
+        <div style="padding:8px 14px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="color:${col};font-size:12px;font-weight:700">📍 ${isToday?'Today':''}${!isToday?fmtD(bdVal):''}: ${doneCount}/${total} entered</span>
+          <button onclick="const p=document.getElementById('${panelId}');const open=p.style.display!=='none';p.style.display=open?'none':'block';this.textContent=open?'▼ see details':'▲ hide'"
+            style="background:none;border:none;color:var(--amber);font-size:11px;cursor:pointer;padding:0;font-family:var(--fb)">▼ see details</button>
+          ${bdPicker}
+        </div>
+        <div id="${panelId}" style="display:none;padding:8px 14px 10px">
+          ${doneVehs.length?`<div style="font-size:10px;color:var(--green);font-weight:700;letter-spacing:.6px;margin-bottom:5px">✅ ENTERED (${doneVehs.length})</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">
+            ${doneVehs.map(f=>`<span style="background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:var(--green);padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600">${f.name}</span>`).join('')}
+          </div>`:''}
+          ${missVehs.length?`<div style="font-size:10px;color:var(--red);font-weight:700;letter-spacing:.6px;margin-bottom:5px">🔴 MISSING (${missVehs.length})</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px">
+            ${missVehs.map(f=>`<span style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:var(--red);padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600">${f.name}</span>`).join('')}
+          </div>`:'<div style="font-size:12px;color:var(--green);font-weight:700">🎉 All vehicles entered!</div>'}
+        </div>`;
     }
   }
   if(!fleet.length){el.innerHTML='<div class="no-fleet"><div class="nf-ico">🚜</div><div class="nf-ttl">No Fleet</div><div class="nf-sub">Add vehicles first</div></div>';return;}
@@ -6668,11 +6701,18 @@ function renderReadingsVehGrid(filter=''){
       const lastR=[...readings].filter(r=>r.vehicleId===f.id).sort((a,b)=>b.date.localeCompare(a.date))[0];
       const _hasTodayR=(readings||[]).some(r=>r.vehicleId===f.id&&r.date===today());
       const _badge=_hasTodayR?'<span style="font-size:16px;margin-right:2px">✅</span>':'<span style="font-size:16px;margin-right:2px">🔴</span>';
-      return `<div class="veh-tile" onclick="openReadingEntry('${f.id}')">
-        <div class="vt-ico">${vIco(f.type)}</div>
-        <div style="flex:1"><div class="vt-name">${f.name}</div>
-        <div class="vt-sub">${f.type} · Last: ${lastR?fmtD(lastR.date):'No entries'}</div></div>
-        ${_badge}<div class="vt-arr">›</div></div>`;
+      // V54: show last reading value in subtitle
+      const _lastVal=lastR?(lastR.closingKm!=null?lastR.closingKm+' km':lastR.closingHr!=null?lastR.closingHr+' hrs':'—'):'—';
+      return `<div class="veh-tile" onclick="openReadingEntry('${f.id}')" style="flex-direction:column;align-items:stretch;padding:10px 12px;gap:0">
+        <div style="display:flex;align-items:center;gap:0">
+          <div class="vt-ico">${vIco(f.type)}</div>
+          <div style="flex:1">
+            <div class="vt-name">${f.name}</div>
+            <div class="vt-sub">${f.type}${lastR?' · '+fmtD(lastR.date)+' · '+_lastVal:' · No entries'}</div>
+          </div>
+          ${_badge}<div class="vt-arr">›</div>
+        </div>
+      </div>`;
     }).join('');
     html += `<div style="padding:8px 14px 4px;font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.8px;text-transform:uppercase;border-top:1px solid var(--border);margin-top:4px">All Vehicles</div>`;
   }
@@ -6680,11 +6720,17 @@ function renderReadingsVehGrid(filter=''){
     const lastR=[...readings].filter(r=>r.vehicleId===f.id).sort((a,b)=>b.date.localeCompare(a.date))[0];
     const _hasTodayR2=(readings||[]).some(r=>r.vehicleId===f.id&&r.date===today());
     const _badge2=_hasTodayR2?'<span style="font-size:16px;margin-right:2px">✅</span>':'<span style="font-size:16px;margin-right:2px">🔴</span>';
-    return `<div class="veh-tile" onclick="openReadingEntry('${f.id}')">
-      <div class="vt-ico">${vIco(f.type)}</div>
-      <div style="flex:1"><div class="vt-name">${f.name}</div>
-      <div class="vt-sub">${f.type} · Last: ${lastR?fmtD(lastR.date):'No entries'}</div></div>
-      ${_badge2}<div class="vt-arr">›</div></div>`;
+    const _lastVal2=lastR?(lastR.closingKm!=null?lastR.closingKm+' km':lastR.closingHr!=null?lastR.closingHr+' hrs':'—'):'—';
+    return `<div class="veh-tile" onclick="openReadingEntry('${f.id}')" style="flex-direction:column;align-items:stretch;padding:10px 12px;gap:0">
+      <div style="display:flex;align-items:center;gap:0">
+        <div class="vt-ico">${vIco(f.type)}</div>
+        <div style="flex:1">
+          <div class="vt-name">${f.name}</div>
+          <div class="vt-sub">${f.type}${lastR?' · '+fmtD(lastR.date)+' · '+_lastVal2:' · No entries'}</div>
+        </div>
+        ${_badge2}<div class="vt-arr">›</div>
+      </div>
+    </div>`;
   }).join('');
   el.innerHTML = html;
 }
@@ -6770,44 +6816,57 @@ function openReadingEntry(vehId){
     </div>`;
   }
 
-  // V48: History section — last 10 prior readings (read-only)
-  if(histReadings.length){
-    html += `<div style="margin:16px 14px 0">
-      <div style="font-family:var(--fh);font-size:11px;color:var(--muted);letter-spacing:.5px;margin-bottom:8px">📋 PREVIOUS READINGS</div>
-      ${histReadings.map(r=>{
-        const isMach=r.type==='dip';
-        const dateStr=r.fromDate&&r.toDate&&r.fromDate!==r.toDate
-          ? fmtD(r.fromDate)+' – '+fmtD(r.toDate)
-          : fmtD(r.date);
-        let detail='';
-        if(isMach){
+  // V54: History section — last 30 days of readings + fuel issued per date
+  const thirtyDaysAgo=new Date();thirtyDaysAgo.setDate(thirtyDaysAgo.getDate()-30);
+  const thirtyAgoStr=thirtyDaysAgo.toISOString().slice(0,10);
+  const histReadings30=(readings||[])
+    .filter(r=>r.vehicleId===vehId&&r.date<today()&&r.date>=thirtyAgoStr)
+    .sort((a,b)=>b.date.localeCompare(a.date));
+  // Build fuel-per-date for this vehicle in last 30 days
+  const _hFuelByDate={};
+  (disbs||[]).filter(d=>d.vehicleId===vehId&&d.date>=thirtyAgoStr&&d.date<today())
+    .forEach(d=>{_hFuelByDate[d.date]=(_hFuelByDate[d.date]||0)+d.litres;});
+  (pumpFills||[]).filter(d=>d.vehicleId===vehId&&d.date>=thirtyAgoStr&&d.date<today())
+    .forEach(d=>{_hFuelByDate[d.date]=(_hFuelByDate[d.date]||0)+d.litres;});
+  // Union all dates
+  const _hAllDates=[...new Set([...histReadings30.map(r=>r.date),...Object.keys(_hFuelByDate)])].sort().reverse();
+
+  if(_hAllDates.length){
+    html+=`<div style="margin:16px 14px 0">
+      <div style="font-family:var(--fh);font-size:11px;color:var(--muted);letter-spacing:.5px;margin-bottom:8px">📋 LAST 30 DAYS — READINGS & FUEL</div>
+      ${_hAllDates.map(date=>{
+        const r=histReadings30.find(x=>x.date===date)||null;
+        const fuelL=_hFuelByDate[date]||0;
+        const isMach=r&&r.type==='dip';
+        let readingLine='';
+        if(r&&isMach){
           const openL=calib&&r.openingCm!=null?fmt(r.openingCm*calib,1)+' L':'—';
           const closeL=calib&&r.closingCm!=null?fmt(r.closingCm*calib,1)+' L':'—';
-          const fuelUsedL=calib&&r.openingCm!=null&&r.closingCm!=null?fmt((r.openingCm-r.closingCm)*calib,1):null;
-          detail=`<div style="display:flex;gap:12px;flex-wrap:wrap">
-            <span>📐 ${r.openingCm??'—'}cm → ${r.closingCm??'—'}cm</span>
-            <span>💧 ${openL} → ${closeL}</span>
-            ${fuelUsedL!=null&&parseFloat(fuelUsedL)>0?`<span style="color:var(--amber);font-weight:700">🔥 ${fuelUsedL} L used</span>`:''}
-            ${r.reading?`<span>⏱ ${r.reading} hrs</span>`:''}
+          const used=calib&&r.openingCm!=null&&r.closingCm!=null?fmt((r.openingCm-r.closingCm)*calib,1):null;
+          readingLine=`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:3px">
+            <span style="font-size:11px;color:var(--muted)">📐 ${r.openingCm??'—'}→${r.closingCm??'—'} cm</span>
+            <span style="font-size:11px;color:var(--muted)">💧 ${openL}→${closeL}</span>
+            ${used&&parseFloat(used)>0?`<span style="font-size:11px;color:var(--amber);font-weight:700">🔥 ${used} L used</span>`:''}
+            ${r.reading?`<span style="font-size:11px;color:var(--muted)">⏱ ${r.reading} hrs</span>`:''}
           </div>`;
-        } else {
-          const km=r.closingKm&&r.openingKm?(r.closingKm-r.openingKm):null;
-          const fuelUsedPct=r.openingPct!=null&&r.closingPct!=null?(r.openingPct-r.closingPct):null;
-          const fuelUsedL2=veh.tank&&fuelUsedPct!=null?fmt(fuelUsedPct/100*veh.tank,1):null;
-          const kmL=km!=null&&fuelUsedL2!=null&&parseFloat(fuelUsedL2)>0?fmt(km/parseFloat(fuelUsedL2),2):null;
-          detail=`<div style="display:flex;gap:12px;flex-wrap:wrap">
-            <span>🛣 ${r.openingKm??'—'} → ${r.closingKm??'—'} KM${km!=null?` <b>(${km} km)</b>`:''}</span>
-            <span>⛽ ${r.openingPct??'—'}% → ${r.closingPct??'—'}%${fuelUsedL2!=null?` (${fuelUsedL2} L used)`:''}</span>
-            ${kmL!=null?`<span style="color:var(--green);font-weight:700">📈 ${kmL} km/L</span>`:''}
+        } else if(r){
+          const km=r.closingKm&&r.openingKm?Math.round((r.closingKm-r.openingKm)*100)/100:null;
+          readingLine=`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:3px">
+            <span style="font-size:11px;color:var(--muted)">🛣 ${r.openingKm??'—'}→${r.closingKm??'—'} km${km!=null?' <b>('+km+' km)</b>':''}</span>
+            ${r.openingPct!=null?`<span style="font-size:11px;color:var(--muted)">⛽ ${r.openingPct}%→${r.closingPct??'—'}%</span>`:''}
           </div>`;
         }
-        return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:6px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-            <div style="font-family:var(--fh);font-size:12px;color:var(--white)">${dateStr}</div>
-            <div style="font-size:10px;color:var(--muted)">${r.loggedByName||''}</div>
+        return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:9px 12px;margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-family:var(--fh);font-size:12px;color:var(--white)">${fmtD(date)}</span>
+            <div style="display:flex;gap:8px;align-items:center">
+              ${fuelL>0?`<span style="font-size:11px;font-weight:700;color:var(--amber)">⛽ ${fmt(fuelL,1)} L</span>`:'<span style="font-size:11px;color:var(--muted)">— fuel</span>'}
+              ${r?'':'<span style="font-size:10px;color:var(--muted)">no reading</span>'}
+              ${r?`<span style="font-size:10px;color:var(--muted)">${r.loggedByName||''}</span>`:''}
+            </div>
           </div>
-          <div style="font-size:11px;color:var(--muted);font-weight:600">${detail}</div>
-          ${r.remarks?`<div style="font-size:10px;color:var(--muted);margin-top:3px;font-style:italic">${r.remarks}</div>`:''}
+          ${readingLine}
+          ${r?.remarks?`<div style="font-size:10px;color:var(--muted);margin-top:3px;font-style:italic">${r.remarks}</div>`:''}
         </div>`;
       }).join('')}
     </div>`;
@@ -6938,26 +6997,46 @@ function getMachEfficiency(veh){
 }
 
 // ── ROAD VEHICLE EFFICIENCY ──
-function getRoadEfficiency(veh){
-  const kmR=readings.filter(r=>r.vehicleId===veh.id&&r.type==='km')
+function getRoadEfficiency(veh,fromDate,toDate){
+  // V54: Total KM / Total fuel. Date-by-date ledger for breakdown.
+  let kmR=readings.filter(r=>r.vehicleId===veh.id&&r.type==='km')
     .sort((a,b)=>a.date.localeCompare(b.date));
+  const fd=fromDate||(kmR[0]?.date)||'2000-01-01';
+  const td2=toDate||today();
+  if(fromDate&&toDate) kmR=kmR.filter(r=>r.date>=fromDate&&r.date<=toDate);
   if(!kmR.length)return null;
-  let totalConsumed=0,totalKm=0,hasData=false;
+
+  // Build km-per-date map
+  const kmByDate={};
+  let totalKm=0;
   kmR.forEach(r=>{
-    const from=r.fromDate||r.date;
-    const to=r.toDate||r.date;
-    const fuelFilled=getFuelAdded(veh.id,from,to);
-    const km=(r.closingKm||0)-(r.openingKm||0);
-    let consumed=fuelFilled;
-    if(r.openingPct!=null&&r.closingPct!=null&&veh.tank){
-      const openL=(r.openingPct/100)*veh.tank;
-      const closeL=(r.closingPct/100)*veh.tank;
-      consumed=openL+fuelFilled-closeL;
+    const km=Math.round(((r.closingKm||0)-(r.openingKm||0))*100)/100;
+    if(km>0){
+      kmByDate[r.date]=Math.round(((kmByDate[r.date]||0)+km)*100)/100;
+      totalKm=Math.round((totalKm+km)*100)/100;
     }
-    if(km>0&&consumed>0){totalKm+=km;totalConsumed+=consumed;hasData=true;}
   });
-  if(!hasData||totalConsumed<=0)return null;
-  return{consumed:totalConsumed,km:totalKm,kpl:totalKm/totalConsumed};
+  if(!totalKm)return null;
+
+  // Build fuel-per-date map from disbs + pumpFills
+  const fuelByDate={};
+  (disbs||[]).filter(d=>d.vehicleId===veh.id&&d.date>=fd&&d.date<=td2)
+    .forEach(d=>{fuelByDate[d.date]=(fuelByDate[d.date]||0)+d.litres;});
+  (pumpFills||[]).filter(d=>d.vehicleId===veh.id&&d.date>=fd&&d.date<=td2)
+    .forEach(d=>{fuelByDate[d.date]=(fuelByDate[d.date]||0)+d.litres;});
+
+  const totalConsumed=Object.values(fuelByDate).reduce((a,v)=>a+v,0);
+  if(totalConsumed<=0)return null;
+
+  // Union all dates with either km or fuel
+  const allDates=[...new Set([...Object.keys(kmByDate),...Object.keys(fuelByDate)])].sort();
+  const breakdown=allDates.map(date=>({
+    date,
+    km:kmByDate[date]||0,
+    fuel:parseFloat((fuelByDate[date]||0).toFixed(1))
+  }));
+
+  return{consumed:totalConsumed,km:totalKm,kpl:totalKm/totalConsumed,breakdown};
 }
 
 // ── DELETE READING ──
@@ -7698,7 +7777,7 @@ function renderReports(){
             </div>`;
           }
         } else {
-          const eff=getRoadEfficiency?getRoadEfficiency(veh):null;
+          const eff=getRoadEfficiency?getRoadEfficiency(veh,range.from,range.to):null;
           if(eff?.kpl){
             const target=parseFloat(veh.expected)||null;
             const col=target?(eff.kpl<target*0.9?'var(--red)':'var(--green)'):'var(--white)';
@@ -7764,12 +7843,12 @@ function renderReports(){
     } else if(reportType==='efficiency'){
       const ranked=fleet.map(veh=>{
         if(isMachType(veh.type)) return null;
-        const eff=getRoadEfficiency?getRoadEfficiency(veh):null;
+        // V54: pass date range so efficiency respects filter
+        const eff=getRoadEfficiency?getRoadEfficiency(veh,range.from,range.to):null;
         if(!eff?.kpl) return null;
-        const totalL=allDisbs.filter(d=>d.vehicleId===veh.id).reduce((a,d)=>a+d.litres,0);
         const target=parseFloat(veh.expected)||null;
         const pct=target?Math.round((eff.kpl/target)*100):null;
-        return{veh,kpl:eff.kpl,totalL,target,pct};
+        return{veh,kpl:eff.kpl,totalKm:eff.km,totalFuel:eff.consumed,target,pct,breakdown:eff.breakdown||[]};
       }).filter(Boolean).sort((a,b)=>b.kpl-a.kpl);
 
       if(!ranked.length){
@@ -7777,28 +7856,45 @@ function renderReports(){
       } else {
         html+=`<div class="rep-card">
           <div class="rep-hd">📊 FLEET EFFICIENCY RANKING — km/L</div>
-          <div style="overflow-x:auto">
-            <table style="width:100%;border-collapse:collapse;font-size:12px">
-              <thead><tr style="background:var(--bg3);color:var(--muted)">
-                <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">#</th>
-                <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">VEHICLE</th>
-                <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">km/L</th>
-                <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">TARGET</th>
-                <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">vs TARGET</th>
-              </tr></thead>
-              <tbody>
-                ${ranked.map(({veh,kpl,target,pct},i)=>{
-                  const col=pct?pct>=100?'var(--green)':pct>=85?'var(--amber)':'var(--red)':'var(--muted)';
-                  return`<tr style="border-top:1px solid var(--border)">
-                    <td style="padding:9px 10px;color:var(--muted);font-weight:700">${i+1}</td>
-                    <td style="padding:9px 10px;color:var(--white);font-weight:600">${vIco(veh.type)} ${veh.name}</td>
-                    <td style="padding:9px 10px;text-align:right;font-family:var(--fh);color:var(--amber)">${fmt(kpl,2)}</td>
-                    <td style="padding:9px 10px;text-align:right;color:var(--muted)">${target||'—'}</td>
-                    <td style="padding:9px 10px;text-align:right;font-weight:700;color:${col}">${pct?pct+'%':'—'}</td>
-                  </tr>`;
-                }).join('')}
-              </tbody>
-            </table>
+          <div style="font-size:10px;color:var(--muted);padding:0 14px 10px">Tap a row to expand date-wise ledger · ${fmtD(range.from)} – ${fmtD(range.to)}</div>
+          <div>
+            ${ranked.map(({veh,kpl,target,pct,totalKm,totalFuel,breakdown},i)=>{
+              const col=pct?pct>=100?'var(--green)':pct>=85?'var(--amber)':'var(--red)':'var(--muted)';
+              const rowId='eff-row-'+veh.id;
+              const bdRows=breakdown.map(b=>{
+                const kmCol=b.km>0?'var(--white)':'var(--muted)';
+                const fuelCol=b.fuel>0?'var(--amber)':'var(--muted)';
+                return`<div style="display:grid;grid-template-columns:90px 1fr 1fr;align-items:center;padding:5px 14px 5px 28px;border-top:1px solid var(--border);background:var(--bg3)">
+                  <span style="font-size:11px;color:var(--muted)">${fmtD(b.date)}</span>
+                  <span style="font-size:11px;font-weight:600;color:${kmCol};text-align:right;padding-right:16px">${b.km>0?fmt(b.km,2)+' km':'— km'}</span>
+                  <span style="font-size:11px;font-weight:600;color:${fuelCol};text-align:right">${b.fuel>0?fmt(b.fuel,1)+' L':'— L'}</span>
+                </div>`;
+              }).join('');
+              return`<div style="border-top:1px solid var(--border)">
+                <div onclick="const d=document.getElementById('${rowId}');d.style.display=d.style.display==='none'?'block':'none'"
+                  style="display:flex;align-items:center;padding:9px 10px;cursor:pointer;gap:0">
+                  <span style="width:28px;color:var(--muted);font-weight:700;font-size:12px">${i+1}</span>
+                  <span style="flex:1;color:var(--white);font-weight:600;font-size:12px">${vIco(veh.type)} ${veh.name}</span>
+                  <span style="font-family:var(--fh);color:var(--amber);font-size:13px;font-weight:700;margin-right:10px">${fmt(kpl,2)}</span>
+                  <span style="width:42px;text-align:right;color:var(--muted);font-size:12px">${target||'—'}</span>
+                  <span style="width:44px;text-align:right;font-weight:700;color:${col};font-size:12px;margin-left:6px">${pct?pct+'%':'—'}</span>
+                  <span style="color:var(--muted);font-size:14px;margin-left:8px">›</span>
+                </div>
+                <div id="${rowId}" style="display:none">
+                  <div style="display:grid;grid-template-columns:90px 1fr 1fr;padding:4px 14px 4px 28px;background:rgba(0,0,0,.3)">
+                    <span style="font-size:10px;color:var(--muted);font-weight:700">DATE</span>
+                    <span style="font-size:10px;color:var(--muted);font-weight:700;text-align:right;padding-right:16px">KM RUN</span>
+                    <span style="font-size:10px;color:var(--muted);font-weight:700;text-align:right">FUEL ISSUED</span>
+                  </div>
+                  ${bdRows||`<div style="padding:8px 28px;font-size:11px;color:var(--muted)">No data</div>`}
+                  <div style="display:grid;grid-template-columns:90px 1fr 1fr;padding:7px 14px 7px 28px;background:rgba(251,191,36,.08);border-top:1px solid var(--border)">
+                    <span style="font-size:11px;color:var(--amber);font-weight:700">TOTAL</span>
+                    <span style="font-size:12px;color:var(--white);font-weight:700;text-align:right;padding-right:16px">${fmt(totalKm,2)} km</span>
+                    <span style="font-size:12px;color:var(--amber);font-weight:700;text-align:right">${fmt(totalFuel,1)} L → ${fmt(kpl,2)} km/L</span>
+                  </div>
+                </div>
+              </div>`;
+            }).join('')}
           </div>
         </div>`;
       }
@@ -9332,7 +9428,7 @@ function exportRepPDF(){
           const eff=getMachEfficiency(veh);
           if(eff?.lph) effLine=`<tr><td><b>Fuel Efficiency</b></td><td class="right" style="color:green;font-weight:700">${fmt(eff.lph,2)} L/hr${veh.expected?` (target: ${veh.expected})`:''}</td></tr>`;
         } else if(typeof getRoadEfficiency==='function'){
-          const eff=getRoadEfficiency(veh);
+          const eff=getRoadEfficiency(veh,range.from,range.to);
           if(eff?.kpl) effLine=`<tr><td><b>Fuel Efficiency</b></td><td class="right" style="color:green;font-weight:700">${fmt(eff.kpl,2)} km/L${veh.expected?` (target: ${veh.expected})`:''}</td></tr>`;
         }
         const allEntries=[...vDisbs,...vPF].sort((a,b)=>(b.ts||0)-(a.ts||0));
@@ -9369,26 +9465,36 @@ function exportRepPDF(){
     } else if(reportType==='efficiency'){
       const ranked=fleet.map(veh=>{
         if(isMachType(veh.type)) return null;
-        const eff=typeof getRoadEfficiency==='function'?getRoadEfficiency(veh):null;
+        // V54: pass date range
+        const eff=typeof getRoadEfficiency==='function'?getRoadEfficiency(veh,range.from,range.to):null;
         if(!eff?.kpl) return null;
         const target=parseFloat(veh.expected)||null;
         const pct=target?Math.round((eff.kpl/target)*100):null;
-        return{veh,kpl:eff.kpl,target,pct};
+        return{veh,kpl:eff.kpl,totalKm:eff.km,totalFuel:eff.consumed,target,pct,breakdown:eff.breakdown||[]};
       }).filter(Boolean).sort((a,b)=>b.kpl-a.kpl);
       body=`${header('FLEET EFFICIENCY RANKING — km/L')}
       ${!ranked.length?'<div style="padding:40px;text-align:center;color:#999">No efficiency data — add KM readings in Log Reading</div>':`
       <table>
-        <thead><tr><th>#</th><th>Vehicle</th><th class="right">km/L</th><th class="right">Target</th><th class="right">vs Target</th></tr></thead>
+        <thead><tr><th>#</th><th>Vehicle</th><th class="right">km/L</th><th class="right">Target</th><th class="right">vs Target</th><th class="right">Total KM</th><th class="right">Total Fuel</th></tr></thead>
         <tbody>
-          ${ranked.map(({veh,kpl,target,pct},i)=>{
+          ${ranked.map(({veh,kpl,target,pct,totalKm,totalFuel,breakdown},i)=>{
             const col=pct?pct>=100?'green':pct>=85?'#e65100':'#c62828':'#999';
+            const bdRows=breakdown.map(b=>`<tr style="background:#f9f9f9">
+              <td style="color:#999;padding-left:20px">↳</td>
+              <td style="color:#555;font-size:11px">${fmtD(b.date)}</td>
+              <td></td><td></td><td></td>
+              <td class="right" style="font-size:11px;color:${b.km>0?'#333':'#bbb'}">${b.km>0?b.km+' km':'—'}</td>
+              <td class="right" style="font-size:11px;color:${b.fuel>0?'#e65100':'#bbb'}">${b.fuel>0?fmt(b.fuel,1)+' L':'—'}</td>
+            </tr>`).join('');
             return`<tr>
               <td>${i+1}</td>
-              <td>${veh.name}</td>
+              <td><b>${veh.name}</b></td>
               <td class="right" style="color:#e65100;font-weight:700">${fmt(kpl,2)}</td>
               <td class="right">${target||'—'}</td>
               <td class="right" style="color:${col};font-weight:700">${pct?pct+'%':'—'}</td>
-            </tr>`;
+              <td class="right" style="font-weight:700">${totalKm} km</td>
+              <td class="right" style="font-weight:700">${fmt(totalFuel,1)} L</td>
+            </tr>${bdRows}`;
           }).join('')}
         </tbody>
       </table>`}
