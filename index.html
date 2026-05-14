@@ -1552,11 +1552,13 @@ input[type=file]{display:none}
 // STORAGE
 // ════════════════════════════════════
 const SK={users:'fl7_users',fleet:'fl7_fleet',disbs:'fl7_disbs',readings:'fl7_readings',purchases:'fl7_purchases',pumps:'fl7_pumps',pumpFills:'fl7_pumpFills',sites:'fl7_sites',drivers:'fl7_drivers',musters:'fl7_musters',checklistTemplates:'fl7_clTemplates',checklistRecords:'fl7_clRecords',trips:'fl7_trips',customers:'fl7_customers',materials:'fl7_materials',staff:'fl7_staff',staffMusters:'fl7_staffMusters'};
-const ld=k=>{try{return JSON.parse(localStorage.getItem(SK[k])||'[]')}catch{return[]}};
 // Keys too large to cache in localStorage (Safari 5MB limit).
 // These are loaded fresh from Firebase on every login — no need to persist locally.
-// Trips, fleet, users, drivers, sessions ARE cached (small + needed for offline/session restore).
+// V54 FIX: LS_NO_CACHE must be declared BEFORE ld() and sv() reference it.
 const LS_NO_CACHE = new Set(['disbs','purchases','pumpFills','musters','staffMusters','checklistRecords']);
+// V54: ld() returns [] for LS_NO_CACHE keys — prevents stale localStorage data
+// (e.g. old purchases balance) from overriding Firebase on startup/deploy.
+const ld=k=>{if(LS_NO_CACHE.has(k))return[];try{return JSON.parse(localStorage.getItem(SK[k])||'[]')}catch{return[]}};
 // ═══ OFFLINE SYNC QUEUE (Item 3 + 4) ═══
 // Every save goes through a queue. Failed writes retry automatically.
 // Users see real status: SYNCING / SAVED / QUEUED (offline)
@@ -1741,7 +1743,9 @@ async function processSyncQueue(){
 
 // New sv() — saves locally AND queues for Firebase sync
 const sv = (k, v) => {
-  localStorage.setItem(SK[k], JSON.stringify(v));
+  // V54 FIX: Never write LS_NO_CACHE keys to localStorage — stale cached
+  // purchases/disbs caused balance mismatches after deploys.
+  if(!LS_NO_CACHE.has(k)) localStorage.setItem(SK[k], JSON.stringify(v));
   // Unique ID per queue item — prevents wrong-item removal when multiple sv() calls happen close together
   const qid = k + '_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
   const q = _getQueue();
