@@ -2908,7 +2908,7 @@ function renderDashboard(dash,alerts){
       </div>
       <div onclick="bnavTab('trips')" style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 8px;text-align:center;cursor:pointer">
         <div style="font-size:20px;margin-bottom:2px">📦</div>
-        <div style="font-family:var(--fh);font-size:17px;color:var(--amber)">${(trips||[]).filter(t=>t.date===td).length}</div>
+        <div style="font-family:var(--fh);font-size:17px;color:var(--amber)">${(trips||[]).filter(t=>t.date===td).reduce((a,t)=>a+(t.numTrips||1),0)}</div>
         <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:1px">TRIPS TODAY</div>
       </div>
     </div>`:''}
