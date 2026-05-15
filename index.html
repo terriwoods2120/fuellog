@@ -2834,10 +2834,10 @@ function renderDashboard(dash,alerts){
   const mismatch=disbs.filter(d=>(d.dipMatch===false||d.meterMismatch)&&!d.resolutionType).length;
   const dipMismatch=disbs.filter(d=>d.dipMatch===false&&!d.resolutionType).length;
   const meterMismatch=disbs.filter(d=>d.meterMismatch&&!d.resolutionType).length;
-  // V48: Balance Due includes BOTH bowser purchases AND direct pump fills
-  const bal=isOwner()?(
-    purchases.reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0) +
-    (pumpFills||[]).reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0)
+  // V54 FIX: global sum(invoiced) - sum(paid) — matches financial report
+  const bal=isOwner()?Math.max(0,
+    (purchases.reduce((a,p)=>a+(p.amount||0),0)+(pumpFills||[]).reduce((a,p)=>a+(p.amount||0),0)) -
+    (purchases.reduce((a,p)=>a+(p.paid||0),0) +(pumpFills||[]).reduce((a,p)=>a+(p.paid||0),0))
   ):0;
 
   // Update ops badge
@@ -3162,7 +3162,6 @@ function deleteFuelEntry(type,id){
       sv('disbs',disbs);
     } else {
       _recordDeletion('pumpFills',id);pumpFills=(pumpFills||[]).filter(x=>x.id!==id);
-      sv('pumpFills',pumpFills);
     }
     renderFuelLog();
     flash('DELETED','Entry removed');
@@ -5979,7 +5978,8 @@ function savePurchase(){
     billPhoto:purPhotoData||null,
     loggedBy:sess.userId,loggedByName:sess.name,
   });
-  sv('purchases',purchases);
+  // V54: write only the new record, not the full array
+  _fbWrite('purchases/'+purchases[purchases.length-1].id, purchases[purchases.length-1]);
   purPhotoData=null;
   ['pur-litres','pur-rate','pur-amount','pur-paid','pur-bill'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('pur-date').value=today(); // reset to today
@@ -6032,7 +6032,7 @@ async function applyFuelPayment(){
     }
     remaining-=applying;
   });
-  sv('purchases',purchases);sv('pumpFills',pumpFills);
+  // V54: individual writes done above
   const overpaid=remaining>0?` · ₹${Math.round(remaining).toLocaleString('en-IN')} credit`:'';
   flash('✅ PAYMENT RECORDED',`₹${Math.round(amt).toLocaleString('en-IN')} applied to ${updatedCount} entr${updatedCount===1?'y':'ies'} at ${pump?.name||''}${overpaid}`);
   document.getElementById('fuel-pay-form').style.display='none';
@@ -6043,7 +6043,7 @@ function delPurchase(id){
   if(!canDelEntry()){alert('Only Owner can delete');return;}
   const p=purchases.find(x=>x.id===id);
   showConfirm('Delete purchase from "'+p?.vendor+'"?',()=>{
-    _recordDeletion('purchases',id);purchases=purchases.filter(p=>p.id!==id);sv('purchases',purchases);renderPurchases();
+    _recordDeletion('purchases',id);purchases=purchases.filter(p=>p.id!==id);renderPurchases();
     flash('DELETED!','Purchase entry removed');
   });
 }
@@ -6052,7 +6052,7 @@ function delPumpFill(id){
   if(!canDelEntry()){alert('Only Owner can delete');return;}
   const p=(pumpFills||[]).find(x=>x.id===id);
   showConfirm('Delete direct pump fill at "'+(p?.pumpName||'?')+'"?',()=>{
-    _recordDeletion('pumpFills',id);pumpFills=(pumpFills||[]).filter(x=>x.id!==id);sv('pumpFills',pumpFills);renderPurchases();
+    _recordDeletion('pumpFills',id);pumpFills=(pumpFills||[]).filter(x=>x.id!==id);renderPurchases();
     flash('DELETED!','Pump fill removed');
   });
 }
@@ -6502,7 +6502,8 @@ function savePumpFill(){
     operator:document.getElementById('pf-operator').value,
     loggedBy:sess.userId,loggedByName:sess.name,
   });
-  sv('pumpFills',pumpFills);
+  // V54: write only the new record
+  _fbWrite('pumpFills/'+pumpFills[pumpFills.length-1].id, pumpFills[pumpFills.length-1]);
   resetPFPhotos();
   flash('PUMP FILL SAVED!',fmt(litres,1)+' L → '+(veh?.name||'—')+' at '+(pump?.name||''));
   show('scr-home');
@@ -6587,8 +6588,18 @@ async function applyPumpPayment(pumpId){
     remaining-=applying;
   });
 
-  sv('purchases',purchases);
-  sv('pumpFills',pumpFills);
+  // V54 FIX: Write only the specific updated records — never overwrite full array.
+  // Full array sv('purchases',...) caused data loss when two devices had diverged
+  // in-memory state. Individual record writes are safe and conflict-free.
+  allUnpaid.forEach(entry=>{
+    if(entry._type==='purchase'){
+      const updated=purchases.find(x=>x.id===entry.id);
+      if(updated) _fbWrite('purchases/'+updated.id, updated);
+    } else {
+      const updated=(pumpFills||[]).find(x=>x.id===entry.id);
+      if(updated) _fbWrite('pumpFills/'+updated.id, updated);
+    }
+  });
   const overpaid=remaining>0?` · ₹${Math.round(remaining).toLocaleString('en-IN')} overpaid (credit)`:'';
   flash('✅ PAYMENT RECORDED',`₹${Math.round(amt).toLocaleString('en-IN')} applied to ${updatedCount} entr${updatedCount===1?'y':'ies'} at ${pump?.name||''}${overpaid}`);
   renderPumpLog();
@@ -7446,9 +7457,11 @@ function renderReports(){
     const purchasesPaid=allPurchases.reduce((a,p)=>a+(p.paid||0),0)+allPF.reduce((a,p)=>a+(p.paid||0),0);
     const purchasesDue=purchasesAmt-purchasesPaid;
     // All-time dues include both bowser purchases and direct pump fills
-    const totalDue=
-      purchases.reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0) +
-      (pumpFills||[]).reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0);
+    // V54 FIX: global sum(invoiced) - sum(paid). Per-entry subtraction misses overpayments.
+    const totalDue=Math.max(0,
+      (purchases.reduce((a,p)=>a+(p.amount||0),0)+(pumpFills||[]).reduce((a,p)=>a+(p.amount||0),0)) -
+      (purchases.reduce((a,p)=>a+(p.paid||0),0) +(pumpFills||[]).reduce((a,p)=>a+(p.paid||0),0))
+    );
 
     // Issues cost
     const bowserL=allDisbs.filter(d=>d.source==='bowser'||d.source==='can').reduce((a,d)=>a+d.litres,0);
@@ -7525,32 +7538,26 @@ function renderReports(){
     </div>
 
     ${finSub==='summary'?`
-    <!-- Summary sub-report: Amount → Paid → Due, simple and clean -->
+    <!-- Summary sub-report: INVOICED (period) | PAID (period) | DUE (all-time) -->
+    <!-- V54 FIX: DUE is always all-time — payments made in prior months must reduce outstanding -->
     <div style="margin:10px 14px 0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center">
         <div style="font-size:9px;color:var(--muted);font-weight:700;letter-spacing:.5px">INVOICED</div>
         <div style="font-family:var(--fh);font-size:18px;color:var(--white);margin-top:4px">${fmtINR(purchasesAmt)}</div>
-        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:2px">${fmt(purchasesL,0)} L</div>
+        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:2px">${fmt(purchasesL,0)} L · period</div>
       </div>
       <div style="background:rgba(0,200,83,.08);border:1px solid var(--green);border-radius:12px;padding:12px;text-align:center">
         <div style="font-size:9px;color:var(--green);font-weight:700;letter-spacing:.5px">PAID</div>
         <div style="font-family:var(--fh);font-size:18px;color:var(--green);margin-top:4px">${fmtINR(purchasesPaid)}</div>
-        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:2px">${purchasesAmt>0?Math.round(purchasesPaid/purchasesAmt*100):0}%</div>
+        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:2px">period</div>
       </div>
-      <div style="background:${purchasesDue>0?'rgba(255,61,61,.1)':'rgba(0,200,83,.05)'};border:1px solid var(${purchasesDue>0?'--red':'--green'});border-radius:12px;padding:12px;text-align:center">
-        <div style="font-size:9px;color:var(${purchasesDue>0?'--red':'--green'});font-weight:700;letter-spacing:.5px">DUE (PERIOD)</div>
-        <div style="font-family:var(--fh);font-size:18px;color:var(${purchasesDue>0?'--red':'--green'});margin-top:4px">${fmtINR(purchasesDue)}</div>
-        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:2px">${purchasesDue<=0?'✓ Cleared':''}</div>
+      <div style="background:${totalDue>0?'rgba(255,61,61,.1)':'rgba(0,200,83,.05)'};border:1px solid var(${totalDue>0?'--red':'--green'});border-radius:12px;padding:12px;text-align:center">
+        <div style="font-size:9px;color:var(${totalDue>0?'--red':'--green'});font-weight:700;letter-spacing:.5px">OUTSTANDING</div>
+        <div style="font-family:var(--fh);font-size:18px;color:var(${totalDue>0?'--red':'--green'});margin-top:4px">${fmtINR(totalDue)}</div>
+        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:2px">${totalDue<=0?'✓ Cleared':'all-time'}</div>
       </div>
     </div>
-    ${totalDue>0?`<div style="margin:8px 14px 0;background:rgba(255,61,61,.08);border:1.5px solid var(--red);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px">
-      <span style="font-size:20px">⚠️</span>
-      <div style="flex:1">
-        <div style="font-family:var(--fh);font-size:12px;color:var(--red);letter-spacing:.5px">TOTAL OUTSTANDING — ALL TIME</div>
-        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:2px">All pumps · All dates · Amount − Paid</div>
-      </div>
-      <div style="font-family:var(--fh);font-size:20px;color:var(--red)">${fmtINR(totalDue)}</div>
-    </div>`:`<div style="margin:8px 14px 0;background:rgba(0,200,83,.06);border:1px solid var(--green);border-radius:10px;padding:10px 14px;text-align:center;font-family:var(--fh);font-size:12px;color:var(--green)">✓ All accounts cleared — no outstanding dues</div>`}
+    ${totalDue<=0?`<div style="margin:8px 14px 0;background:rgba(0,200,83,.06);border:1px solid var(--green);border-radius:10px;padding:10px 14px;text-align:center;font-family:var(--fh);font-size:12px;color:var(--green)">✓ All accounts cleared — no outstanding dues</div>`:''}
     `:''}
 
     ${finSub==='vendor'?`
@@ -8970,7 +8977,6 @@ function deleteEntry(type,id){
       sv('disbs',disbs);
     } else if(type==='pumpFill'){
       _recordDeletion('pumpFills',id);pumpFills=pumpFills.filter(x=>x.id!==id);
-      sv('pumpFills',pumpFills);
     }
     renderReports();
     flash('DELETED','Entry removed');
@@ -9209,9 +9215,11 @@ function exportRepPDF(){
     const purchasesPaid=allPurchases.reduce((a,p)=>a+(p.paid||0),0)+allPF.reduce((a,p)=>a+(p.paid||0),0);
     const purchasesDue=purchasesAmt-purchasesPaid;
     // All-time dues include both bowser purchases and direct pump fills
-    const totalDue=
-      purchases.reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0) +
-      (pumpFills||[]).reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0);
+    // V54 FIX: global sum(invoiced) - sum(paid)
+    const totalDue=Math.max(0,
+      (purchases.reduce((a,p)=>a+(p.amount||0),0)+(pumpFills||[]).reduce((a,p)=>a+(p.amount||0),0)) -
+      (purchases.reduce((a,p)=>a+(p.paid||0),0) +(pumpFills||[]).reduce((a,p)=>a+(p.paid||0),0))
+    );
     const purchasesL=allPurchases.reduce((a,p)=>a+p.litres,0)+allPF.reduce((a,p)=>a+(p.litres||0),0);
     const reconciliation=purchasesL-bowserL;
 
@@ -9762,7 +9770,7 @@ function delEntry(id,type){
   if(type==='pf'){
     const e=(pumpFills||[]).find(x=>x.id===id);
     showConfirm('Delete pump fill entry?',()=>{
-      _recordDeletion('pumpFills',id);pumpFills=pumpFills.filter(x=>x.id!==id);sv('pumpFills',pumpFills);renderReports();
+      _recordDeletion('pumpFills',id);pumpFills=pumpFills.filter(x=>x.id!==id);renderReports();
       flash('DELETED!','Entry removed');
     });
   } else {
@@ -9952,7 +9960,10 @@ async function saveEditMain(){
     purchases[idx]={...orig,vendor,litres,rate,amount,paid,bill,
       editedBy:sess.userId,editedByName:sess.name,editedAt:Date.now()};
     if(changes.length)saveAudit(buildAuditEntry('purchase',editCtx.id,changes));
-    sv('purchases',purchases);renderPurchases();flash('UPDATED!','Purchase updated');closeEditModal();
+    // V54: write only the updated record
+    const _updP=purchases.find(p=>p.id===editingId);
+    if(_updP)_fbWrite('purchases/'+_updP.id,_updP);
+    renderPurchases();flash('UPDATED!','Purchase updated');closeEditModal();
   } else if(editType==='disb'){
     const disbId=modal.dataset.disbId;
     const idx=disbs.findIndex(d=>d.id===disbId);if(idx===-1)return;
@@ -10015,7 +10026,9 @@ async function saveEditMain(){
     pumpFills[idx]={...orig,vehicleId:newVehId,pumpId:newPumpId,litres:L,rate,amount:amt,paid,bill,date:dateV,operator:op,remarks:rem,
       editedBy:sess.userId,editedByName:sess.name,editedAt:Date.now()};
     if(changes.length)saveAudit(buildAuditEntry('pumpFill',pfId,changes));
-    sv('pumpFills',pumpFills);flash('UPDATED!','Pump fill updated');closeEditModal();
+    // V54: write only the updated record, not full array
+    _fbWrite('pumpFills/'+pumpFills[idx].id, pumpFills[idx]);
+    flash('UPDATED!','Pump fill updated');closeEditModal();
     if(typeof renderReports==='function')renderReports();
     // V48: Refresh purchases screen if it's currently the active view
     if(document.getElementById('scr-purchases')?.classList.contains('on')) renderPurchases();
