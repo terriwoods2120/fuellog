@@ -5069,7 +5069,14 @@ async function approveTrip(tripId){
   if(idx<0){alert('Trip not found');return;}
   const t=trips[idx];
   if(!t.pendingApproval){alert('This trip is not pending approval');return;}
-  if(!confirm(`Approve trip:\n\n${t.materialName||'Trip'} · ₹${(t.amount||0).toLocaleString('en-IN')}\nDate: ${fmtD(t.date)}\nEntered by: ${t.loggedByName||'?'}\n\nOnce approved, this entry counts toward all customer balances and reports.`)) return;
+  // V54: Show full details before approval — customer, vehicle, material, route, amount
+  const custName=(customers||[]).find(x=>x.id===t.customerId)?.name||'—';
+  const vehName=gV(t.vehicleId)?.name||'—';
+  const matName=t.materialName||'—';
+  const route=t.source&&t.destination?`${t.source} → ${t.destination}`:(t.source||t.destination||'—');
+  const amt=t.amount>0?`₹${(t.amount||0).toLocaleString('en-IN')}`:'No amount';
+  const numT=t.numTrips>1?` · ${t.numTrips} trips`:'';
+  if(!confirm(`APPROVE BACKDATED ENTRY\n\nDate: ${fmtD(t.date)}\nCustomer: ${custName}\nVehicle: ${vehName}\nMaterial: ${matName}${numT}\nRoute: ${route}\nAmount: ${amt}\n\nEntered by: ${t.loggedByName||'?'}\n\nOnce approved, this counts toward all balances and reports.`)) return;
   trips[idx]={
     ...t,
     pendingApproval:false,
@@ -9957,7 +9964,11 @@ async function saveEditMain(){
     if(amount!==orig.amount)changes.push({field:'Amount',oldVal:orig.amount,newVal:amount});
     if(paid!==orig.paid)changes.push({field:'Paid',oldVal:orig.paid,newVal:paid});
     if(bill!==orig.bill)changes.push({field:'Bill No',oldVal:orig.bill||'',newVal:bill});
-    purchases[idx]={...orig,vendor,litres,rate,amount,paid,bill,
+    // V54: include photo if newly attached in edit modal
+    const newBillPhoto=window._edPurPhoto||orig.billPhoto||null;
+    if(window._edPurPhoto)changes.push({field:'Receipt Photo',oldVal:orig.billPhoto?'had photo':'none',newVal:'updated'});
+    window._edPurPhoto=null;
+    purchases[idx]={...orig,vendor,litres,rate,amount,paid,bill,billPhoto:newBillPhoto,
       editedBy:sess.userId,editedByName:sess.name,editedAt:Date.now()};
     if(changes.length)saveAudit(buildAuditEntry('purchase',editCtx.id,changes));
     // V54: write only the updated record
@@ -10023,7 +10034,11 @@ async function saveEditMain(){
     if(dateV!==orig.date)changes.push({field:'Date',oldVal:orig.date,newVal:dateV});
     if(op!==orig.operator)changes.push({field:'Operator',oldVal:orig.operator||'',newVal:op});
     if(rem!==orig.remarks)changes.push({field:'Remarks',oldVal:orig.remarks||'',newVal:rem});
-    pumpFills[idx]={...orig,vehicleId:newVehId,pumpId:newPumpId,litres:L,rate,amount:amt,paid,bill,date:dateV,operator:op,remarks:rem,
+    // V54: photo attachment in edit
+    const newPFPhoto=window._edPFPhoto||orig.billPhoto||null;
+    if(window._edPFPhoto)changes.push({field:'Receipt Photo',oldVal:orig.billPhoto?'had photo':'none',newVal:'updated'});
+    window._edPFPhoto=null;
+    pumpFills[idx]={...orig,vehicleId:newVehId,pumpId:newPumpId,litres:L,rate,amount:amt,paid,bill,date:dateV,operator:op,remarks:rem,billPhoto:newPFPhoto,
       editedBy:sess.userId,editedByName:sess.name,editedAt:Date.now()};
     if(changes.length)saveAudit(buildAuditEntry('pumpFill',pfId,changes));
     // V54: write only the updated record, not full array
@@ -12288,7 +12303,17 @@ function openEditModal(type,id){
         <div class="f-field"><label class="f-lbl">Amount ₹</label><input class="f-inp" id="ed-pa" value="${p.amount||''}" type="number" inputmode="decimal"></div>
         <div class="f-field"><label class="f-lbl">Paid ₹</label><input class="f-inp" id="ed-pp" value="${p.paid||''}" type="number" inputmode="decimal"></div>
       </div>
-      <div class="f-field"><label class="f-lbl">Bill No.</label><input class="f-inp" id="ed-pb" value="${p.bill||''}" type="text"></div>`;
+      <div class="f-field"><label class="f-lbl">Bill No.</label><input class="f-inp" id="ed-pb" value="${p.bill||''}" type="text"></div>
+      <div class="f-field"><label class="f-lbl">Receipt Photo</label>
+        <div id="ed-pur-photo-btn" onclick="document.getElementById('ed-pur-photo-inp').click()"
+          style="background:var(--bg3);border:1.5px dashed ${p.billPhoto?'var(--green)':'var(--border)'};border-radius:10px;padding:10px;text-align:center;cursor:pointer">
+          <img id="ed-pur-photo-img" src="${p.billPhoto||''}" style="max-width:100%;max-height:120px;border-radius:6px;display:${p.billPhoto?'block':'none'};margin:0 auto 6px">
+          <div id="ed-pur-photo-lbl" style="font-size:11px;color:var(--muted)">${p.billPhoto?'✅ Photo attached — tap to replace':'📷 Tap to attach receipt'}</div>
+        </div>
+        <input type="file" id="ed-pur-photo-inp" accept="image/*" capture="environment" style="display:none"
+          onchange="(function(inp){const r=new FileReader();r.onload=e=>{window._edPurPhoto=e.target.result;const img=document.getElementById('ed-pur-photo-img');img.src=e.target.result;img.style.display='block';document.getElementById('ed-pur-photo-lbl').textContent='✅ Photo attached — tap to replace';document.getElementById('ed-pur-photo-btn').style.borderColor='var(--green)';};r.readAsDataURL(inp.files[0]);})(this)">
+      </div>`;
+    window._edPurPhoto=null;
     modal.dataset.editType='purchase';
   } else if(type==='disb'){
     const d=disbs.find(x=>x.id===id);if(!d)return;
@@ -12447,7 +12472,17 @@ function openEditModal(type,id){
       <div class="f-field"><label class="f-lbl">Bill No.</label><input class="f-inp" id="ed-pfbill" value="${p.bill||''}" type="text"></div>
       <div class="f-field"><label class="f-lbl">Date</label><input class="f-inp" id="ed-pfdate" value="${p.date||''}" type="date" max="${today()}"></div>
       <div class="f-field"><label class="f-lbl">Operator</label><input class="f-inp" id="ed-pfop" value="${p.operator||''}" type="text"></div>
-      <div class="f-field"><label class="f-lbl">Remarks</label><input class="f-inp" id="ed-pfrem" value="${p.remarks||''}" type="text"></div>`;
+      <div class="f-field"><label class="f-lbl">Remarks</label><input class="f-inp" id="ed-pfrem" value="${p.remarks||''}" type="text"></div>
+      <div class="f-field"><label class="f-lbl">Receipt Photo</label>
+        <div id="ed-pf-photo-btn" onclick="document.getElementById('ed-pf-photo-inp').click()"
+          style="background:var(--bg3);border:1.5px dashed ${p.billPhoto?'var(--green)':'var(--border)'};border-radius:10px;padding:10px;text-align:center;cursor:pointer">
+          <img id="ed-pf-photo-img" src="${p.billPhoto||''}" style="max-width:100%;max-height:120px;border-radius:6px;display:${p.billPhoto?'block':'none'};margin:0 auto 6px">
+          <div id="ed-pf-photo-lbl" style="font-size:11px;color:var(--muted)">${p.billPhoto?'✅ Photo attached — tap to replace':'📷 Tap to attach receipt'}</div>
+        </div>
+        <input type="file" id="ed-pf-photo-inp" accept="image/*" capture="environment" style="display:none"
+          onchange="(function(inp){const r=new FileReader();r.onload=e=>{window._edPFPhoto=e.target.result;const img=document.getElementById('ed-pf-photo-img');img.src=e.target.result;img.style.display='block';document.getElementById('ed-pf-photo-lbl').textContent='✅ Photo attached — tap to replace';document.getElementById('ed-pf-photo-btn').style.borderColor='var(--green)';};r.readAsDataURL(inp.files[0]);})(this)">
+      </div>`;
+    window._edPFPhoto=null;
     modal.dataset.editType='pumpFill';modal.dataset.pumpFillId=id;
   }
   modal.classList.add('show');
