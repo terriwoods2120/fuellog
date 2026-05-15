@@ -11452,18 +11452,24 @@ async function fbInit(){
 
       // MERGE FIX: For transactional keys, never discard local entries that
       // Firebase doesn't have yet (e.g. saved offline, not yet pushed).
+      // V55: Skip localStorage merge for LS_NO_CACHE keys — they are never
+      // written to localStorage, so localRaw is always stale/empty. Merging
+      // stale localStorage into Firebase caused duplicate entries (purchases,
+      // disbs, pumpFills, musters, staffMusters, checklistRecords).
       if(MERGE_KEYS.has(k) && Array.isArray(val)){
         try{
-          const localRaw = JSON.parse(localStorage.getItem(localKey)||'[]');
-          if(Array.isArray(localRaw) && localRaw.length > 0){
-            const fbIds = new Set(val.map(e=>e&&e.id).filter(Boolean));
-            const tombstoneIds = _getTombstones(k);
-            const localOnly = localRaw.filter(e=>e&&e.id&&!fbIds.has(e.id)&&!tombstoneIds.has(e.id));
-            if(localOnly.length > 0){
-              console.log('[StartupMerge] '+k+': preserving '+localOnly.length+' local-only entries not yet in Firebase');
-              val = [...val, ...localOnly];
-              // Push the merged result back to Firebase so it’s not lost
-              _fbWrite(k, val).then(ok=>{ if(ok) console.log('[StartupMerge] '+k+': pushed '+localOnly.length+' recovered entries to Firebase'); });
+          if(!LS_NO_CACHE.has(k)){
+            const localRaw = JSON.parse(localStorage.getItem(localKey)||'[]');
+            if(Array.isArray(localRaw) && localRaw.length > 0){
+              const fbIds = new Set(val.map(e=>e&&e.id).filter(Boolean));
+              const tombstoneIds = _getTombstones(k);
+              const localOnly = localRaw.filter(e=>e&&e.id&&!fbIds.has(e.id)&&!tombstoneIds.has(e.id));
+              if(localOnly.length > 0){
+                console.log('[StartupMerge] '+k+': preserving '+localOnly.length+' local-only entries not yet in Firebase');
+                val = [...val, ...localOnly];
+                // Push the merged result back to Firebase so it’s not lost
+                _fbWrite(k, val).then(ok=>{ if(ok) console.log('[StartupMerge] '+k+': pushed '+localOnly.length+' recovered entries to Firebase'); });
+              }
             }
           }
         } catch(me){ /* merge failed — use Firebase value as-is */ }
