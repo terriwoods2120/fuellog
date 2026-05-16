@@ -2735,7 +2735,8 @@ function submitDriverChecklist(){
   };
   checklistRecords = checklistRecords || [];
   checklistRecords.push(record);
-  sv('checklistRecords', checklistRecords);
+  // V56 Rule 9: per-record write
+  _fbWrite('checklistRecords/'+record.id, record);
   _dchkState = null;
   flash(issueCount>0 ? '⚠ SUBMITTED WITH ISSUES' : '✓ SUBMITTED',
         issueCount>0 ? issueCount+' issue(s) flagged — supervisor will review' : 'All '+items.length+' items OK');
@@ -3158,8 +3159,8 @@ function deleteFuelEntry(type,id){
   if(!isOwner()){alert('Owner only');return;}
   showConfirm('Delete this entry? This cannot be undone.',function(){
     if(type==='disb'){
+      // V56 Rule 9: _recordDeletion already handles Firebase removal
       _recordDeletion('disbs',id);disbs=disbs.filter(x=>x.id!==id);
-      sv('disbs',disbs);
     } else {
       _recordDeletion('pumpFills',id);pumpFills=(pumpFills||[]).filter(x=>x.id!==id);
     }
@@ -5462,7 +5463,8 @@ function resolveChecklistItem(recordId, itemId, note){
   checklistRecords[rIdx].items[iIdx].resolvedNote=note;
   checklistRecords[rIdx].items[iIdx].resolvedBy=sess?.name||'?';
   checklistRecords[rIdx].items[iIdx].resolvedAt=Date.now();
-  sv('checklistRecords',checklistRecords);
+  // V56 Rule 9: per-record write
+  _fbWrite('checklistRecords/'+checklistRecords[rIdx].id, checklistRecords[rIdx]);
   flash('✅ RESOLVED',note);
   renderChecklistReview();
   renderHome(); // refresh badge
@@ -5817,7 +5819,8 @@ function saveFuelEntry(){
     dipTakenBy:null,dipTakenByName:null,dipDate:null,dipRemarks:'',
     photoBef:null,photoAft:null,dipTs:null,
   });
-  sv('disbs',disbs);
+  // V56 Rule 9: per-record write
+  _fbWrite('disbs/'+disbs[disbs.length-1].id, disbs[disbs.length-1]);
   flashSave(isCan?'DISPATCHED':'LOGGED',fmt(litres,1)+' L → '+(veh?.name||'—')+(isCan?' · Dip pending':''));
   show('scr-home');
   _bnavTab='home';
@@ -5921,7 +5924,8 @@ function saveDip(){
     dipDate:today(),dipRemarks:document.getElementById('dip-remarks').value,
     photoBef:dipState.photoBef,photoAft:dipState.photoAft,dipTs:Date.now(),
   };
-  sv('disbs',disbs);
+  // V56 Rule 9: per-record write
+  _fbWrite('disbs/'+disbs[idx].id, disbs[idx]);
   flash(ok?'VERIFIED ✓':ok===null?'SAVED':'MISMATCH ⚠️',
     ok?gV(disbs[idx].vehicleId)?.name+' — fuel confirmed':
     ok===null?'cm recorded — no calibration set':'Diff '+fmt(Math.abs(diff||0),1)+' L saved');
@@ -8980,8 +8984,8 @@ function deleteEntry(type,id){
   if(!isOwner()){alert('Only Owner can delete entries');return;}
   showConfirm('Delete this entry? This cannot be undone.',function(){
     if(type==='disb'){
+      // V56 Rule 9: _recordDeletion already handles Firebase removal
       _recordDeletion('disbs',id);disbs=disbs.filter(x=>x.id!==id);
-      sv('disbs',disbs);
     } else if(type==='pumpFill'){
       _recordDeletion('pumpFills',id);pumpFills=pumpFills.filter(x=>x.id!==id);
     }
@@ -9783,7 +9787,7 @@ function delEntry(id,type){
   } else {
     const d=disbs.find(x=>x.id===id);const veh=gV(d?.vehicleId);
     showConfirm('Delete disbursement for "'+veh?.name+'"?',()=>{
-      _recordDeletion('disbs',id);disbs=disbs.filter(x=>x.id!==id);sv('disbs',disbs);renderReports();
+      _recordDeletion('disbs',id);disbs=disbs.filter(x=>x.id!==id);renderReports();
       flash('DELETED!','Disbursement removed');
     });
   }
@@ -9911,7 +9915,9 @@ async function saveEditMain(){
       driverId:newDrvId||null,driverName:newDrv?.name||null,status:'present',swap:true,
       swapReason:reason,markedBy:sess.userId,markedByName:sess.name,ts:Date.now()};
     if(idx>=0)musters[idx]=entry;else musters.push(entry);
-    sv('musters',musters);renderMuster();renderHome();
+    // V56 Rule 9: per-record write
+    _fbWrite('musters/'+entry.id, entry);
+    renderMuster();renderHome();
     flash('DRIVER SWAPPED!',f?.name+' → '+(newDrv?.name||'?'));
     closeEditModal();
   } else if(editType==='fleetDriver'){
@@ -10003,7 +10009,9 @@ async function saveEditMain(){
       meterMismatch:mDiff<0||Math.abs(mDiff-L)>1,operator:op,remarks:rem,
       editedBy:sess.userId,editedByName:sess.name,editedAt:Date.now()};
     if(changes.length)saveAudit(buildAuditEntry('disb',disbId,changes));
-    sv('disbs',disbs);flash('UPDATED!','Disbursement updated');closeEditModal();
+    // V56 Rule 9: per-record write
+    _fbWrite('disbs/'+disbs[idx].id, disbs[idx]);
+    flash('UPDATED!','Disbursement updated');closeEditModal();
     if(typeof renderReports==='function')renderReports();
   } else if(editType==='pumpFill'){
     const pfId=modal.dataset.pumpFillId;
@@ -10393,7 +10401,8 @@ function onMusterVehChange(driverId){
   const idx=(musters||[]).findIndex(m=>m.driverId===driverId&&m.date===td);
   if(idx>=0){
     musters[idx].vehicleId=vehId||null;
-    sv('musters',musters);
+    // V56 Rule 9: per-record write
+    _fbWrite('musters/'+musters[idx].id, musters[idx]);
   }
   // If "set permanent" is checked, update fleet record
   if(document.getElementById('muster-perm-'+driverId)?.checked && vehId){
@@ -10452,7 +10461,8 @@ function _doMarkFleetMuster(driverId, status, td, editRemark){
   };
   const idx=(musters||[]).findIndex(m=>m.driverId===driverId&&m.date===td);
   if(idx>=0)musters[idx]=entry;else musters.push(entry);
-  sv('musters',musters);
+  // V56 Rule 9: per-record write
+  _fbWrite('musters/'+entry.id, entry);
 
   const veh=gV(selVehId);
   const statusLbl=status==='present'?'✅ PRESENT':status==='absent'?'❌ ABSENT':status==='halfday'?'½ HALF DAY':'🏖 PAID LEAVE';
@@ -10469,13 +10479,16 @@ function saveFleetMusterAdvance(driverId){
   const idx=(musters||[]).findIndex(m=>m.driverId===driverId&&m.date===td);
   if(idx>=0){
     musters[idx]={...musters[idx],advance:amt,advRemark:rem};
-    sv('musters',musters);
+    // V56 Rule 9: per-record write
+    _fbWrite('musters/'+musters[idx].id, musters[idx]);
   } else if(amt>0){
     // Create a stub record with pending status if no muster entry yet
     const drv=(drivers||[]).find(d=>d.id===driverId);
-    musters.push({id:uid(),date:td,driverId,driverName:drv?.name||'',vehicleId:drv?.vehicleId||null,
-      status:'pending',advance:amt,advRemark:rem,markedBy:sess.userId,markedByName:sess.name,ts:Date.now()});
-    sv('musters',musters);
+    const stub = {id:uid(),date:td,driverId,driverName:drv?.name||'',vehicleId:drv?.vehicleId||null,
+      status:'pending',advance:amt,advRemark:rem,markedBy:sess.userId,markedByName:sess.name,ts:Date.now()};
+    musters.push(stub);
+    // V56 Rule 9: per-record write
+    _fbWrite('musters/'+stub.id, stub);
   }
 }
 
@@ -10491,7 +10504,9 @@ function markMuster(vehicleId,status,driverId){
     advRemark:idx>=0?musters[idx].advRemark||'':'',
     markedBy:sess.userId,markedByName:sess.name,ts:Date.now()};
   if(idx>=0)musters[idx]=entry;else musters.push(entry);
-  sv('musters',musters);renderMuster();renderHome();
+  // V56 Rule 9: per-record write
+  _fbWrite('musters/'+entry.id, entry);
+  renderMuster();renderHome();
   flash(status==='present'?'✅ PRESENT!':'❌ ABSENT',f?.name+(drv?' · '+drv.name:''));
 }
 
@@ -11082,7 +11097,8 @@ function submitChecklist(){
     status:'submitted'
   };
   checklistRecords.push(record);
-  sv('checklistRecords',checklistRecords);
+  // V56 Rule 9: per-record write
+  _fbWrite('checklistRecords/'+record.id, record);
   clState={};
   flash('✅ SUBMITTED!',record.vehicleName+' checklist complete');
   if(defects.length){
@@ -11273,16 +11289,43 @@ function fbSetStatus(status){
 // ── Push local data to Firebase ──
 async function fbPushAll(){
   fbSetStatus('syncing');
-  // Pull current Firebase state first, then merge transactional keys
-  // This prevents a stale device from overwriting entries made on other devices
+  // V56 SAFETY: Pull current Firebase state first. If we cannot read Firebase,
+  // we MUST NOT push — otherwise we'd PUT empty arrays for LS_NO_CACHE keys
+  // (since their localStorage is always empty by design) and wipe Firebase data.
   let fbSnapshot = null;
   try { fbSnapshot = await fbGet('fuellog'); } catch(e){}
+  if(!fbSnapshot){
+    console.warn('[fbPushAll] ABORTED — could not fetch Firebase snapshot. Refusing to push to avoid data loss.');
+    fbSetStatus('error');
+    return false;
+  }
   const payload = {};
   for(const k of FB_KEYS){
     const localKey = SK[k] || ('fl7_' + k);
+    // V56 SAFETY: For LS_NO_CACHE keys, localStorage is empty by design.
+    // NEVER push these via full-array PUT — always preserve Firebase as-is.
+    // Individual records are written via _fbWrite per save (Rule 9).
+    if(LS_NO_CACHE.has(k)){
+      let fbArr = fbSnapshot[k];
+      if(fbArr && !Array.isArray(fbArr) && typeof fbArr === 'object') fbArr = Object.values(fbArr).filter(Boolean);
+      payload[k] = Array.isArray(fbArr) ? fbArr : (fbArr || []);
+      // Refresh in-memory from Firebase snapshot
+      if(Array.isArray(payload[k])){
+        const tombstoneIds = _getTombstones(k);
+        const cleaned = payload[k].filter(e=>e&&e.id&&!tombstoneIds.has(e.id));
+        if(k==='disbs') disbs = cleaned;
+        else if(k==='pumpFills') pumpFills = cleaned;
+        else if(k==='purchases') purchases = cleaned;
+        else if(k==='musters') musters = cleaned;
+        else if(k==='staffMusters') staffMusters = cleaned;
+        else if(k==='checklistRecords') checklistRecords = cleaned;
+        payload[k] = cleaned;
+      }
+      continue;
+    }
     let localVal = [];
     try { localVal = JSON.parse(localStorage.getItem(localKey) || '[]'); } catch(e){}
-    if(MERGE_KEYS.has(k) && Array.isArray(localVal) && fbSnapshot && fbSnapshot[k]){
+    if(MERGE_KEYS.has(k) && Array.isArray(localVal) && fbSnapshot[k]){
       // Merge: keep any Firebase entries not in local (entered on other devices)
       let fbArr = fbSnapshot[k];
       if(!Array.isArray(fbArr) && typeof fbArr === 'object') fbArr = Object.values(fbArr).filter(Boolean);
@@ -11292,13 +11335,9 @@ async function fbPushAll(){
         const missing = fbArr.filter(e=>e&&e.id&&!localIds.has(e.id)&&!tombstoneIds.has(e.id));
         if(missing.length > 0){
           localVal = [...localVal, ...missing];
-          // Update localStorage only for small/critical keys
-          if(!LS_NO_CACHE.has(k)) localStorage.setItem(localKey, JSON.stringify(localVal));
+          localStorage.setItem(localKey, JSON.stringify(localVal));
           if(k==='trips') trips = localVal.map(_normalizeTrip);
-          else if(k==='disbs') disbs = localVal;
-          else if(k==='pumpFills') pumpFills = localVal;
-          else if(k==='purchases') purchases = localVal;
-          else if(k==='musters') musters = localVal;
+          else if(k==='readings') readings = localVal;
           console.log('[fbPushAll merge] '+k+': preserved '+missing.length+' remote-only entries');
         }
       }
@@ -11335,13 +11374,32 @@ async function fbSyncKey(key){
   } catch(e){}
 }
 
-// ── Override sv() to also sync to Firebase ──
+// ── V56 FIX: sv() Firebase sync override — SAFE VERSION ──
+// PREVIOUS BUG: This override did fbSet('fuellog/'+key, v) for ALL keys,
+// including LS_NO_CACHE collections (purchases/disbs/pumpFills/musters/
+// staffMusters/checklistRecords). That meant any sv('disbs', disbs) call
+// in the codebase wrote the ENTIRE in-memory array to Firebase as a PUT —
+// wiping any entries other devices had added that this device didn't see yet.
+// This caused 21 entries (3 purchases + 18 pump fills) to vanish on 15 May.
+//
+// V56 RULE: LS_NO_CACHE collections MUST be written via _fbWrite(key/id, record)
+// per individual record. The override now REFUSES to sync LS_NO_CACHE keys.
+// Master data (fleet/users/drivers/sites/pumps/customers/materials/staff/
+// checklistTemplates) is still fine to sync as a whole — those are small,
+// rarely-edited reference tables.
 const _svOriginal = sv;
 window.sv = function(k, v){
   _svOriginal(k, v);
   // Find the FB key name from the SK value
   const fbKey = Object.keys(SK).find(key => SK[key] === k);
-  if(fbKey && fbOnline){
+  if(!fbKey) return;
+  // CRITICAL: Refuse Firebase sync for LS_NO_CACHE keys — these MUST use
+  // _fbWrite per record to avoid full-array overwrites destroying remote data.
+  if(LS_NO_CACHE.has(fbKey)){
+    console.warn('[sv override] BLOCKED full-array Firebase write for LS_NO_CACHE key:', fbKey, '— use _fbWrite per record instead');
+    return;
+  }
+  if(fbOnline){
     fbSet(`fuellog/${fbKey}`, v).catch(()=>{});
   }
 };
@@ -12214,7 +12272,8 @@ async function resolveCorrected(){
   delete disbs[idx].responsibleSupervisorName;
   delete disbs[idx].theftRemarks;
 
-  sv('disbs', disbs);
+  // V56 Rule 9: per-record write
+  _fbWrite('disbs/'+disbs[idx].id, disbs[idx]);
   flash(newOk?'RESOLVED ✓':'CORRECTED', newOk?'Dip readings now match':'Saved with new readings');
   modal.style.display='none';
   if(typeof renderReports==='function') renderReports();
@@ -12252,7 +12311,8 @@ async function resolveTheft(){
   // Clear corrected remarks if previously corrected
   delete disbs[idx].correctionRemarks;
 
-  sv('disbs', disbs);
+  // V56 Rule 9: per-record write
+  _fbWrite('disbs/'+disbs[idx].id, disbs[idx]);
   flash('🚨 THEFT RECORDED', `${fmt(stolen,1)}L flagged · ${drv?.name||'?'}`);
   modal.style.display='none';
   if(typeof renderReports==='function') renderReports();
@@ -12718,7 +12778,8 @@ function _doMarkStaffMuster(staffId, status, td, editRemark){
   const rec = {id: existing?.id||uid(), staffId, date:td, status, advance:existing?.advance||0, advRemark:existing?.advRemark||'', by:sess?.name||'', ts:Date.now(),
     ...(editRemark?{editRemark,editBy:sess.name,editTs:Date.now()}:{})};
   if(idx>=0) staffMusters[idx]=rec; else staffMusters.push(rec);
-  sv('staffMusters',staffMusters);
+  // V56 Rule 9: per-record write
+  _fbWrite('staffMusters/'+rec.id, rec);
   renderStaffMuster();
   updateMusterCount();
 }
@@ -12730,12 +12791,14 @@ function saveStaffAdvance(staffId){
   const idx = staffMusters.findIndex(m=>m.staffId===staffId&&m.date===td);
   if(idx>=0){
     staffMusters[idx].advance=amt; staffMusters[idx].advRemark=rem;
-    sv('staffMusters',staffMusters);
+    // V56 Rule 9: per-record write
+    _fbWrite('staffMusters/'+staffMusters[idx].id, staffMusters[idx]);
   } else {
     // Save advance even without a status — default present
     const rec={id:uid(),staffId,date:td,status:'present',advance:amt,advRemark:rem,by:sess?.name||'',ts:Date.now()};
     staffMusters.push(rec);
-    sv('staffMusters',staffMusters);
+    // V56 Rule 9: per-record write
+    _fbWrite('staffMusters/'+rec.id, rec);
     renderStaffMuster();
   }
 }
