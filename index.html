@@ -1656,10 +1656,19 @@ async function _fbWrite(key, value){
       } catch(me){ /* merge failed — proceed with local */ }
     }
 
+    // V57 ROOT CAUSE FIX: Write LS_NO_CACHE collections as keyed objects
+    // {id: record} instead of plain arrays. Prevents Firebase from storing
+    // them as numeric arrays (0,1,2...) which caused duplicate entries on
+    // every reload via Object.values(). Master data collections unaffected.
+    let fbWriteValue = writeValue;
+    if(LS_NO_CACHE.has(key) && Array.isArray(writeValue)){
+      fbWriteValue = {};
+      writeValue.forEach(e => { if(e && e.id) fbWriteValue[e.id] = e; });
+    }
     const r = await fetch(FB_URL+'/fuellog/'+key+'.json?'+authParam, {
       method: 'PUT',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify(writeValue),
+      body: JSON.stringify(fbWriteValue),
       signal: ctrl.signal
     });
     clearTimeout(to);
@@ -1669,6 +1678,22 @@ async function _fbWrite(key, value){
   }
 }
 
+// ── DEDUP UTILITY (V57) ─────────────────────────────────────────
+// Removes duplicate IDs from any collection loaded from Firebase.
+// Root cause of JCB140-7 duplicate-entry bug: Firebase stored disbs as
+// a numeric-keyed object; Object.values() on reload produced arrays where
+// the same record appeared multiple times. _dedup() prevents this at every
+// Firebase load point (fbInit, refreshData, auto-refresh).
+function _dedup(arr){
+  if(!Array.isArray(arr)) return arr;
+  const seen=new Set();
+  return arr.filter(e=>{
+    if(!e||!e.id) return false;
+    if(seen.has(e.id)) return false;
+    seen.add(e.id);
+    return true;
+  });
+}
 // ════════════════════════════════════════
 // TOMBSTONE SYSTEM
 // Tracks intentionally-deleted entry IDs so the merge logic doesn't resurrect them.
@@ -2204,6 +2229,10 @@ function checkPin(){
       if(typeof renderDriverHome==='function') renderDriverHome();
     } else {
       show('scr-home');
+      // V57: run one-time dedup + keyed-format conversion after first Owner/Admin login
+      if(pinTarget.role==='owner'||pinTarget.role==='admin'){
+        setTimeout(_fbDedupeCleanup,4000);
+      }
     }
   } else {
     document.getElementById('pin-err').textContent='Wrong PIN — try again';
@@ -2747,6 +2776,90 @@ function submitDriverChecklist(){
 }
 
 // ════════════════════════════════════
+// ONE-TIME FIREBASE DEDUP CLEANUP (V57)
+// Runs once per device on first Owner/Admin login after V57 deploy.
+// Reads each LS_NO_CACHE collection from Firebase, deduplicates by id,
+// and writes back as keyed objects {id:record}. Marks itself done in
+// localStorage so it never runs a second time on this device.
+// DATA SAFETY: Only removes exact ID duplicates (keeps first occurrence).
+// Never removes a unique record. Writes back only when needed.
+// ════════════════════════════════════
+async function _fbDedupeCleanup(){
+  if((!isOwner()&&!isAdmin())||!fbOnline) return;
+  const DONE_KEY='fl7_dedup_done_v57';
+  if(localStorage.getItem(DONE_KEY)==='1') return;
+  console.log('[DedupV57] Starting one-time Firebase dedup + keyed-format cleanup...');
+  const keysToClean=[
+    'disbs','purchases','pumpFills','musters',
+    'staffMusters','checklistRecords','readings','trips'
+  ];
+  let totalCleaned=0;
+  for(const k of keysToClean){
+    try{
+      const token=await fbGetAuth();
+      const authParam=token?'auth='+token:'auth='+FB_KEY;
+      const ctrl=new AbortController();
+      const t=setTimeout(()=>ctrl.abort(),8000);
+      const r=await fetch(FB_URL+'/fuellog/'+k+'.json?'+authParam,{signal:ctrl.signal});
+      clearTimeout(t);
+      if(!r.ok){console.warn('[DedupV57] Read failed: '+k+' (HTTP '+r.status+')');continue;}
+      let val=await r.json();
+      if(!val){console.log('[DedupV57] '+k+': empty, skip');continue;}
+      const wasArray=Array.isArray(val);
+      if(!Array.isArray(val)&&typeof val==='object') val=Object.values(val).filter(Boolean);
+      if(!Array.isArray(val)||!val.length) continue;
+      const deduped=_dedup(val);
+      const removed=val.length-deduped.length;
+      // Build keyed object for write-back {id: record}
+      const keyed={};
+      deduped.forEach(e=>{if(e&&e.id)keyed[e.id]=e;});
+      // Write back if: duplicates found OR was stored as plain array (convert format)
+      if(removed>0||wasArray){
+        const reason=removed>0?('removing '+removed+' dup(s)'):'converting array→keyed format';
+        console.log('[DedupV57] '+k+': '+reason);
+        const wctrl=new AbortController();
+        const wt=setTimeout(()=>wctrl.abort(),10000);
+        const wr=await fetch(FB_URL+'/fuellog/'+k+'.json?'+authParam,{
+          method:'PUT',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(keyed),
+          signal:wctrl.signal
+        });
+        clearTimeout(wt);
+        if(wr.ok){
+          totalCleaned+=removed;
+          // Refresh in-memory from deduped result
+          if(k==='disbs') disbs=deduped;
+          else if(k==='purchases') purchases=deduped;
+          else if(k==='pumpFills') pumpFills=deduped;
+          else if(k==='musters') musters=deduped;
+          else if(k==='staffMusters') staffMusters=deduped;
+          else if(k==='checklistRecords') checklistRecords=deduped;
+          else if(k==='readings') readings=deduped;
+          else if(k==='trips') trips=_dedup(deduped.map(_normalizeTrip));
+          console.log('[DedupV57] '+k+': write-back OK ('+deduped.length+' records kept)');
+        } else {
+          console.warn('[DedupV57] '+k+': write-back failed HTTP '+wr.status+' — in-memory clean, Firebase unchanged');
+        }
+      } else {
+        console.log('[DedupV57] '+k+': already clean keyed format ('+val.length+' records)');
+      }
+    } catch(e){
+      console.warn('[DedupV57] '+k+' error:',e.message);
+      // Continue with next collection — do not abort entire cleanup
+    }
+  }
+  localStorage.setItem(DONE_KEY,'1');
+  if(totalCleaned>0){
+    console.log('[DedupV57] Complete — removed '+totalCleaned+' duplicate(s) from Firebase');
+    flash('✓ DEDUP DONE','Removed '+totalCleaned+' duplicate record(s) from cloud');
+    setTimeout(()=>renderHome(),600);
+  } else {
+    console.log('[DedupV57] Complete — all collections were already clean');
+  }
+}
+
+// ════════════════════════════════════
 // HOME
 // ════════════════════════════════════
 function renderHome(){
@@ -3159,10 +3272,15 @@ function deleteFuelEntry(type,id){
   if(!isOwner()){alert('Owner only');return;}
   showConfirm('Delete this entry? This cannot be undone.',function(){
     if(type==='disb'){
-      // V56 Rule 9: _recordDeletion already handles Firebase removal
-      _recordDeletion('disbs',id);disbs=disbs.filter(x=>x.id!==id);
+      // V57: dedup first so only the intended entry is deleted,
+      // even if legacy duplicates exist in memory from before V57
+      disbs=_dedup(disbs);
+      _recordDeletion('disbs',id);
+      disbs=disbs.filter(x=>x.id!==id);
     } else {
-      _recordDeletion('pumpFills',id);pumpFills=(pumpFills||[]).filter(x=>x.id!==id);
+      pumpFills=_dedup(pumpFills||[]);
+      _recordDeletion('pumpFills',id);
+      pumpFills=(pumpFills||[]).filter(x=>x.id!==id);
     }
     renderFuelLog();
     flash('DELETED','Entry removed');
@@ -11545,18 +11663,18 @@ async function fbInit(){
       }
 
       // Update in-memory variables immediately
-      if(k==='users') users=val;
-      else if(k==='fleet') fleet=val;
-      else if(k==='disbs') disbs=val;
-      else if(k==='readings') readings=val;
-      else if(k==='purchases') purchases=val;
-      else if(k==='pumps') pumps=val;
-      else if(k==='pumpFills') pumpFills=val;
-      else if(k==='sites') sites=val;
-      else if(k==='drivers') drivers=val;
-      else if(k==='musters') musters=val;
-      else if(k==='checklistTemplates') checklistTemplates=val;
-      else if(k==='checklistRecords') checklistRecords=val;
+      if(k==='users') users=_dedup(val);
+      else if(k==='fleet') fleet=_dedup(val);
+      else if(k==='disbs') disbs=_dedup(val);
+      else if(k==='readings') readings=_dedup(val);
+      else if(k==='purchases') purchases=_dedup(val);
+      else if(k==='pumps') pumps=_dedup(val);
+      else if(k==='pumpFills') pumpFills=_dedup(val);
+      else if(k==='sites') sites=_dedup(val);
+      else if(k==='drivers') drivers=_dedup(val);
+      else if(k==='musters') musters=_dedup(val);
+      else if(k==='checklistTemplates') checklistTemplates=_dedup(val);
+      else if(k==='checklistRecords') checklistRecords=_dedup(val);
       else if(k==='trips'){
         // ── DIAGNOSTICS: wrap _normalizeTrip per-entry, catch failures ──
         const _normalized = [];
@@ -11763,19 +11881,19 @@ async function refreshData(){
           try { localStorage.setItem(localKey, JSON.stringify(val)); }
           catch(qe){ console.warn('[refresh] localStorage quota exceeded for key:', k); }
         }
-        if(k==='users') users=val;
-        else if(k==='fleet') fleet=val;
-        else if(k==='disbs') disbs=val;
-        else if(k==='readings') readings=val;
-        else if(k==='purchases') purchases=val;
-        else if(k==='pumps') pumps=val;
-        else if(k==='pumpFills') pumpFills=val;
-        else if(k==='sites') sites=val;
-        else if(k==='drivers') drivers=val;
-        else if(k==='musters') musters=val;
-        else if(k==='checklistTemplates') checklistTemplates=val;
-        else if(k==='checklistRecords') checklistRecords=val;
-      else if(k==='trips') trips=(val||[]).map(_normalizeTrip);
+        if(k==='users') users=_dedup(val);
+        else if(k==='fleet') fleet=_dedup(val);
+        else if(k==='disbs') disbs=_dedup(val);
+        else if(k==='readings') readings=_dedup(val);
+        else if(k==='purchases') purchases=_dedup(val);
+        else if(k==='pumps') pumps=_dedup(val);
+        else if(k==='pumpFills') pumpFills=_dedup(val);
+        else if(k==='sites') sites=_dedup(val);
+        else if(k==='drivers') drivers=_dedup(val);
+        else if(k==='musters') musters=_dedup(val);
+        else if(k==='checklistTemplates') checklistTemplates=_dedup(val);
+        else if(k==='checklistRecords') checklistRecords=_dedup(val);
+      else if(k==='trips') trips=_dedup((val||[]).map(_normalizeTrip));
       else if(k==='customers') customers=val;
       else if(k==='materials') materials=val;
       });
@@ -11844,25 +11962,25 @@ setInterval(async()=>{
         }catch(me){}
       }
       if(!LS_NO_CACHE.has(k)){ try{ localStorage.setItem(localKey, JSON.stringify(val)); }catch(e){} }
-      if(k==='users') users=val;
-      else if(k==='fleet') fleet=val;
-      else if(k==='disbs') disbs=val;
-      else if(k==='readings') readings=val;
-      else if(k==='purchases') purchases=val;
-      else if(k==='pumps') pumps=val;
-      else if(k==='pumpFills') pumpFills=val;
-      else if(k==='sites') sites=val;
-      else if(k==='drivers') drivers=val;
-      else if(k==='musters') musters=val;
-      else if(k==='checklistTemplates') checklistTemplates=val;
-      else if(k==='checklistRecords') checklistRecords=val;
-      else if(k==='trips') trips=(val||[]).map(_normalizeTrip);
+      if(k==='users') users=_dedup(val);
+      else if(k==='fleet') fleet=_dedup(val);
+      else if(k==='disbs') disbs=_dedup(val);
+      else if(k==='readings') readings=_dedup(val);
+      else if(k==='purchases') purchases=_dedup(val);
+      else if(k==='pumps') pumps=_dedup(val);
+      else if(k==='pumpFills') pumpFills=_dedup(val);
+      else if(k==='sites') sites=_dedup(val);
+      else if(k==='drivers') drivers=_dedup(val);
+      else if(k==='musters') musters=_dedup(val);
+      else if(k==='checklistTemplates') checklistTemplates=_dedup(val);
+      else if(k==='checklistRecords') checklistRecords=_dedup(val);
+      else if(k==='trips') trips=_dedup((val||[]).map(_normalizeTrip));
       else if(k==='customers') customers=val;
       else if(k==='materials') materials=val;
     });
     console.log('[AutoRefresh] Firebase data refreshed at', new Date().toLocaleTimeString());
   } catch(e){ /* silent fail — don't disturb user */ }
-}, 60 * 60 * 1000); // every 60 minutes
+}, 5 * 60 * 1000); // every 5 minutes
 
 // Inactivity checker — runs every 60 seconds
 setInterval(async()=>{
