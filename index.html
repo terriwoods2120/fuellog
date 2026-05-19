@@ -11441,24 +11441,54 @@ async function fbPushAll(){
       }
       continue;
     }
+    // V58 FIX — ROOT CAUSE OF DATA LOSS AFTER DEPLOY:
+    // fbPushAll() was reading localStorage as the source of truth for master
+    // data (customers, materials, fleet, drivers, staff, sites, pumps, users).
+    // When a new version deployed, any device with OLD localStorage would
+    // overwrite Firebase with stale data — wiping records added on other
+    // devices (GSB material, Parvati Automobile customer, etc.).
+    //
+    // FIX: Always start from the Firebase snapshot for ALL collections.
+    // For MERGE_KEYS (append-only logs): merge local+Firebase, keep union.
+    // For master data: Firebase snapshot IS the payload — localStorage only
+    // contributes entries not yet in Firebase (added on THIS device offline).
     let localVal = [];
     try { localVal = JSON.parse(localStorage.getItem(localKey) || '[]'); } catch(e){}
-    if(MERGE_KEYS.has(k) && Array.isArray(localVal) && fbSnapshot[k]){
-      // Merge: keep any Firebase entries not in local (entered on other devices)
-      let fbArr = fbSnapshot[k];
-      if(!Array.isArray(fbArr) && typeof fbArr === 'object') fbArr = Object.values(fbArr).filter(Boolean);
-      if(Array.isArray(fbArr)){
-        const localIds = new Set(localVal.map(e=>e&&e.id).filter(Boolean));
-        const tombstoneIds = _getTombstones(k);
-        const missing = fbArr.filter(e=>e&&e.id&&!localIds.has(e.id)&&!tombstoneIds.has(e.id));
-        if(missing.length > 0){
-          localVal = [...localVal, ...missing];
-          localStorage.setItem(localKey, JSON.stringify(localVal));
-          if(k==='trips') trips = localVal.map(_normalizeTrip);
-          else if(k==='readings') readings = localVal;
-          console.log('[fbPushAll merge] '+k+': preserved '+missing.length+' remote-only entries');
+    // Get Firebase value for this key (already fetched in snapshot)
+    let fbArr = fbSnapshot[k];
+    if(fbArr && !Array.isArray(fbArr) && typeof fbArr === 'object')
+      fbArr = Object.values(fbArr).filter(Boolean);
+    if(!Array.isArray(fbArr)) fbArr = [];
+    if(MERGE_KEYS.has(k)){
+      // Append-only logs: union of Firebase + any local-only entries
+      const fbIds = new Set(fbArr.map(e=>e&&e.id).filter(Boolean));
+      const tombstoneIds = _getTombstones(k);
+      const localOnly = localVal.filter(e=>e&&e.id&&!fbIds.has(e.id)&&!tombstoneIds.has(e.id));
+      if(localOnly.length > 0){
+        localVal = [...fbArr, ...localOnly];
+        localStorage.setItem(localKey, JSON.stringify(localVal));
+        if(k==='trips') trips = localVal.map(_normalizeTrip);
+        else if(k==='readings') readings = localVal;
+        console.log('[fbPushAll merge] '+k+': added '+localOnly.length+' local-only entries to Firebase payload');
+      } else {
+        localVal = fbArr; // Firebase is authoritative
+      }
+    } else {
+      // Master data (customers, materials, fleet, drivers, staff, sites,
+      // pumps, users, checklistTemplates): Firebase snapshot is authoritative.
+      // Only add entries that exist in localStorage but NOT in Firebase
+      // (i.e. added on this device and not yet synced).
+      if(fbArr.length > 0){
+        const fbIds = new Set(fbArr.map(e=>e&&e.id).filter(Boolean));
+        const localOnly = localVal.filter(e=>e&&e.id&&!fbIds.has(e.id));
+        if(localOnly.length > 0){
+          console.log('[fbPushAll] '+k+': merging '+localOnly.length+' local-only master records into Firebase payload');
+          localVal = [...fbArr, ...localOnly];
+        } else {
+          localVal = fbArr; // Firebase wins — prevents stale localStorage from wiping new records
         }
       }
+      // If Firebase is empty for this key, fall back to localStorage (first-time setup)
     }
     payload[k] = localVal;
   }
