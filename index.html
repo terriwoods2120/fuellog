@@ -1551,11 +1551,11 @@ input[type=file]{display:none}
 // ════════════════════════════════════
 // STORAGE
 // ════════════════════════════════════
-const SK={users:'fl7_users',fleet:'fl7_fleet',disbs:'fl7_disbs',readings:'fl7_readings',purchases:'fl7_purchases',pumps:'fl7_pumps',pumpFills:'fl7_pumpFills',sites:'fl7_sites',drivers:'fl7_drivers',musters:'fl7_musters',checklistTemplates:'fl7_clTemplates',checklistRecords:'fl7_clRecords',trips:'fl7_trips',customers:'fl7_customers',materials:'fl7_materials',staff:'fl7_staff',staffMusters:'fl7_staffMusters'};
+const SK={users:'fl7_users',fleet:'fl7_fleet',disbs:'fl7_disbs',readings:'fl7_readings',purchases:'fl7_purchases',pumps:'fl7_pumps',pumpFills:'fl7_pumpFills',sites:'fl7_sites',drivers:'fl7_drivers',musters:'fl7_musters',checklistTemplates:'fl7_clTemplates',checklistRecords:'fl7_clRecords',trips:'fl7_trips',customers:'fl7_customers',materials:'fl7_materials',staff:'fl7_staff',staffMusters:'fl7_staffMusters',pumpPayments:'fl7_pumpPayments'};
 // Keys too large to cache in localStorage (Safari 5MB limit).
 // These are loaded fresh from Firebase on every login — no need to persist locally.
 // V54 FIX: LS_NO_CACHE must be declared BEFORE ld() and sv() reference it.
-const LS_NO_CACHE = new Set(['disbs','purchases','pumpFills','musters','staffMusters','checklistRecords']);
+const LS_NO_CACHE = new Set(['disbs','purchases','pumpFills','musters','staffMusters','checklistRecords','pumpPayments']);
 // V54: ld() returns [] for LS_NO_CACHE keys — prevents stale localStorage data
 // (e.g. old purchases balance) from overriding Firebase on startup/deploy.
 const ld=k=>{if(LS_NO_CACHE.has(k))return[];try{return JSON.parse(localStorage.getItem(SK[k])||'[]')}catch{return[]}};
@@ -1611,7 +1611,7 @@ function _updateSyncBadge(){
 }
 
 // Keys containing transactional records — must MERGE, never overwrite with fewer entries
-const MERGE_KEYS = new Set(['disbs','pumpFills','purchases','readings','musters','trips','checklistRecords','staffMusters']);
+const MERGE_KEYS = new Set(['disbs','pumpFills','purchases','readings','musters','trips','checklistRecords','staffMusters','pumpPayments']);
 
 // Actual Firebase PUT with merge protection
 async function _fbWrite(key, value){
@@ -1812,7 +1812,7 @@ window.addEventListener('beforeunload', (e) => {
     return e.returnValue;
   }
 });
-let users=ld('users'),fleet=ld('fleet'),disbs=ld('disbs'),readings=ld('readings'),purchases=ld('purchases'),pumps=ld('pumps'),pumpFills=ld('pumpFills'),sites=ld('sites'),drivers=ld('drivers'),musters=ld('musters'),checklistTemplates=ld('checklistTemplates'),checklistRecords=ld('checklistRecords'),trips=ld('trips'),customers=ld('customers'),materials=ld('materials'),staff=ld('staff'),staffMusters=ld('staffMusters');
+let users=ld('users'),fleet=ld('fleet'),disbs=ld('disbs'),readings=ld('readings'),purchases=ld('purchases'),pumps=ld('pumps'),pumpFills=ld('pumpFills'),sites=ld('sites'),drivers=ld('drivers'),musters=ld('musters'),checklistTemplates=ld('checklistTemplates'),checklistRecords=ld('checklistRecords'),trips=ld('trips'),customers=ld('customers'),materials=ld('materials'),staff=ld('staff'),staffMusters=ld('staffMusters'),pumpPayments=ld('pumpPayments');
 
 
 // Bowser stock = total purchased into bowser minus total dispensed from bowser
@@ -2791,7 +2791,7 @@ async function _fbDedupeCleanup(){
   console.log('[DedupV57] Starting one-time Firebase dedup + keyed-format cleanup...');
   const keysToClean=[
     'disbs','purchases','pumpFills','musters',
-    'staffMusters','checklistRecords','readings','trips'
+    'staffMusters','checklistRecords','readings','trips','pumpPayments'
   ];
   let totalCleaned=0;
   for(const k of keysToClean){
@@ -2837,6 +2837,7 @@ async function _fbDedupeCleanup(){
           else if(k==='checklistRecords') checklistRecords=deduped;
           else if(k==='readings') readings=deduped;
           else if(k==='trips') trips=_dedup(deduped.map(_normalizeTrip));
+          else if(k==='pumpPayments') pumpPayments=deduped;
           console.log('[DedupV57] '+k+': write-back OK ('+deduped.length+' records kept)');
         } else {
           console.warn('[DedupV57] '+k+': write-back failed HTTP '+wr.status+' — in-memory clean, Firebase unchanged');
@@ -6123,7 +6124,13 @@ function showFuelPaymentForm(){
   if(f.style.display==='block') setTimeout(()=>document.getElementById('fuel-pay-amt')?.focus(),100);
 }
 
-// V49: Apply payment from Fuel Purchase screen — delegates to applyPumpPayment
+// V61: Apply payment from Fuel Purchase screen.
+// NEW APPROACH (Option 2): payment is recorded as a separate entry in
+// `pumpPayments` collection. Existing purchases/pumpFills are NOT modified.
+// Pump-level due is calculated as: sum(purchases.amount) + sum(pumpFills.amount)
+//                                 - sum(legacy purchases.paid + pumpFills.paid)
+//                                 - sum(pumpPayments.amount for this pump)
+// This keeps old data intact and gives a clean payment ledger.
 async function applyFuelPayment(){
   const pumpId=document.getElementById('fuel-pay-pump')?.value;
   const amt=parseFloat(document.getElementById('fuel-pay-amt')?.value)||0;
@@ -6131,62 +6138,32 @@ async function applyFuelPayment(){
   if(!pumpId){alert('Select a pump');return;}
   if(!amt||amt<=0){alert('Enter amount paid');return;}
   if(isFutureDate(payDate)){alert('❌ Payment date cannot be in the future.');return;}
-  // Temporarily write values to the pump-pay fields applyPumpPayment reads
-  // (those fields only exist on the Pumps screen, so we inline the logic here)
   const rem=document.getElementById('fuel-pay-rem')?.value||'';
   const pump=pumps.find(p=>p.id===pumpId);
-  const unpaidPurchases=(purchases||[])
-    .filter(x=>(x.pumpId===pumpId||((!x.pumpId)&&x.vendor===pump?.name))&&(x.amount||0)-(x.paid||0)>0)
-    .map(x=>({...x,_type:'purchase'}));
-  const unpaidFills=(pumpFills||[])
-    .filter(x=>(x.pumpId===pumpId||((!x.pumpId)&&x.pumpName===pump?.name))&&(x.amount||0)-(x.paid||0)>0)
-    .map(x=>({...x,_type:'fill'}));
-  const allUnpaid=[...unpaidPurchases,...unpaidFills].sort((a,b)=>a.date.localeCompare(b.date));
-  if(!allUnpaid.length){alert('No outstanding entries for this pump');return;}
-  let remaining=amt, updatedCount=0;
-  const touched=[]; // V60.1: track which records were updated so we can persist them
-  allUnpaid.forEach(entry=>{
-    if(remaining<=0) return;
-    const due=(entry.amount||0)-(entry.paid||0);
-    const applying=Math.min(remaining,due);
-    if(entry._type==='purchase'){
-      const idx=purchases.findIndex(x=>x.id===entry.id);
-      if(idx>=0){
-        purchases[idx]={...purchases[idx],paid:(purchases[idx].paid||0)+applying,payRemark:rem,payDate,
-          editedBy:sess.userId,editedByName:sess.name,editedAt:Date.now()};
-        touched.push({type:'purchase',id:purchases[idx].id,record:purchases[idx]});
-        updatedCount++;
-      }
-    } else {
-      const idx=(pumpFills||[]).findIndex(x=>x.id===entry.id);
-      if(idx>=0){
-        pumpFills[idx]={...pumpFills[idx],paid:(pumpFills[idx].paid||0)+applying,payRemark:rem,payDate,
-          editedBy:sess.userId,editedByName:sess.name,editedAt:Date.now()};
-        touched.push({type:'fill',id:pumpFills[idx].id,record:pumpFills[idx]});
-        updatedCount++;
-      }
-    }
-    remaining-=applying;
-  });
-  // V60.1 CRITICAL FIX — was previously broken: in-memory was updated but
-  // no Firebase write happened, so payment vanished on every reload. Now we
-  // AWAIT per-record writes for every touched entry and report success.
-  flash('💾 SAVING...','Writing '+touched.length+' record(s) to cloud');
-  const writePromises = touched.map(t =>
-    t.type==='purchase'
-      ? _fbWrite('purchases/'+t.id, t.record)
-      : _fbWrite('pumpFills/'+t.id, t.record)
-  );
-  const results = await Promise.all(writePromises);
-  const failed = results.filter(r=>!r).length;
-  if(failed>0){
-    console.error('[applyFuelPayment] '+failed+' of '+results.length+' Firebase writes FAILED');
-    alert('⚠️ PAYMENT PARTIALLY SAVED\n\n'+(results.length-failed)+' record(s) saved to cloud.\n'+failed+' record(s) FAILED.\n\nCheck internet connection and try again. The failed entries will show their old balance after refresh.');
-    renderPurchases();
+  // V61: build payment ledger entry
+  const payment={
+    id:uid(),
+    ts:Date.now(),
+    date:payDate,
+    pumpId:pumpId,
+    pumpName:pump?.name||'',
+    amount:amt,
+    remark:rem,
+    paidBy:sess.userId,
+    paidByName:sess.name
+  };
+  flash('💾 SAVING...','Recording payment to ledger');
+  if(!Array.isArray(pumpPayments)) pumpPayments=[];
+  pumpPayments.push(payment);
+  const ok = await _fbWrite('pumpPayments/'+payment.id, payment);
+  if(!ok){
+    // roll back local change since Firebase failed
+    pumpPayments = pumpPayments.filter(p=>p.id!==payment.id);
+    console.error('[applyFuelPayment] Firebase write FAILED for payment '+payment.id);
+    alert('⚠️ PAYMENT NOT SAVED\n\nFirebase write failed. Check your internet connection and try again.');
     return;
   }
-  const overpaid=remaining>0?` · ₹${Math.round(remaining).toLocaleString('en-IN')} credit`:'';
-  flash('✅ PAYMENT SAVED',`₹${Math.round(amt).toLocaleString('en-IN')} applied to ${updatedCount} entr${updatedCount===1?'y':'ies'} at ${pump?.name||''}${overpaid}`);
+  flash('✅ PAYMENT SAVED',`₹${Math.round(amt).toLocaleString('en-IN')} recorded for ${pump?.name||''}${rem?' · '+rem:''}`);
   document.getElementById('fuel-pay-form').style.display='none';
   renderPurchases();
 }
@@ -6208,15 +6185,65 @@ function delPumpFill(id){
     flash('DELETED!','Pump fill removed');
   });
 }
+// V61: Delete a pump payment from the ledger
+async function delPumpPayment(id){
+  if(!isOwner()){alert('Only Owner can delete payments');return;}
+  const p=(pumpPayments||[]).find(x=>x.id===id);
+  if(!p) return;
+  const fmtINR=n=>'₹'+Math.round(n||0).toLocaleString('en-IN');
+  showConfirm(`Delete payment of ${fmtINR(p.amount)} to "${p.pumpName||'?'}" dated ${fmtD(p.date)}?\n\nThis cannot be undone.`,async()=>{
+    _recordDeletion('pumpPayments',id);
+    pumpPayments=(pumpPayments||[]).filter(x=>x.id!==id);
+    // Delete from Firebase by writing null to the record path
+    try {
+      const token = await fbGetAuth();
+      const authParam = token ? 'auth='+token : 'auth='+FB_KEY;
+      await fetch(FB_URL+'/fuellog/pumpPayments/'+id+'.json?'+authParam, {method:'DELETE'});
+    } catch(e){ console.warn('[delPumpPayment] Firebase delete failed:', e); }
+    renderPurchases();
+    flash('DELETED!','Payment removed');
+  });
+}
+// V61: Pump balance helpers — use new pumpPayments ledger.
+// Due for a pump = sum(purchases.amount + pumpFills.amount)
+//                 - sum(legacy purchases.paid + pumpFills.paid)  [backward compat]
+//                 - sum(pumpPayments.amount for this pump)        [new ledger]
+function _getPumpDue(pumpId, pumpName){
+  const pPurchases=(purchases||[]).filter(x=>x.pumpId===pumpId||((!x.pumpId)&&x.vendor===pumpName));
+  const pFills=(pumpFills||[]).filter(x=>x.pumpId===pumpId||((!x.pumpId)&&x.pumpName===pumpName));
+  const pPayments=(pumpPayments||[]).filter(x=>x.pumpId===pumpId);
+  const billed = pPurchases.reduce((a,x)=>a+(x.amount||0),0)
+               + pFills.reduce((a,x)=>a+(x.amount||0),0);
+  const legacyPaid = pPurchases.reduce((a,x)=>a+(x.paid||0),0)
+                   + pFills.reduce((a,x)=>a+(x.paid||0),0);
+  const ledgerPaid = pPayments.reduce((a,x)=>a+(x.amount||0),0);
+  return Math.round((billed - legacyPaid - ledgerPaid)*100)/100;
+}
+function _getTotalDue(){
+  // Sum across all pumps + entries without pumpId
+  const billed = (purchases||[]).reduce((a,x)=>a+(x.amount||0),0)
+               + (pumpFills||[]).reduce((a,x)=>a+(x.amount||0),0);
+  const legacyPaid = (purchases||[]).reduce((a,x)=>a+(x.paid||0),0)
+                   + (pumpFills||[]).reduce((a,x)=>a+(x.paid||0),0);
+  const ledgerPaid = (pumpPayments||[]).reduce((a,x)=>a+(x.amount||0),0);
+  return Math.round((billed - legacyPaid - ledgerPaid)*100)/100;
+}
 function renderPurchases(){
   populatePurPumpSelect();
   // V48: Combined view — bowser purchases + direct pump fills
   const _clamp=n=>Math.round(n*100)/100||0; // kills -0 and rounds to paise
   const fmtINR=n=>'₹'+Math.abs(Math.round(n||0)).toLocaleString('en-IN');
-  const purBal=_clamp(purchases.reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0));
+  // V61: balance now subtracts both legacy paid (on entries) AND new pumpPayments ledger
   const pfList=(pumpFills||[]);
-  const pfBal=_clamp(pfList.reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0));
-  const totalBal=_clamp(purBal+pfBal);
+  // Per-section balance (for breakdown display) — uses legacy paid only on those entries
+  const purBalLegacy=_clamp(purchases.reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0));
+  const pfBalLegacy=_clamp(pfList.reduce((a,p)=>a+((p.amount||0)-(p.paid||0)),0));
+  // Total balance — applies the unified ledger formula
+  const totalBal=_clamp(_getTotalDue());
+  // For breakdown, distribute the pumpPayments ledger proportionally between bowser and direct fills
+  const ledgerPaidTotal=(pumpPayments||[]).reduce((a,x)=>a+(x.amount||0),0);
+  const purBal=_clamp(purBalLegacy - (purBalLegacy+pfBalLegacy>0 ? ledgerPaidTotal*(purBalLegacy/(purBalLegacy+pfBalLegacy)) : 0));
+  const pfBal=_clamp(totalBal - purBal);
   const totalEntries=purchases.length+pfList.length;
   document.getElementById('pur-bal').innerHTML=`<div class="bal-ban ${totalBal>0?'bal-owing':'bal-clear'}">
     <div><div class="bal-lbl">Total Balance Due</div><div class="bal-amt ${totalBal>0?'ba-red':'ba-grn'}">${fmtINR(totalBal)}</div>
@@ -6235,8 +6262,7 @@ function renderPurchases(){
     <select id="fuel-pay-pump" style="width:100%;background:var(--bg2);border:1.5px solid var(--border);color:var(--white);padding:10px;border-radius:8px;font-size:13px;margin-bottom:8px;box-sizing:border-box">
       <option value="">Select pump...</option>
       ${pumps.map(p=>{
-        const pDue=(purchases||[]).filter(x=>x.pumpId===p.id||((!x.pumpId)&&x.vendor===p.name)).reduce((a,x)=>a+((x.amount||0)-(x.paid||0)),0)
-                  +(pumpFills||[]).filter(x=>x.pumpId===p.id||((!x.pumpId)&&x.pumpName===p.name)).reduce((a,x)=>a+((x.amount||0)-(x.paid||0)),0);
+        const pDue=_getPumpDue(p.id, p.name);
         return pDue>0?`<option value="${p.id}">${p.name} — DUE ${fmtINR(pDue)}</option>`:'';
       }).join('')}
     </select>
@@ -6302,6 +6328,28 @@ function renderPurchases(){
         <div class="li-actions">
           ${canE?`<button class="li-btn" onclick="openEditModal('pumpFill','${p.id}')">✏️</button>`:''}
           ${canD?`<button class="li-btn del" onclick="delPumpFill('${p.id}')">🗑</button>`:''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // V61: Section 3 — Payments made to pumps (new pumpPayments ledger)
+  const pmts=(pumpPayments||[]).slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
+  if(pmts.length){
+    const totalPaid=pmts.reduce((a,p)=>a+(p.amount||0),0);
+    html += `<div style="padding:10px 14px 4px;font-family:var(--fh);font-size:11px;color:var(--green);letter-spacing:.8px;font-weight:700;${(purchases.length||pfList.length)?'border-top:1px solid var(--border);margin-top:8px':''}">💰 PAYMENTS MADE TO PUMPS (${pmts.length}) · Total ${fmtINR(totalPaid)}</div>`;
+    html += pmts.map(p=>{
+      const canD=isOwner();
+      return `<div class="log-item">
+        <div class="li-ico">💰</div>
+        <div class="li-main">
+          <div class="li-name">${p.pumpName||'?'} <span style="font-size:9px;background:rgba(0,200,83,.15);color:var(--green);padding:1px 6px;border-radius:4px;font-weight:700;margin-left:4px">PAYMENT</span></div>
+          <div class="li-det">${p.remark||'No remark'}</div>
+          <div class="li-by">by ${p.paidByName||'?'}</div>
+        </div>
+        <div class="li-right"><div class="li-val" style="font-size:14px;color:var(--green)">${fmtINR(p.amount||0)}</div><div class="li-date">${fmtD(p.date)}</div></div>
+        <div class="li-actions">
+          ${canD?`<button class="li-btn del" onclick="delPumpPayment('${p.id}')">🗑</button>`:''}
         </div>
       </div>`;
     }).join('');
@@ -6695,7 +6743,9 @@ function recordPumpPayment(pumpId){
   }
 }
 
-// V49: Apply lump-sum payment to a pump — distributes oldest-first across purchases + pump fills
+// V61: Apply lump-sum payment to a pump.
+// NEW APPROACH (Option 2): payment is recorded as a separate entry in
+// `pumpPayments` collection. Existing purchases/pumpFills are NOT modified.
 async function applyPumpPayment(pumpId){
   if(!isOwner()){alert('Only Owner can record payments');return;}
   const amt=parseFloat(document.getElementById('pump-pay-amt-'+pumpId)?.value)||0;
@@ -6705,55 +6755,31 @@ async function applyPumpPayment(pumpId){
   if(!amt||amt<=0){alert('Enter amount paid');return;}
   if(isFutureDate(payDate)){alert('❌ Payment date cannot be in the future.');return;}
 
-  // Gather all unpaid entries for this pump (purchases + fills) sorted oldest first
-  // V49: match by pumpId OR by name fallback for legacy entries
-  const unpaidPurchases=(purchases||[])
-    .filter(x=>(x.pumpId===pumpId||((!x.pumpId)&&x.vendor===pump?.name))&&(x.amount||0)-(x.paid||0)>0)
-    .map(x=>({...x,_type:'purchase'}));
-  const unpaidFills=(pumpFills||[])
-    .filter(x=>(x.pumpId===pumpId||((!x.pumpId)&&x.pumpName===pump?.name))&&(x.amount||0)-(x.paid||0)>0)
-    .map(x=>({...x,_type:'fill'}));
-  const allUnpaid=[...unpaidPurchases,...unpaidFills].sort((a,b)=>a.date.localeCompare(b.date));
-
-  if(!allUnpaid.length){alert('No outstanding entries for this pump');return;}
-
-  let remaining=amt;
-  let updatedCount=0;
-
-  allUnpaid.forEach(entry=>{
-    if(remaining<=0) return;
-    const due=(entry.amount||0)-(entry.paid||0);
-    const applying=Math.min(remaining, due);
-    if(entry._type==='purchase'){
-      const idx=purchases.findIndex(x=>x.id===entry.id);
-      if(idx>=0){
-        purchases[idx]={...purchases[idx],paid:(purchases[idx].paid||0)+applying,payRemark:rem,payDate};
-        updatedCount++;
-      }
-    } else {
-      const idx=(pumpFills||[]).findIndex(x=>x.id===entry.id);
-      if(idx>=0){
-        pumpFills[idx]={...pumpFills[idx],paid:(pumpFills[idx].paid||0)+applying,payRemark:rem,payDate};
-        updatedCount++;
-      }
-    }
-    remaining-=applying;
-  });
-
-  // V54 FIX: Write only the specific updated records — never overwrite full array.
-  // Full array sv('purchases',...) caused data loss when two devices had diverged
-  // in-memory state. Individual record writes are safe and conflict-free.
-  allUnpaid.forEach(entry=>{
-    if(entry._type==='purchase'){
-      const updated=purchases.find(x=>x.id===entry.id);
-      if(updated) _fbWrite('purchases/'+updated.id, updated);
-    } else {
-      const updated=(pumpFills||[]).find(x=>x.id===entry.id);
-      if(updated) _fbWrite('pumpFills/'+updated.id, updated);
-    }
-  });
-  const overpaid=remaining>0?` · ₹${Math.round(remaining).toLocaleString('en-IN')} overpaid (credit)`:'';
-  flash('✅ PAYMENT RECORDED',`₹${Math.round(amt).toLocaleString('en-IN')} applied to ${updatedCount} entr${updatedCount===1?'y':'ies'} at ${pump?.name||''}${overpaid}`);
+  const payment={
+    id:uid(),
+    ts:Date.now(),
+    date:payDate,
+    pumpId:pumpId,
+    pumpName:pump?.name||'',
+    amount:amt,
+    remark:rem,
+    paidBy:sess.userId,
+    paidByName:sess.name
+  };
+  flash('💾 SAVING...','Recording payment to ledger');
+  if(!Array.isArray(pumpPayments)) pumpPayments=[];
+  pumpPayments.push(payment);
+  const ok = await _fbWrite('pumpPayments/'+payment.id, payment);
+  if(!ok){
+    pumpPayments = pumpPayments.filter(p=>p.id!==payment.id);
+    console.error('[applyPumpPayment] Firebase write FAILED for payment '+payment.id);
+    alert('⚠️ PAYMENT NOT SAVED\n\nFirebase write failed. Check your internet connection and try again.');
+    return;
+  }
+  flash('✅ PAYMENT SAVED',`₹${Math.round(amt).toLocaleString('en-IN')} recorded for ${pump?.name||''}${rem?' · '+rem:''}`);
+  // Close inline form
+  const form=document.getElementById('pump-pay-form-'+pumpId);
+  if(form) form.style.display='none';
   renderPumpLog();
   // Also refresh purchases screen if visible
   if(document.getElementById('scr-purchases')?.classList.contains('on')) renderPurchases();
@@ -6770,8 +6796,11 @@ function renderPumpLog(){
     const pFills=(pumpFills||[]).filter(x=>x.pumpId===p.id||((!x.pumpId)&&x.pumpName===p.name));
     const fillAmt=pFills.reduce((a,x)=>a+(x.amount||0),0);
     const fillPaid=pFills.reduce((a,x)=>a+(x.paid||0),0);
+    // V61: include payments from new ledger
+    const pPayments=(pumpPayments||[]).filter(x=>x.pumpId===p.id);
+    const ledgerPaid=pPayments.reduce((a,x)=>a+(x.amount||0),0);
     const totalAmt=purchaseAmt+fillAmt;
-    const totalPaid=purchasePaid+fillPaid;
+    const totalPaid=purchasePaid+fillPaid+ledgerPaid;
     const due=_clamp(totalAmt-totalPaid);
     const entryCount=pPurchases.length+pFills.length;
     const dueBadge=due>=0.01
@@ -11292,7 +11321,7 @@ const FB_URL = 'https://fuellog-9f3c0-default-rtdb.firebaseio.com';
 const FB_KEY = 'AIzaSyB44pKu7YTc-Q_6GLC3mlaEBPJm3d3odPc';
 
 // All keys we sync to Firebase
-const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords','trips','customers','materials','staff','staffMusters'];
+const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords','trips','customers','materials','staff','staffMusters','pumpPayments'];
 
 let fbOnline = false;
 let fbSyncing = false;
@@ -11657,6 +11686,7 @@ async function fbInit(){
       else if(k==='materials') materials=val;
       else if(k==='staff') staff=val;
       else if(k==='staffMusters') staffMusters=val;
+      else if(k==='pumpPayments') pumpPayments=_dedup(val);
 
       window._fbDiagnostics.perKey[k] = _diag;
     });
@@ -11692,6 +11722,7 @@ async function fbInit(){
       else if(k==='materials') materials=val;
       else if(k==='staff') staff=val;
       else if(k==='staffMusters') staffMusters=val;
+      else if(k==='pumpPayments') pumpPayments=val;
       }catch(e){}
     });
     // Seed only if localStorage also had no materials
@@ -11799,6 +11830,7 @@ function restoreBackup(){
             else if(k==='trips')trips=(val||[]).map(_normalizeTrip);
             else if(k==='customers')customers=val;
             else if(k==='materials')materials=val;
+            else if(k==='pumpPayments')pumpPayments=val;
           });
           setTimeout(function(){
             flash('RESTORE DONE!','Disbs:'+disbs.length+' Fleet:'+fleet.length+' Users:'+users.length);
@@ -11849,6 +11881,7 @@ async function refreshData(){
       else if(k==='trips') trips=_dedup((val||[]).map(_normalizeTrip));
       else if(k==='customers') customers=val;
       else if(k==='materials') materials=val;
+      else if(k==='pumpPayments') pumpPayments=_dedup(val);
       });
       // Re-render current screen
       renderHome();
@@ -11929,6 +11962,7 @@ setInterval(async()=>{
       else if(k==='trips') trips=_dedup((val||[]).map(_normalizeTrip));
       else if(k==='customers') customers=val;
       else if(k==='materials') materials=val;
+      else if(k==='pumpPayments') pumpPayments=_dedup(val);
     });
     console.log('[AutoRefresh] Firebase data refreshed at', new Date().toLocaleTimeString());
   } catch(e){ /* silent fail — don't disturb user */ }
