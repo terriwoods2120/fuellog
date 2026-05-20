@@ -3465,10 +3465,6 @@ function renderMoreTab(el){
       <div class="act-ico">📦</div><div class="act-txt"><div class="act-title">MATERIALS</div><div class="act-desc">Manage product types · Default rates</div></div><div class="act-arr">›</div>
     </div>`:''}
     <div class="sec-lbl" style="margin-top:4px">System</div>
-    <div class="act" onclick="fbManualSync();flash('SYNCING...','Uploading to cloud')">
-      <div class="act-ico">☁</div><div class="act-txt"><div class="act-title">SYNC DATA</div><div class="act-desc">Push all data to Firebase cloud</div></div>
-      <span id="fb-status-more" style="font-size:11px;font-weight:700;color:var(--muted)"></span>
-    </div>
     <div class="act" onclick="backupData()">
       <div class="act-ico">💾</div><div class="act-txt"><div class="act-title">BACKUP DATA</div><div class="act-desc">Download all data as JSON file</div></div><div class="act-arr">›</div>
     </div>
@@ -11404,98 +11400,8 @@ function fbSetStatus(status){
   }
 }
 
-// ── Push local data to Firebase ──
-async function fbPushAll(){
-  fbSetStatus('syncing');
-  // V56 SAFETY: Pull current Firebase state first. If we cannot read Firebase,
-  // we MUST NOT push — otherwise we'd PUT empty arrays for LS_NO_CACHE keys
-  // (since their localStorage is always empty by design) and wipe Firebase data.
-  let fbSnapshot = null;
-  try { fbSnapshot = await fbGet('fuellog'); } catch(e){}
-  if(!fbSnapshot){
-    console.warn('[fbPushAll] ABORTED — could not fetch Firebase snapshot. Refusing to push to avoid data loss.');
-    fbSetStatus('error');
-    return false;
-  }
-  const payload = {};
-  for(const k of FB_KEYS){
-    const localKey = SK[k] || ('fl7_' + k);
-    // V56 SAFETY: For LS_NO_CACHE keys, localStorage is empty by design.
-    // NEVER push these via full-array PUT — always preserve Firebase as-is.
-    // Individual records are written via _fbWrite per save (Rule 9).
-    if(LS_NO_CACHE.has(k)){
-      let fbArr = fbSnapshot[k];
-      if(fbArr && !Array.isArray(fbArr) && typeof fbArr === 'object') fbArr = Object.values(fbArr).filter(Boolean);
-      payload[k] = Array.isArray(fbArr) ? fbArr : (fbArr || []);
-      // Refresh in-memory from Firebase snapshot
-      if(Array.isArray(payload[k])){
-        const tombstoneIds = _getTombstones(k);
-        const cleaned = payload[k].filter(e=>e&&e.id&&!tombstoneIds.has(e.id));
-        if(k==='disbs') disbs = cleaned;
-        else if(k==='pumpFills') pumpFills = cleaned;
-        else if(k==='purchases') purchases = cleaned;
-        else if(k==='musters') musters = cleaned;
-        else if(k==='staffMusters') staffMusters = cleaned;
-        else if(k==='checklistRecords') checklistRecords = cleaned;
-        payload[k] = cleaned;
-      }
-      continue;
-    }
-    // V58 FIX — ROOT CAUSE OF DATA LOSS AFTER DEPLOY:
-    // fbPushAll() was reading localStorage as the source of truth for master
-    // data (customers, materials, fleet, drivers, staff, sites, pumps, users).
-    // When a new version deployed, any device with OLD localStorage would
-    // overwrite Firebase with stale data — wiping records added on other
-    // devices (GSB material, Parvati Automobile customer, etc.).
-    //
-    // FIX: Always start from the Firebase snapshot for ALL collections.
-    // For MERGE_KEYS (append-only logs): merge local+Firebase, keep union.
-    // For master data: Firebase snapshot IS the payload — localStorage only
-    // contributes entries not yet in Firebase (added on THIS device offline).
-    let localVal = [];
-    try { localVal = JSON.parse(localStorage.getItem(localKey) || '[]'); } catch(e){}
-    // Get Firebase value for this key (already fetched in snapshot)
-    let fbArr = fbSnapshot[k];
-    if(fbArr && !Array.isArray(fbArr) && typeof fbArr === 'object')
-      fbArr = Object.values(fbArr).filter(Boolean);
-    if(!Array.isArray(fbArr)) fbArr = [];
-    if(MERGE_KEYS.has(k)){
-      // Append-only logs: union of Firebase + any local-only entries
-      const fbIds = new Set(fbArr.map(e=>e&&e.id).filter(Boolean));
-      const tombstoneIds = _getTombstones(k);
-      const localOnly = localVal.filter(e=>e&&e.id&&!fbIds.has(e.id)&&!tombstoneIds.has(e.id));
-      if(localOnly.length > 0){
-        localVal = [...fbArr, ...localOnly];
-        localStorage.setItem(localKey, JSON.stringify(localVal));
-        if(k==='trips') trips = localVal.map(_normalizeTrip);
-        else if(k==='readings') readings = localVal;
-        console.log('[fbPushAll merge] '+k+': added '+localOnly.length+' local-only entries to Firebase payload');
-      } else {
-        localVal = fbArr; // Firebase is authoritative
-      }
-    } else {
-      // Master data (customers, materials, fleet, drivers, staff, sites,
-      // pumps, users, checklistTemplates): Firebase snapshot is authoritative.
-      // Only add entries that exist in localStorage but NOT in Firebase
-      // (i.e. added on this device and not yet synced).
-      if(fbArr.length > 0){
-        const fbIds = new Set(fbArr.map(e=>e&&e.id).filter(Boolean));
-        const localOnly = localVal.filter(e=>e&&e.id&&!fbIds.has(e.id));
-        if(localOnly.length > 0){
-          console.log('[fbPushAll] '+k+': merging '+localOnly.length+' local-only master records into Firebase payload');
-          localVal = [...fbArr, ...localOnly];
-        } else {
-          localVal = fbArr; // Firebase wins — prevents stale localStorage from wiping new records
-        }
-      }
-      // If Firebase is empty for this key, fall back to localStorage (first-time setup)
-    }
-    payload[k] = localVal;
-  }
-  const ok = await fbSet('fuellog', payload);
-  fbSetStatus(ok ? 'online' : 'error');
-  return ok;
-}
+// V59: fbPushAll() removed — per-record _fbWrite covers all save paths;
+// sync queue (line ~1796) handles offline recovery.
 
 // ── Pull Firebase data to local ──
 async function fbPullAll(){
@@ -11883,16 +11789,6 @@ function confirmLogout(){
   showConfirm('Are you sure you want to logout?',function(){logout();},'↩','LOGOUT');
 }
 
-async function fbManualSync(){
-  fbSetStatus('syncing');
-  const ok = await fbPushAll();
-  if(ok){
-    flash('✅ SYNCED!', 'All data uploaded to cloud');
-  } else {
-    flash('❌ SYNC FAILED', 'Check internet connection');
-  }
-}
-
 // Pull fresh data from Firebase without logging out
 async function refreshData(){
   const btn=document.getElementById('refresh-btn');
@@ -11946,9 +11842,8 @@ setInterval(async()=>{
   if(!sess) return; // only sync when logged in
   const data = await fbGet('fuellog/users');
   if(data !== null && !fbOnline){
-    // Back online — push any local changes
+    // Back online — sync queue (line ~1796) auto-retries any pending writes
     fbSetStatus('online');
-    fbPushAll();
   } else if(data === null && fbOnline){
     fbSetStatus('offline');
   }
@@ -12109,8 +12004,14 @@ function doOwnerReset(){
   const idx = users.findIndex(u=>u.id===owner.id);
   users[idx]={...users[idx],pin:pin1};
   sv('users',users);
-  fbPushAll().then(()=>{
-    alert('✅ PIN reset successful! You can now log in with your new PIN.');
+  // V59: replaced fbPushAll() with direct per-record write — awaits Firebase
+  // confirmation before reload so the new PIN is guaranteed to be saved.
+  _fbWrite('users', users).then(ok=>{
+    if(ok){
+      alert('✅ PIN reset successful! You can now log in with your new PIN.');
+    } else {
+      alert('✅ PIN reset saved locally. Sync when online.');
+    }
     location.reload();
   }).catch(()=>{
     alert('✅ PIN reset saved locally. Sync when online.');
