@@ -318,6 +318,17 @@ input[type=file]{display:none}
   width:40px;height:40px;border-radius:8px;cursor:pointer;color:var(--muted);
   display:flex;align-items:center;justify-content:center;flex-shrink:0;user-select:none}
 .li-btn:active{opacity:.7}
+/* V62: Responsive 3-col layout for Fuel Purchase sections. Mobile = stacked. */
+.pur-3col{display:flex;flex-direction:column;gap:8px;padding:8px 0}
+.pur-col{background:var(--bg1);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.pur-col-body{padding:8px 14px 14px;display:flex;flex-direction:column;gap:8px}
+@media(min-width:1100px){
+  .pur-3col{flex-direction:row;align-items:flex-start;gap:10px;padding:10px}
+  .pur-col{flex:1 1 0;min-width:0;max-height:calc(100vh - 280px);overflow:hidden}
+  .pur-col-body{overflow-y:auto;flex:1;padding:8px 10px 14px}
+  .pur-col .log-item .li-name{font-size:14px}
+  .pur-col .log-item{padding:9px 11px;gap:8px}
+}
 .li-btn.del{color:var(--red);border-color:rgba(255,61,61,.3)}
 
 /* BADGES */
@@ -6228,6 +6239,21 @@ function _getTotalDue(){
   const ledgerPaid = (pumpPayments||[]).reduce((a,x)=>a+(x.amount||0),0);
   return Math.round((billed - legacyPaid - ledgerPaid)*100)/100;
 }
+// V62: Date filter state for Fuel Purchase screen — applies to all 3 sections
+let _purDateFilter = '3m'; // 30d | 3m | 6m | 1y | all — default 3 months
+function setPurDateFilter(v){
+  _purDateFilter = v;
+  renderPurchases();
+}
+function _purDateCutoff(){
+  const d = new Date();
+  if(_purDateFilter==='30d') d.setDate(d.getDate()-30);
+  else if(_purDateFilter==='3m') d.setMonth(d.getMonth()-3);
+  else if(_purDateFilter==='6m') d.setMonth(d.getMonth()-6);
+  else if(_purDateFilter==='1y') d.setFullYear(d.getFullYear()-1);
+  else return null; // 'all' — no cutoff
+  return d.toISOString().slice(0,10); // YYYY-MM-DD
+}
 function renderPurchases(){
   populatePurPumpSelect();
   // V48: Combined view — bowser purchases + direct pump fills
@@ -6282,78 +6308,97 @@ function renderPurchases(){
 
 
   const el=document.getElementById('pur-log');
-  if(!totalEntries){el.innerHTML='<div class="muted-txt">No purchases yet</div>';return;}
+  if(!totalEntries && !(pumpPayments||[]).length){el.innerHTML='<div class="muted-txt">No purchases yet</div>';return;}
 
-  let html='';
+  // V62: Apply date filter to all three sections
+  const cutoff = _purDateCutoff();
+  const filterByDate = arr => cutoff ? arr.filter(x => (x.date||'9999-12-31') >= cutoff) : arr;
 
-  // Section 1: Bowser purchases
-  if(purchases.length){
-    html += `<div style="padding:10px 14px 4px;font-family:var(--fh);font-size:11px;color:var(--amber);letter-spacing:.8px;font-weight:700">🛢 BOWSER PURCHASES (${purchases.length})</div>`;
-    html += [...purchases].sort((a,b)=>b.ts-a.ts).map(p=>{
-      const b=(p.amount||0)-(p.paid||0);
-      const canE=canEditEntry(p),canD=canDelEntry();
-      return `<div class="log-item">
-        <div class="li-ico">🏪</div>
-        <div class="li-main">
-          <div class="li-name">${p.vendor} <span style="font-size:9px;background:rgba(255,179,0,.15);color:var(--amber);padding:1px 6px;border-radius:4px;font-weight:700;margin-left:4px">→ BOWSER</span></div>
-          <div class="li-det">${fmt(p.litres,1)} L · ₹${fmt(p.amount,0)} · ${p.bill||'No bill'}${p.billPhoto?` <span onclick="event.stopPropagation();viewPhoto('${p.id}','purchase')" style="cursor:pointer;color:var(--blue);font-weight:700">📷 View</span>`:''}</div>
-          <div class="li-by">by ${p.loggedByName}${p.editedByName?` · edited by ${p.editedByName}${p.editedAt?' on '+new Date(p.editedAt).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''}`:''}</div>
-          <span class="bdg ${b>0?'bg-red':'bg-grn'}">${b>0?'DUE ₹'+fmt(b,0):'PAID'}</span>
-        </div>
-        <div class="li-right"><div class="li-val" style="font-size:14px">₹${fmt(p.paid,0)}</div><div class="li-date">${fmtD(p.date)}</div></div>
-        <div class="li-actions">
-          ${canE?`<button class="li-btn" onclick="openEditModal('purchase','${p.id}')">✏️</button>`:''}
-          ${canD?`<button class="li-btn del" onclick="delPurchase('${p.id}')">🗑</button>`:''}
-        </div>
-      </div>`;
-    }).join('');
-  }
+  const bowsersAll = [...purchases].sort((a,b)=>(b.ts||0)-(a.ts||0));
+  const fillsAll = [...(pumpFills||[])].sort((a,b)=>(b.ts||0)-(a.ts||0));
+  const pmtsAll = [...(pumpPayments||[])].sort((a,b)=>(b.ts||0)-(a.ts||0));
 
-  // Section 2: Direct pump fills
-  if(pfList.length){
-    html += `<div style="padding:10px 14px 4px;font-family:var(--fh);font-size:11px;color:var(--blue);letter-spacing:.8px;font-weight:700;${purchases.length?'border-top:1px solid var(--border);margin-top:8px':''}">⛽ DIRECT VEHICLE FILLS FROM PUMP (${pfList.length})</div>`;
-    html += [...pfList].sort((a,b)=>b.ts-a.ts).map(p=>{
-      const b=(p.amount||0)-(p.paid||0);
-      const veh=gV(p.vehicleId);
-      const canE=canEditEntry(p),canD=canDelEntry();
-      return `<div class="log-item">
-        <div class="li-ico">⛽</div>
-        <div class="li-main">
-          <div class="li-name">${p.pumpName||'?'} <span style="font-size:9px;background:rgba(41,121,255,.15);color:var(--blue);padding:1px 6px;border-radius:4px;font-weight:700;margin-left:4px">→ ${veh?.name||'?'}</span></div>
-          <div class="li-det">${fmt(p.litres,1)} L · ₹${fmt(p.amount||0,0)} · ${p.bill||'No bill'}</div>
-          <div class="li-by">by ${p.loggedByName||'?'}${p.editedByName?` · edited by ${p.editedByName}${p.editedAt?' on '+new Date(p.editedAt).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''}`:''}</div>
-          <span class="bdg ${b>0?'bg-red':'bg-grn'}">${b>0?'DUE ₹'+fmt(b,0):'PAID'}</span>
-        </div>
-        <div class="li-right"><div class="li-val" style="font-size:14px">₹${fmt(p.paid||0,0)}</div><div class="li-date">${fmtD(p.date)}</div></div>
-        <div class="li-actions">
-          ${canE?`<button class="li-btn" onclick="openEditModal('pumpFill','${p.id}')">✏️</button>`:''}
-          ${canD?`<button class="li-btn del" onclick="delPumpFill('${p.id}')">🗑</button>`:''}
-        </div>
-      </div>`;
-    }).join('');
-  }
+  const bowsers = filterByDate(bowsersAll);
+  const fills = filterByDate(fillsAll);
+  const pmts = filterByDate(pmtsAll);
 
-  // V61: Section 3 — Payments made to pumps (new pumpPayments ledger)
-  const pmts=(pumpPayments||[]).slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
-  if(pmts.length){
-    const totalPaid=pmts.reduce((a,p)=>a+(p.amount||0),0);
-    html += `<div style="padding:10px 14px 4px;font-family:var(--fh);font-size:11px;color:var(--green);letter-spacing:.8px;font-weight:700;${(purchases.length||pfList.length)?'border-top:1px solid var(--border);margin-top:8px':''}">💰 PAYMENTS MADE TO PUMPS (${pmts.length}) · Total ${fmtINR(totalPaid)}</div>`;
-    html += pmts.map(p=>{
-      const canD=isOwner();
-      return `<div class="log-item">
-        <div class="li-ico">💰</div>
-        <div class="li-main">
-          <div class="li-name">${p.pumpName||'?'} <span style="font-size:9px;background:rgba(0,200,83,.15);color:var(--green);padding:1px 6px;border-radius:4px;font-weight:700;margin-left:4px">PAYMENT</span></div>
-          <div class="li-det">${p.remark||'No remark'}</div>
-          <div class="li-by">by ${p.paidByName||'?'}</div>
-        </div>
-        <div class="li-right"><div class="li-val" style="font-size:14px;color:var(--green)">${fmtINR(p.amount||0)}</div><div class="li-date">${fmtD(p.date)}</div></div>
-        <div class="li-actions">
-          ${canD?`<button class="li-btn del" onclick="delPumpPayment('${p.id}')">🗑</button>`:''}
-        </div>
-      </div>`;
-    }).join('');
-  }
+  // ── Date filter chips ──
+  const filterChips = ['30d','3m','6m','1y','all'];
+  const filterLabels = {'30d':'30 days','3m':'3 months','6m':'6 months','1y':'1 year','all':'All time'};
+  const filterBar = `<div style="display:flex;gap:6px;flex-wrap:wrap;padding:10px 14px;background:var(--bg2);border-bottom:1px solid var(--border)">
+    <span style="font-size:10px;color:var(--muted);font-weight:700;align-self:center;margin-right:4px">SHOW LAST:</span>
+    ${filterChips.map(f=>`<button onclick="setPurDateFilter('${f}')" style="background:${_purDateFilter===f?'var(--amber)':'var(--bg3)'};color:${_purDateFilter===f?'#111':'var(--muted)'};border:1px solid ${_purDateFilter===f?'var(--amber)':'var(--border)'};padding:5px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fh)">${filterLabels[f]}</button>`).join('')}
+  </div>`;
+
+  // ── Section builders ──
+  const bowserHTML = bowsers.length ? bowsers.map(p=>{
+    const b=(p.amount||0)-(p.paid||0);
+    const canE=canEditEntry(p),canD=canDelEntry();
+    return `<div class="log-item">
+      <div class="li-ico">🏪</div>
+      <div class="li-main">
+        <div class="li-name">${p.vendor} <span style="font-size:9px;background:rgba(255,179,0,.15);color:var(--amber);padding:1px 6px;border-radius:4px;font-weight:700;margin-left:4px">→ BOWSER</span></div>
+        <div class="li-det">${fmt(p.litres,1)} L · ₹${fmt(p.amount,0)} · ${p.bill||'No bill'}${p.billPhoto?` <span onclick="event.stopPropagation();viewPhoto('${p.id}','purchase')" style="cursor:pointer;color:var(--blue);font-weight:700">📷 View</span>`:''}</div>
+        <div class="li-by">by ${p.loggedByName}${p.editedByName?` · edited by ${p.editedByName}${p.editedAt?' on '+new Date(p.editedAt).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''}`:''}</div>
+        <span class="bdg ${b>0?'bg-red':'bg-grn'}">${b>0?'DUE ₹'+fmt(b,0):'PAID'}</span>
+      </div>
+      <div class="li-right"><div class="li-val" style="font-size:14px">₹${fmt(p.paid,0)}</div><div class="li-date">${fmtD(p.date)}</div></div>
+      <div class="li-actions">
+        ${canE?`<button class="li-btn" onclick="openEditModal('purchase','${p.id}')">✏️</button>`:''}
+        ${canD?`<button class="li-btn del" onclick="delPurchase('${p.id}')">🗑</button>`:''}
+      </div>
+    </div>`;
+  }).join('') : `<div class="muted-txt" style="padding:20px 14px;text-align:center">No entries in this period</div>`;
+
+  const fillHTML = fills.length ? fills.map(p=>{
+    const b=(p.amount||0)-(p.paid||0);
+    const veh=gV(p.vehicleId);
+    const canE=canEditEntry(p),canD=canDelEntry();
+    return `<div class="log-item">
+      <div class="li-ico">⛽</div>
+      <div class="li-main">
+        <div class="li-name">${p.pumpName||'?'} <span style="font-size:9px;background:rgba(41,121,255,.15);color:var(--blue);padding:1px 6px;border-radius:4px;font-weight:700;margin-left:4px">→ ${veh?.name||'?'}</span></div>
+        <div class="li-det">${fmt(p.litres,1)} L · ₹${fmt(p.amount||0,0)} · ${p.bill||'No bill'}</div>
+        <div class="li-by">by ${p.loggedByName||'?'}${p.editedByName?` · edited by ${p.editedByName}${p.editedAt?' on '+new Date(p.editedAt).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''}`:''}</div>
+        <span class="bdg ${b>0?'bg-red':'bg-grn'}">${b>0?'DUE ₹'+fmt(b,0):'PAID'}</span>
+      </div>
+      <div class="li-right"><div class="li-val" style="font-size:14px">₹${fmt(p.paid||0,0)}</div><div class="li-date">${fmtD(p.date)}</div></div>
+      <div class="li-actions">
+        ${canE?`<button class="li-btn" onclick="openEditModal('pumpFill','${p.id}')">✏️</button>`:''}
+        ${canD?`<button class="li-btn del" onclick="delPumpFill('${p.id}')">🗑</button>`:''}
+      </div>
+    </div>`;
+  }).join('') : `<div class="muted-txt" style="padding:20px 14px;text-align:center">No entries in this period</div>`;
+
+  const pmtsTotal = pmts.reduce((a,p)=>a+(p.amount||0),0);
+  const pmtHTML = pmts.length ? pmts.map(p=>{
+    const canD=isOwner();
+    return `<div class="log-item">
+      <div class="li-ico">💰</div>
+      <div class="li-main">
+        <div class="li-name">${p.pumpName||'?'} <span style="font-size:9px;background:rgba(0,200,83,.15);color:var(--green);padding:1px 6px;border-radius:4px;font-weight:700;margin-left:4px">PAYMENT</span></div>
+        <div class="li-det">${p.remark||'No remark'}</div>
+        <div class="li-by">by ${p.paidByName||'?'}</div>
+      </div>
+      <div class="li-right"><div class="li-val" style="font-size:14px;color:var(--green)">${fmtINR(p.amount||0)}</div><div class="li-date">${fmtD(p.date)}</div></div>
+      <div class="li-actions">
+        ${canD?`<button class="li-btn del" onclick="delPumpPayment('${p.id}')">🗑</button>`:''}
+      </div>
+    </div>`;
+  }).join('') : `<div class="muted-txt" style="padding:20px 14px;text-align:center">No payments in this period</div>`;
+
+  // ── Section headers ──
+  const bowserHeader = `<div style="padding:10px 14px 8px;font-family:var(--fh);font-size:11px;color:var(--amber);letter-spacing:.8px;font-weight:700;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:2">🛢 BOWSER PURCHASES (${bowsers.length}${bowsers.length!==bowsersAll.length?' of '+bowsersAll.length:''})</div>`;
+  const fillHeader = `<div style="padding:10px 14px 8px;font-family:var(--fh);font-size:11px;color:var(--blue);letter-spacing:.8px;font-weight:700;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:2">⛽ DIRECT VEHICLE FILLS (${fills.length}${fills.length!==fillsAll.length?' of '+fillsAll.length:''})</div>`;
+  const pmtHeader = `<div style="padding:10px 14px 8px;font-family:var(--fh);font-size:11px;color:var(--green);letter-spacing:.8px;font-weight:700;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:2">💰 PAYMENTS MADE (${pmts.length}${pmts.length!==pmtsAll.length?' of '+pmtsAll.length:''}) · ${fmtINR(pmtsTotal)}</div>`;
+
+  // V62: Responsive grid — 3 cols on wide screens, stacked on phones
+  // Each column has its own scroll on desktop so one long section doesn't push others
+  const html = filterBar + `<div class="pur-3col">
+    <div class="pur-col">${bowserHeader}<div class="pur-col-body">${bowserHTML}</div></div>
+    <div class="pur-col">${fillHeader}<div class="pur-col-body">${fillHTML}</div></div>
+    <div class="pur-col">${pmtHeader}<div class="pur-col-body">${pmtHTML}</div></div>
+  </div>`;
 
   el.innerHTML=html;
 }
