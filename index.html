@@ -1686,40 +1686,13 @@ async function _fbWrite(key, value){
 // Firebase load point (fbInit, refreshData, auto-refresh).
 function _dedup(arr){
   if(!Array.isArray(arr)) return arr;
-  // V59.1 FIX: when the same ID appears multiple times (e.g. Firebase has it
-  // both as a numeric-array entry AND as a keyed-object entry after a PUT to
-  // /pumpFills/<id>.json), keep the FRESHEST version, not just the first.
-  // Freshness is determined by max(editedAt, payDate timestamp, paid amount,
-  // amountPaid amount, _entryTs) — whichever is highest wins. This prevents
-  // payment updates from being silently lost when the old un-paid version
-  // appears first in Object.values() ordering.
-  const _freshness = e => {
-    if(!e) return 0;
-    let f = 0;
-    if(e.editedAt) f = Math.max(f, Number(e.editedAt)||0);
-    if(e.payDate){ try{ f = Math.max(f, new Date(e.payDate).getTime()||0); }catch{} }
-    if(e._entryTs) f = Math.max(f, Number(e._entryTs)||0);
-    // Tiebreaker: higher paid amount is fresher (payment was added later)
-    f += (Number(e.paid)||0) * 0.001;
-    f += (Number(e.amountPaid)||0) * 0.001;
-    return f;
-  };
-  const bestById = new Map();
-  arr.forEach(e=>{
-    if(!e||!e.id) return;
-    const existing = bestById.get(e.id);
-    if(!existing || _freshness(e) >= _freshness(existing)){
-      bestById.set(e.id, e);
-    }
-  });
-  // Preserve original array order using the first occurrence position
-  const seen = new Set();
+  const seen=new Set();
   return arr.filter(e=>{
     if(!e||!e.id) return false;
     if(seen.has(e.id)) return false;
     seen.add(e.id);
     return true;
-  }).map(e => bestById.get(e.id) || e);
+  });
 }
 // ════════════════════════════════════════
 // TOMBSTONE SYSTEM
@@ -2813,9 +2786,9 @@ function submitDriverChecklist(){
 // ════════════════════════════════════
 async function _fbDedupeCleanup(){
   if((!isOwner()&&!isAdmin())||!fbOnline) return;
-  const DONE_KEY='fl7_dedup_done_v591';
+  const DONE_KEY='fl7_dedup_done_v57';
   if(localStorage.getItem(DONE_KEY)==='1') return;
-  console.log('[DedupV59.1] Starting Firebase dedup + keyed-format cleanup (V59.1 — fixes payment revert bug)...');
+  console.log('[DedupV57] Starting one-time Firebase dedup + keyed-format cleanup...');
   const keysToClean=[
     'disbs','purchases','pumpFills','musters',
     'staffMusters','checklistRecords','readings','trips'
@@ -2840,14 +2813,10 @@ async function _fbDedupeCleanup(){
       // Build keyed object for write-back {id: record}
       const keyed={};
       deduped.forEach(e=>{if(e&&e.id)keyed[e.id]=e;});
-      // V59.1: Always write back to enforce clean keyed format AND apply
-      // smarter _dedup logic (freshest-version-wins) to fix payment revert bug.
-      // Previously only wrote back if duplicates found OR was array — but a
-      // mixed-format Firebase node (some numeric-array entries + some keyed
-      // entries from per-record PUTs) wouldn't trigger either condition.
-      {
-        const reason=removed>0?('removing '+removed+' dup(s)'):(wasArray?'converting array→keyed format':'enforcing clean keyed format (V59.1)');
-        console.log('[DedupV59.1] '+k+': '+reason);
+      // Write back if: duplicates found OR was stored as plain array (convert format)
+      if(removed>0||wasArray){
+        const reason=removed>0?('removing '+removed+' dup(s)'):'converting array→keyed format';
+        console.log('[DedupV57] '+k+': '+reason);
         const wctrl=new AbortController();
         const wt=setTimeout(()=>wctrl.abort(),10000);
         const wr=await fetch(FB_URL+'/fuellog/'+k+'.json?'+authParam,{
@@ -2868,10 +2837,12 @@ async function _fbDedupeCleanup(){
           else if(k==='checklistRecords') checklistRecords=deduped;
           else if(k==='readings') readings=deduped;
           else if(k==='trips') trips=_dedup(deduped.map(_normalizeTrip));
-          console.log('[DedupV59.1] '+k+': write-back OK ('+deduped.length+' records kept)');
+          console.log('[DedupV57] '+k+': write-back OK ('+deduped.length+' records kept)');
         } else {
-          console.warn('[DedupV59.1] '+k+': write-back failed HTTP '+wr.status+' — in-memory clean, Firebase unchanged');
+          console.warn('[DedupV57] '+k+': write-back failed HTTP '+wr.status+' — in-memory clean, Firebase unchanged');
         }
+      } else {
+        console.log('[DedupV57] '+k+': already clean keyed format ('+val.length+' records)');
       }
     } catch(e){
       console.warn('[DedupV57] '+k+' error:',e.message);
@@ -4647,19 +4618,12 @@ async function applyLumpSumPayment(custId){
     updatedCount++;
   });
 
-  // V59.1 FIX: AWAIT Firebase write before showing success/navigating
-  flash('💾 SAVING...', 'Writing payment to cloud');
-  _svOriginal('trips', trips); // localStorage immediately
-  const ok = await _fbWrite('trips', trips);
-  if(!ok){
-    console.error('[applyLumpSumPayment] Firebase write FAILED');
-    alert('⚠️ PAYMENT SAVED LOCALLY ONLY\n\nFirebase sync failed. Check your internet connection.\nThe payment is recorded on this device but may not show on other devices until sync completes.');
-  }
+  sv('trips', trips);
   document.getElementById('lump-pay-panel')?.remove();
   const msg = remaining>0
     ? `${fmtINR(amt)} applied · ${fmtINR(remaining)} excess (all trips cleared)`
     : `${fmtINR(amt)} applied across ${updatedCount} trip${updatedCount!==1?'s':''}`;
-  flash(ok?'✅ PAYMENT SAVED':'⚠ SAVED OFFLINE', msg);
+  flash('💰 PAYMENT RECORDED', msg);
   // Refresh whichever context is showing
   if(document.getElementById('scr-reports')?.classList.contains('active')){
     renderReports();
@@ -6180,22 +6144,49 @@ async function applyFuelPayment(){
   const allUnpaid=[...unpaidPurchases,...unpaidFills].sort((a,b)=>a.date.localeCompare(b.date));
   if(!allUnpaid.length){alert('No outstanding entries for this pump');return;}
   let remaining=amt, updatedCount=0;
+  const touched=[]; // V60.1: track which records were updated so we can persist them
   allUnpaid.forEach(entry=>{
     if(remaining<=0) return;
     const due=(entry.amount||0)-(entry.paid||0);
     const applying=Math.min(remaining,due);
     if(entry._type==='purchase'){
       const idx=purchases.findIndex(x=>x.id===entry.id);
-      if(idx>=0){purchases[idx]={...purchases[idx],paid:(purchases[idx].paid||0)+applying,payRemark:rem,payDate};updatedCount++;}
+      if(idx>=0){
+        purchases[idx]={...purchases[idx],paid:(purchases[idx].paid||0)+applying,payRemark:rem,payDate,
+          editedBy:sess.userId,editedByName:sess.name,editedAt:Date.now()};
+        touched.push({type:'purchase',id:purchases[idx].id,record:purchases[idx]});
+        updatedCount++;
+      }
     } else {
       const idx=(pumpFills||[]).findIndex(x=>x.id===entry.id);
-      if(idx>=0){pumpFills[idx]={...pumpFills[idx],paid:(pumpFills[idx].paid||0)+applying,payRemark:rem,payDate};updatedCount++;}
+      if(idx>=0){
+        pumpFills[idx]={...pumpFills[idx],paid:(pumpFills[idx].paid||0)+applying,payRemark:rem,payDate,
+          editedBy:sess.userId,editedByName:sess.name,editedAt:Date.now()};
+        touched.push({type:'fill',id:pumpFills[idx].id,record:pumpFills[idx]});
+        updatedCount++;
+      }
     }
     remaining-=applying;
   });
-  // V54: individual writes done above
+  // V60.1 CRITICAL FIX — was previously broken: in-memory was updated but
+  // no Firebase write happened, so payment vanished on every reload. Now we
+  // AWAIT per-record writes for every touched entry and report success.
+  flash('💾 SAVING...','Writing '+touched.length+' record(s) to cloud');
+  const writePromises = touched.map(t =>
+    t.type==='purchase'
+      ? _fbWrite('purchases/'+t.id, t.record)
+      : _fbWrite('pumpFills/'+t.id, t.record)
+  );
+  const results = await Promise.all(writePromises);
+  const failed = results.filter(r=>!r).length;
+  if(failed>0){
+    console.error('[applyFuelPayment] '+failed+' of '+results.length+' Firebase writes FAILED');
+    alert('⚠️ PAYMENT PARTIALLY SAVED\n\n'+(results.length-failed)+' record(s) saved to cloud.\n'+failed+' record(s) FAILED.\n\nCheck internet connection and try again. The failed entries will show their old balance after refresh.');
+    renderPurchases();
+    return;
+  }
   const overpaid=remaining>0?` · ₹${Math.round(remaining).toLocaleString('en-IN')} credit`:'';
-  flash('✅ PAYMENT RECORDED',`₹${Math.round(amt).toLocaleString('en-IN')} applied to ${updatedCount} entr${updatedCount===1?'y':'ies'} at ${pump?.name||''}${overpaid}`);
+  flash('✅ PAYMENT SAVED',`₹${Math.round(amt).toLocaleString('en-IN')} applied to ${updatedCount} entr${updatedCount===1?'y':'ies'} at ${pump?.name||''}${overpaid}`);
   document.getElementById('fuel-pay-form').style.display='none';
   renderPurchases();
 }
@@ -6749,29 +6740,20 @@ async function applyPumpPayment(pumpId){
     remaining-=applying;
   });
 
-  // V59.1 FIX: AWAIT all per-record writes before showing success.
-  // Previous fire-and-forget caused payments to revert after reload because
-  // _fbWrite hadn't completed before navigation/auto-refresh fired.
-  flash('💾 SAVING...', 'Writing '+allUnpaid.length+' record(s) to cloud');
-  const writePromises = allUnpaid.map(entry=>{
+  // V54 FIX: Write only the specific updated records — never overwrite full array.
+  // Full array sv('purchases',...) caused data loss when two devices had diverged
+  // in-memory state. Individual record writes are safe and conflict-free.
+  allUnpaid.forEach(entry=>{
     if(entry._type==='purchase'){
       const updated=purchases.find(x=>x.id===entry.id);
-      return updated ? _fbWrite('purchases/'+updated.id, updated) : Promise.resolve(true);
+      if(updated) _fbWrite('purchases/'+updated.id, updated);
     } else {
       const updated=(pumpFills||[]).find(x=>x.id===entry.id);
-      return updated ? _fbWrite('pumpFills/'+updated.id, updated) : Promise.resolve(true);
+      if(updated) _fbWrite('pumpFills/'+updated.id, updated);
     }
   });
-  const results = await Promise.all(writePromises);
-  const failed = results.filter(r=>!r).length;
-  if(failed>0){
-    console.error('[applyPumpPayment] '+failed+' of '+results.length+' Firebase writes FAILED');
-    alert('⚠️ PAYMENT PARTIALLY SAVED\n\n'+(results.length-failed)+' record(s) saved successfully.\n'+failed+' record(s) FAILED to save to cloud.\n\nCheck internet connection and try again. The failed entries will show their old balance after refresh.');
-    renderPumpLog();
-    return;
-  }
   const overpaid=remaining>0?` · ₹${Math.round(remaining).toLocaleString('en-IN')} overpaid (credit)`:'';
-  flash('✅ PAYMENT SAVED',`₹${Math.round(amt).toLocaleString('en-IN')} applied to ${updatedCount} entr${updatedCount===1?'y':'ies'} at ${pump?.name||''}${overpaid}`);
+  flash('✅ PAYMENT RECORDED',`₹${Math.round(amt).toLocaleString('en-IN')} applied to ${updatedCount} entr${updatedCount===1?'y':'ies'} at ${pump?.name||''}${overpaid}`);
   renderPumpLog();
   // Also refresh purchases screen if visible
   if(document.getElementById('scr-purchases')?.classList.contains('on')) renderPurchases();
