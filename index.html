@@ -1090,6 +1090,90 @@ input[type=file]{display:none}
   <div class="log-list" id="sites-log"></div>
   <div class="pad-bot"></div>
 </div>
+<!-- ═══ PROJECTS — LIST ═══ -->
+<div class="screen" id="scr-projects">
+  <div class="topbar">
+    <button class="tb-back" onclick="show('scr-home')">‹</button>
+    <div><div class="tb-title">🏗 PROJECTS</div><div class="tb-sub" id="proj-list-sub"></div></div>
+  </div>
+  <div class="form-body" style="padding-bottom:6px">
+    <button class="big-btn bb-amber bb-full" style="height:50px;font-size:16px" onclick="openNewProject()">+ NEW PROJECT</button>
+  </div>
+  <div class="sec-lbl">All Projects</div>
+  <div class="log-list" id="projects-log"></div>
+  <div class="pad-bot"></div>
+</div>
+<!-- ═══ PROJECTS — NEW / EDIT ═══ -->
+<div class="screen" id="scr-project-new">
+  <div class="topbar">
+    <button class="tb-back" onclick="show('scr-projects')">‹</button>
+    <div><div class="tb-title" id="proj-new-title">NEW PROJECT</div><div class="tb-sub">🔒 Owner only</div></div>
+  </div>
+  <div class="form-body">
+    <div class="f-field"><label class="f-lbl">Project Name *</label><input class="f-inp" id="proj-name" placeholder="e.g. Khadki Bridge Approach" type="text"></div>
+    <div class="f-field">
+      <label class="f-lbl">Linked Site * <span style="color:var(--muted);font-weight:600">(used by muster / trips)</span></label>
+      <select class="f-inp" id="proj-site"></select>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">No site? <span style="color:var(--amber);cursor:pointer;font-weight:700" onclick="show('scr-sites')">Add one first ›</span></div>
+    </div>
+    <div class="f-field"><label class="f-lbl">Work Order No.</label><input class="f-inp" id="proj-wono" placeholder="e.g. 19/EENH/2025" type="text"></div>
+    <div style="display:flex;gap:8px">
+      <div class="f-field" style="flex:1"><label class="f-lbl">Department</label><input class="f-inp" id="proj-dept" placeholder="PWD" type="text"></div>
+      <div class="f-field" style="flex:1"><label class="f-lbl">Division</label><input class="f-inp" id="proj-div" placeholder="Pandharkawada" type="text"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <div class="f-field" style="flex:1"><label class="f-lbl">Agreement No.</label><input class="f-inp" id="proj-agno" type="text"></div>
+      <div class="f-field" style="flex:1"><label class="f-lbl">WO Date</label><input class="f-inp" id="proj-wodate" type="date"></div>
+    </div>
+    <div class="f-field"><label class="f-lbl">WO Amount (₹)</label><input class="f-inp" id="proj-woamt" placeholder="e.g. 24500000" type="number" inputmode="decimal"></div>
+    <button class="big-btn bb-amber bb-full" style="height:54px;font-size:17px" onclick="saveProject()">💾 SAVE PROJECT</button>
+  </div>
+  <div class="pad-bot"></div>
+</div>
+<!-- ═══ PROJECTS — DETAIL (BOQ) ═══ -->
+<div class="screen" id="scr-project-detail">
+  <div class="topbar">
+    <button class="tb-back" onclick="show('scr-projects')">‹</button>
+    <div style="flex:1;min-width:0"><div class="tb-title" id="proj-det-title" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">PROJECT</div><div class="tb-sub" id="proj-det-sub"></div></div>
+    <button class="tb-back" id="proj-det-edit" onclick="openEditProject()" title="Edit project" style="font-size:18px">✎</button>
+  </div>
+  <div id="proj-det-summary" style="padding:10px 12px"></div>
+  <div class="sec-lbl" style="display:flex;justify-content:space-between;align-items:center">
+    <span>Schedule B — BOQ</span>
+    <span id="proj-boq-total" style="font-size:11px;color:var(--amber);font-weight:700"></span>
+  </div>
+  <!-- BOQ import / add controls (Owner) -->
+  <div id="proj-boq-controls" style="padding:0 12px 8px">
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <button class="big-btn bb-cancel" style="flex:1;height:40px;font-size:13px" onclick="toggleBoqPaste()">📋 Paste BOQ JSON</button>
+      <button class="big-btn bb-cancel" style="flex:1;height:40px;font-size:13px" onclick="openAddBoqItem()">+ Add Item</button>
+    </div>
+    <div id="proj-boq-paste-wrap" style="display:none;margin-bottom:8px">
+      <textarea class="f-inp" id="proj-boq-paste" rows="5" placeholder='Paste JSON from Claude here, e.g. [{"itemNo":"1","description":"...","unit":"cum","qty":100,"rate":4500}]' style="font-family:monospace;font-size:12px"></textarea>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <button class="big-btn bb-amber" style="flex:1;height:42px;font-size:14px" onclick="importBoqJson()">IMPORT</button>
+        <button class="big-btn bb-cancel" style="flex:1;height:42px;font-size:14px" onclick="toggleBoqPaste()">Cancel</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">Replaces existing BOQ for this project. Send Claude your Schedule B PDF to get this JSON.</div>
+    </div>
+    <div id="proj-boq-item-wrap" style="display:none;margin-bottom:8px;background:var(--bg2);border:1px solid var(--amber);border-radius:9px;padding:10px">
+      <div id="bi-form-title" style="font-family:var(--fh);font-size:14px;color:var(--amber);margin-bottom:8px">Add BOQ Item</div>
+      <div class="f-field"><label class="f-lbl">Item No.</label><input class="f-inp" id="bi-no"></div>
+      <div class="f-field"><label class="f-lbl">Description</label><textarea class="f-inp" id="bi-desc" rows="2"></textarea></div>
+      <div style="display:flex;gap:8px">
+        <div class="f-field" style="flex:1"><label class="f-lbl">Unit</label><input class="f-inp" id="bi-unit" placeholder="cum/sqm/MT"></div>
+        <div class="f-field" style="flex:1"><label class="f-lbl">Quantity</label><input class="f-inp" id="bi-qty" type="number" inputmode="decimal"></div>
+      </div>
+      <div class="f-field"><label class="f-lbl">Rate (₹)</label><input class="f-inp" id="bi-rate" type="number" inputmode="decimal"></div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="big-btn bb-amber" style="flex:1;height:44px;font-size:14px" onclick="saveBoqItem()">SAVE ITEM</button>
+        <button class="big-btn bb-cancel" style="flex:1;height:44px;font-size:14px" onclick="closeBoqItemForm()">Cancel</button>
+      </div>
+    </div>
+  </div>
+  <div class="log-list" id="proj-boq-list"></div>
+  <div class="pad-bot"></div>
+</div>
 <!-- ═══ PUMP MANAGEMENT ═══ -->
 <div class="screen" id="scr-pumps">
   <div class="topbar">
@@ -1562,7 +1646,7 @@ input[type=file]{display:none}
 // ════════════════════════════════════
 // STORAGE
 // ════════════════════════════════════
-const SK={users:'fl7_users',fleet:'fl7_fleet',disbs:'fl7_disbs',readings:'fl7_readings',purchases:'fl7_purchases',pumps:'fl7_pumps',pumpFills:'fl7_pumpFills',sites:'fl7_sites',drivers:'fl7_drivers',musters:'fl7_musters',checklistTemplates:'fl7_clTemplates',checklistRecords:'fl7_clRecords',trips:'fl7_trips',customers:'fl7_customers',materials:'fl7_materials',staff:'fl7_staff',staffMusters:'fl7_staffMusters',pumpPayments:'fl7_pumpPayments'};
+const SK={users:'fl7_users',fleet:'fl7_fleet',disbs:'fl7_disbs',readings:'fl7_readings',purchases:'fl7_purchases',pumps:'fl7_pumps',pumpFills:'fl7_pumpFills',sites:'fl7_sites',drivers:'fl7_drivers',musters:'fl7_musters',checklistTemplates:'fl7_clTemplates',checklistRecords:'fl7_clRecords',trips:'fl7_trips',customers:'fl7_customers',materials:'fl7_materials',staff:'fl7_staff',staffMusters:'fl7_staffMusters',pumpPayments:'fl7_pumpPayments',projects:'fl7_projects',boqItems:'fl7_boqItems'};
 // Keys too large to cache in localStorage (Safari 5MB limit).
 // These are loaded fresh from Firebase on every login — no need to persist locally.
 // V54 FIX: LS_NO_CACHE must be declared BEFORE ld() and sv() reference it.
@@ -1823,7 +1907,7 @@ window.addEventListener('beforeunload', (e) => {
     return e.returnValue;
   }
 });
-let users=ld('users'),fleet=ld('fleet'),disbs=ld('disbs'),readings=ld('readings'),purchases=ld('purchases'),pumps=ld('pumps'),pumpFills=ld('pumpFills'),sites=ld('sites'),drivers=ld('drivers'),musters=ld('musters'),checklistTemplates=ld('checklistTemplates'),checklistRecords=ld('checklistRecords'),trips=ld('trips'),customers=ld('customers'),materials=ld('materials'),staff=ld('staff'),staffMusters=ld('staffMusters'),pumpPayments=ld('pumpPayments');
+let users=ld('users'),fleet=ld('fleet'),disbs=ld('disbs'),readings=ld('readings'),purchases=ld('purchases'),pumps=ld('pumps'),pumpFills=ld('pumpFills'),sites=ld('sites'),drivers=ld('drivers'),musters=ld('musters'),checklistTemplates=ld('checklistTemplates'),checklistRecords=ld('checklistRecords'),trips=ld('trips'),customers=ld('customers'),materials=ld('materials'),staff=ld('staff'),staffMusters=ld('staffMusters'),pumpPayments=ld('pumpPayments'),projects=ld('projects'),boqItems=ld('boqItems');
 
 
 // Bowser stock = total purchased into bowser minus total dispensed from bowser
@@ -1864,6 +1948,7 @@ const canSettings= ()=>isAdmin();
 // HELPERS
 // ════════════════════════════════════
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+const _esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const today=()=>new Date().toISOString().slice(0,10);
 // V48: Future-date hard block. Used by all save handlers across the app.
 const isFutureDate=(dateStr)=>!!dateStr && dateStr > today();
@@ -1894,6 +1979,8 @@ function onEnter(id){
   if(id==='scr-users')     renderUserList();
   if(id==='scr-pumps')     renderPumpLog();
   if(id==='scr-sites')     renderSitesLog();
+  if(id==='scr-projects')  renderProjectsList();
+  if(id==='scr-project-new'){ if(!isOwner()){show('scr-home');return;} fillProjectSiteSelect(); }
   if(id==='scr-drivers')   { renderDriverList(); const sw=document.getElementById('drv-salary-wrap'); if(sw) sw.style.display=isOwner()?'':'none'; }
   if(id==='scr-staff')     { if(!isOwner()){show('scr-home');return;} renderStaffList(); }
   if(id==='scr-muster'){initMusterTabs();}
@@ -2879,7 +2966,7 @@ function renderHome(){
   applyTheme(); // ensure theme button icon is set
   // Update top bar
   document.getElementById('home-tag').textContent=
-    new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})+' · Chiddarwar Construction';
+    new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})+' · Chiddarwar Construction · V64';
   document.getElementById('sess-who').textContent=sess.name;
   document.getElementById('sess-bdg').innerHTML=`<span class="bdg ${rBdg(sess.role)}">${rLbl(sess.role)}</span>`;
   // Show/hide bottom nav tabs based on role
@@ -3289,13 +3376,33 @@ function deleteFuelEntry(type,id){
       disbs=_dedup(disbs);
       _recordDeletion('disbs',id);
       disbs=disbs.filter(x=>x.id!==id);
+      sv('disbs',disbs); // V64 fix: persist to Firebase — was missing, caused resurrection on refresh
     } else {
       pumpFills=_dedup(pumpFills||[]);
       _recordDeletion('pumpFills',id);
       pumpFills=(pumpFills||[]).filter(x=>x.id!==id);
+      sv('pumpFills',pumpFills); // V64 fix: persist to Firebase — was missing, caused resurrection on refresh
     }
     renderFuelLog();
     flash('DELETED','Entry removed');
+  },'🗑','DELETE');
+}
+
+// V64: Delete a trip (Owner only). Uses tombstone + sv persist, same as fuel deletes.
+function delTrip(id){
+  if(!isOwner()){alert('Only Owner can delete trips');return;}
+  const t=(trips||[]).find(x=>x.id===id);
+  if(!t) return;
+  const veh=gV(t.vehicleId);
+  const cust=(customers||[]).find(c=>c.id===t.customerId);
+  const label=`${fmtD(t.date)} · ${(veh&&veh.name)||'?'}${cust?(' · '+cust.name):''}`;
+  showConfirm(`Delete this trip?\n\n${label}\n\nThis cannot be undone.`,function(){
+    trips=_dedup(trips||[]);
+    _recordDeletion('trips',id);
+    trips=(trips||[]).filter(x=>x.id!==id);
+    sv('trips',trips);
+    renderTripLog();
+    flash('DELETED!','Trip removed');
   },'🗑','DELETE');
 }
 
@@ -3338,6 +3445,9 @@ function renderFleetTab(el){
     </div>
     <div class="act" onclick="if(!isOwner()){alert('Owner only');return;}show('scr-staff')">
       <div class="act-ico">🧑‍🤝‍🧑</div><div class="act-txt"><div class="act-title">STAFF MASTER</div><div class="act-desc">Gangs · Office · Daily Wage</div></div><div class="act-arr">›</div>
+    </div>
+    <div class="act" onclick="show('scr-projects')">
+      <div class="act-ico">📐</div><div class="act-txt"><div class="act-title">PROJECTS</div><div class="act-desc">BOQ · Work done · Progress</div></div><div class="act-arr">›</div>
     </div>
     <div class="act" onclick="show('scr-sites')">
       <div class="act-ico">🏗</div><div class="act-txt"><div class="act-title">SITES</div><div class="act-desc">Manage project sites</div></div><div class="act-arr">›</div>
@@ -4423,11 +4533,13 @@ function renderTripLog(){
 
   el.innerHTML=entries.map(t=>{
     const editedBadge=t.editedByName?`<span style="font-size:10px;color:var(--blue);background:rgba(41,121,255,.1);padding:2px 6px;border-radius:5px;margin-left:6px">✏ ${t.editedByName} ${t.editedAt?new Date(t.editedAt).toLocaleDateString('en-IN'):''}</span>`:'';
+    const delBtn=isOwner()?`<button onclick="event.stopPropagation();delTrip('${t.id}')" style="float:right;background:var(--bg3);border:1px solid var(--red);color:var(--red);font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;cursor:pointer">🗑 DELETE</button>`:'';
     return `<div style="margin:6px 14px 0">
       ${_tripRowHtml(t,false)}
       <div style="font-size:10px;color:var(--muted);font-weight:600;padding:0 4px;margin-top:-2px;margin-bottom:8px">
         ${fmtD(t.date)} · by ${t.loggedByName||'?'} ${editedBadge}
         ${(()=>{const s=_fmtSlips(t);return s?' · '+s:'';})()}
+        ${delBtn}
       </div>
     </div>`;
   }).join('')+'<div class="pad-bot"></div>';
@@ -10301,6 +10413,266 @@ document.getElementById('confirm-overlay').onclick=function(e){if(e.target===thi
 document.getElementById('edit-modal').onclick=function(e){if(e.target===this)closeEditModal();};
 
 // ════════════════════════════════════
+// PROJECTS + BOQ  (Phase 1 — V63)
+// projects: master data {id,name,siteId,workOrderNo,dept,division,agreementNo,woDate,woAmount,status,ts,addedBy,addedByName}
+// boqItems: master data {id,projectId,itemNo,description,unit,qty,rate,amount,category,ts}
+// Both are master collections: sv() full-array writes, Firebase-wins, NOT in MERGE_KEYS, NOT in LS_NO_CACHE.
+// ════════════════════════════════════
+let _curProjectId = null;        // project currently open in detail
+let _projEditId   = null;        // project being edited (null = new)
+const _inr = n => '₹' + (Number(n)||0).toLocaleString('en-IN');
+
+function _boqSortKey(b){
+  // base numeric part, then floor order (base<GF<FF<TF<other), then raw suffix
+  const raw=String(b.itemNo||'');
+  const m=raw.match(/^(\d+)(?:-(.*))?$/);
+  const base=m?parseInt(m[1],10):999999;
+  const suf=m&&m[2]?m[2].toUpperCase():'';
+  const fo={'':0,'GF':1,'FF':2,'TF':3}[suf];
+  const floorOrder=(fo===undefined)?4:fo;
+  return [base, floorOrder, suf];
+}
+function _projBoq(pid){
+  return boqItems.filter(b=>b.projectId===pid).sort((a,b)=>{
+    const ka=_boqSortKey(a), kb=_boqSortKey(b);
+    if(ka[0]!==kb[0]) return ka[0]-kb[0];
+    if(ka[1]!==kb[1]) return ka[1]-kb[1];
+    return ka[2]<kb[2]?-1:ka[2]>kb[2]?1:0;
+  });
+}
+function _projBoqTotal(pid){ return _projBoq(pid).reduce((s,b)=>s+(Number(b.amount)||0),0); }
+
+// ---------- LIST ----------
+function renderProjectsList(){
+  const sub=document.getElementById('proj-list-sub');
+  if(sub) sub.textContent = projects.length + ' project' + (projects.length===1?'':'s');
+  const el=document.getElementById('projects-log');
+  if(!el) return;
+  if(!projects.length){
+    el.innerHTML='<div style="padding:30px 16px;text-align:center;color:var(--muted);font-size:14px">No projects yet.<br>Tap <b>+ NEW PROJECT</b> to create one.</div>';
+    return;
+  }
+  const sorted=[...projects].sort((a,b)=>(b.ts||0)-(a.ts||0));
+  el.innerHTML=sorted.map(p=>{
+    const boqTot=_projBoqTotal(p.id);
+    const nItems=_projBoq(p.id).length;
+    const st=(p.status||'active');
+    const stColor= st==='completed'?'var(--green)': st==='on-hold'?'var(--muted)':'var(--amber)';
+    return `<div class="act" onclick="openProject('${p.id}')" style="align-items:flex-start">
+      <div class="act-ico">📐</div>
+      <div class="act-txt" style="flex:1;min-width:0">
+        <div class="act-title" style="white-space:normal">${_esc(p.name)}</div>
+        <div class="act-desc">${p.workOrderNo?('WO '+_esc(p.workOrderNo)+' · '):''}${nItems} BOQ item${nItems===1?'':'s'}${boqTot?(' · '+_inr(boqTot)):''}</div>
+        <div style="margin-top:4px"><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:${stColor};border:1px solid ${stColor};border-radius:6px;padding:1px 7px">${st}</span></div>
+      </div><div class="act-arr">›</div>
+    </div>`;
+  }).join('');
+}
+
+// ---------- NEW / EDIT ----------
+function fillProjectSiteSelect(sel){
+  const s=document.getElementById('proj-site');
+  if(!s) return;
+  const active=sites.filter(x=>x.active!==false);
+  s.innerHTML='<option value="">— select site —</option>'+active.map(x=>`<option value="${x.id}">${_esc(x.name)}</option>`).join('');
+  if(sel) s.value=sel;
+}
+function openNewProject(){
+  if(!isOwner()){alert('Only Owner can manage projects');return;}
+  _projEditId=null;
+  document.getElementById('proj-new-title').textContent='NEW PROJECT';
+  ['proj-name','proj-wono','proj-dept','proj-div','proj-agno','proj-wodate','proj-woamt'].forEach(i=>{const e=document.getElementById(i);if(e)e.value='';});
+  fillProjectSiteSelect();
+  show('scr-project-new');
+}
+function openEditProject(){
+  if(!isOwner()){alert('Owner only');return;}
+  const p=projects.find(x=>x.id===_curProjectId); if(!p) return;
+  _projEditId=p.id;
+  document.getElementById('proj-new-title').textContent='EDIT PROJECT';
+  document.getElementById('proj-name').value=p.name||'';
+  document.getElementById('proj-wono').value=p.workOrderNo||'';
+  document.getElementById('proj-dept').value=p.dept||'';
+  document.getElementById('proj-div').value=p.division||'';
+  document.getElementById('proj-agno').value=p.agreementNo||'';
+  document.getElementById('proj-wodate').value=p.woDate||'';
+  document.getElementById('proj-woamt').value=p.woAmount||'';
+  fillProjectSiteSelect(p.siteId);
+  show('scr-project-new');
+}
+function saveProject(){
+  if(!isOwner()){alert('Only Owner can manage projects');return;}
+  const name=document.getElementById('proj-name').value.trim();
+  const siteId=document.getElementById('proj-site').value;
+  if(!name){alert('Enter project name');return;}
+  if(!siteId){alert('Select a linked site (or add one first)');return;}
+  const rec={
+    name, siteId,
+    workOrderNo:document.getElementById('proj-wono').value.trim(),
+    dept:document.getElementById('proj-dept').value.trim(),
+    division:document.getElementById('proj-div').value.trim(),
+    agreementNo:document.getElementById('proj-agno').value.trim(),
+    woDate:document.getElementById('proj-wodate').value,
+    woAmount:parseFloat(document.getElementById('proj-woamt').value)||0
+  };
+  if(_projEditId){
+    const i=projects.findIndex(x=>x.id===_projEditId);
+    if(i>=0) projects[i]={...projects[i],...rec};
+    sv('projects',projects);
+    flash('PROJECT UPDATED!',name);
+    _curProjectId=_projEditId; _projEditId=null;
+    openProject(_curProjectId);
+  } else {
+    const np={id:uid(),...rec,status:'active',ts:Date.now(),addedBy:sess.userId,addedByName:sess.name};
+    projects.push(np);
+    sv('projects',projects);
+    flash('PROJECT CREATED!',name);
+    _curProjectId=np.id;
+    openProject(np.id);
+  }
+}
+
+// ---------- DETAIL ----------
+function openProject(id){
+  const p=projects.find(x=>x.id===id); if(!p){alert('Project not found');return;}
+  _curProjectId=id;
+  document.getElementById('proj-det-title').textContent=p.name;
+  const site=sites.find(s=>s.id===p.siteId);
+  document.getElementById('proj-det-sub').textContent=(p.workOrderNo?('WO '+p.workOrderNo):'')+(site?(' · '+site.name):'');
+  document.getElementById('proj-det-edit').style.display=isOwner()?'':'none';
+  document.getElementById('proj-boq-controls').style.display=isOwner()?'':'none';
+  renderProjectDetail();
+  show('scr-project-detail');
+}
+function renderProjectDetail(){
+  const p=projects.find(x=>x.id===_curProjectId); if(!p) return;
+  const boq=_projBoq(p.id);
+  const boqTot=_projBoqTotal(p.id);
+  const woAmt=Number(p.woAmount)||0;
+  // summary card
+  const diff=woAmt? (boqTot-woAmt) : 0;
+  document.getElementById('proj-det-summary').innerHTML=`
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:var(--muted);font-size:12px">WO Amount</span><span style="font-weight:700">${woAmt?_inr(woAmt):'—'}</span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:var(--muted);font-size:12px">BOQ Total (${boq.length} items)</span><span style="font-weight:700">${_inr(boqTot)}</span></div>
+      ${woAmt?`<div style="display:flex;justify-content:space-between"><span style="color:var(--muted);font-size:12px">BOQ vs WO</span><span style="font-weight:700;color:${Math.abs(diff)<1?'var(--green)':'var(--amber)'}">${diff>=0?'+':''}${_inr(diff)}</span></div>`:''}
+    </div>`;
+  document.getElementById('proj-boq-total').textContent=boq.length?_inr(boqTot):'';
+  // BOQ list
+  const el=document.getElementById('proj-boq-list');
+  if(!boq.length){
+    el.innerHTML='<div style="padding:24px 16px;text-align:center;color:var(--muted);font-size:13px">No BOQ items yet.<br>'+(isOwner()?'Paste BOQ JSON or add items above.':'Ask Owner to load the BOQ.')+'</div>';
+    return;
+  }
+  el.innerHTML=boq.map((b,idx)=>{
+    return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin:0 12px 8px">
+      <div style="display:flex;justify-content:space-between;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;color:var(--amber);font-weight:700">Item ${_esc(b.itemNo||(idx+1))}</div>
+          <div style="font-size:13px;margin:2px 0;line-height:1.35">${_esc(b.description||'')}</div>
+          <div style="font-size:12px;color:var(--muted)">${(Number(b.qty)||0).toLocaleString('en-IN')} ${_esc(b.unit||'')} × ${_inr(b.rate)} = <span style="color:var(--txt);font-weight:700">${_inr(b.amount)}</span></div>
+        </div>
+        ${isOwner()?`<div style="display:flex;flex-direction:column;gap:4px">
+          <button onclick="openEditBoqItem('${b.id}')" style="background:var(--bg3);border:1px solid var(--amber);color:var(--amber);font-size:11px;font-weight:700;padding:5px 9px;border-radius:6px;cursor:pointer">✎</button>
+          <button onclick="delBoqItem('${b.id}')" style="background:var(--bg3);border:1px solid var(--red);color:var(--red);font-size:11px;font-weight:700;padding:5px 9px;border-radius:6px;cursor:pointer">🗑</button>
+        </div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ---------- BOQ: paste JSON import ----------
+function toggleBoqPaste(){
+  const w=document.getElementById('proj-boq-paste-wrap');
+  w.style.display = w.style.display==='none' ? '' : 'none';
+  if(w.style.display!=='none') document.getElementById('proj-boq-paste').focus();
+}
+function importBoqJson(){
+  if(!isOwner()){alert('Owner only');return;}
+  const raw=document.getElementById('proj-boq-paste').value.trim();
+  if(!raw){alert('Paste JSON first');return;}
+  let arr;
+  try{ arr=JSON.parse(raw); }catch(e){ alert('Invalid JSON: '+e.message); return; }
+  if(!Array.isArray(arr)){ alert('JSON must be an array of items [ {...}, {...} ]'); return; }
+  const pid=_curProjectId;
+  showConfirm('Import '+arr.length+' items? This REPLACES the current BOQ for this project.',function(){
+    // remove existing items for this project, then add new
+    boqItems=boqItems.filter(b=>b.projectId!==pid);
+    arr.forEach(it=>{
+      const qty=parseFloat(it.qty)||0, rate=parseFloat(it.rate)||0;
+      boqItems.push({
+        id:uid(), projectId:pid,
+        itemNo:(it.itemNo!=null?String(it.itemNo):''),
+        description:String(it.description||it.desc||''),
+        unit:String(it.unit||''),
+        qty, rate,
+        amount:(it.amount!=null?parseFloat(it.amount):qty*rate)||0,
+        category:String(it.category||''),
+        ts:Date.now()
+      });
+    });
+    sv('boqItems',boqItems);
+    document.getElementById('proj-boq-paste').value='';
+    toggleBoqPaste();
+    renderProjectDetail();
+    flash('BOQ IMPORTED!',arr.length+' items');
+  },'📋','IMPORT');
+}
+
+// ---------- BOQ: manual add / edit single item (inline panel) ----------
+let _boqEditId=null;
+function openAddBoqItem(){
+  _boqEditId=null;
+  document.getElementById('bi-form-title').textContent='Add BOQ Item';
+  ['bi-no','bi-desc','bi-unit','bi-qty','bi-rate'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('proj-boq-item-wrap').style.display='';
+  document.getElementById('proj-boq-paste-wrap').style.display='none';
+}
+function openEditBoqItem(id){
+  const b=boqItems.find(x=>x.id===id); if(!b) return;
+  _boqEditId=id;
+  document.getElementById('bi-form-title').textContent='Edit BOQ Item';
+  document.getElementById('bi-no').value=b.itemNo||'';
+  document.getElementById('bi-desc').value=b.description||'';
+  document.getElementById('bi-unit').value=b.unit||'';
+  document.getElementById('bi-qty').value=b.qty!=null?b.qty:'';
+  document.getElementById('bi-rate').value=b.rate!=null?b.rate:'';
+  document.getElementById('proj-boq-item-wrap').style.display='';
+  document.getElementById('proj-boq-paste-wrap').style.display='none';
+  document.getElementById('bi-desc').scrollIntoView({behavior:'smooth',block:'center'});
+}
+function closeBoqItemForm(){ document.getElementById('proj-boq-item-wrap').style.display='none'; _boqEditId=null; }
+function saveBoqItem(){
+  if(!isOwner()){alert('Owner only');return;}
+  const itemNo=document.getElementById('bi-no').value.trim();
+  const description=document.getElementById('bi-desc').value.trim();
+  const unit=document.getElementById('bi-unit').value.trim();
+  const qty=parseFloat(document.getElementById('bi-qty').value)||0;
+  const rate=parseFloat(document.getElementById('bi-rate').value)||0;
+  if(!description){alert('Enter description');return;}
+  if(_boqEditId){
+    const i=boqItems.findIndex(x=>x.id===_boqEditId);
+    if(i>=0) boqItems[i]={...boqItems[i],itemNo,description,unit,qty,rate,amount:qty*rate};
+  } else {
+    boqItems.push({id:uid(),projectId:_curProjectId,itemNo,description,unit,qty,rate,amount:qty*rate,category:'',ts:Date.now()});
+  }
+  sv('boqItems',boqItems);
+  closeBoqItemForm();
+  renderProjectDetail();
+  flash('SAVED!',description.slice(0,30));
+}
+function delBoqItem(id){
+  if(!isOwner()){alert('Owner only');return;}
+  const b=boqItems.find(x=>x.id===id); if(!b) return;
+  showConfirm('Delete this BOQ item?',function(){
+    boqItems=boqItems.filter(x=>x.id!==id);
+    sv('boqItems',boqItems);
+    renderProjectDetail();
+    flash('DELETED!','');
+  },'🗑','DELETE');
+}
+
+// ════════════════════════════════════
 // SUCCESS FLASH
 // ════════════════════════════════════
 function flash(t,s){
@@ -11366,7 +11738,7 @@ const FB_URL = 'https://fuellog-9f3c0-default-rtdb.firebaseio.com';
 const FB_KEY = 'AIzaSyB44pKu7YTc-Q_6GLC3mlaEBPJm3d3odPc';
 
 // All keys we sync to Firebase
-const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords','trips','customers','materials','staff','staffMusters','pumpPayments'];
+const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords','trips','customers','materials','staff','staffMusters','pumpPayments','projects','boqItems'];
 
 let fbOnline = false;
 let fbSyncing = false;
@@ -11732,6 +12104,8 @@ async function fbInit(){
       else if(k==='staff') staff=val;
       else if(k==='staffMusters') staffMusters=val;
       else if(k==='pumpPayments') pumpPayments=_dedup(val);
+      else if(k==='projects') projects=_dedup(val);
+      else if(k==='boqItems') boqItems=_dedup(val);
 
       window._fbDiagnostics.perKey[k] = _diag;
     });
@@ -11768,6 +12142,8 @@ async function fbInit(){
       else if(k==='staff') staff=val;
       else if(k==='staffMusters') staffMusters=val;
       else if(k==='pumpPayments') pumpPayments=val;
+        else if(k==='projects') projects=val;
+        else if(k==='boqItems') boqItems=val;
       }catch(e){}
     });
     // Seed only if localStorage also had no materials
@@ -11927,6 +12303,8 @@ async function refreshData(){
       else if(k==='customers') customers=val;
       else if(k==='materials') materials=val;
       else if(k==='pumpPayments') pumpPayments=_dedup(val);
+      else if(k==='projects') projects=_dedup(val);
+      else if(k==='boqItems') boqItems=_dedup(val);
       });
       // Re-render current screen
       renderHome();
@@ -12008,6 +12386,8 @@ setInterval(async()=>{
       else if(k==='customers') customers=val;
       else if(k==='materials') materials=val;
       else if(k==='pumpPayments') pumpPayments=_dedup(val);
+      else if(k==='projects') projects=_dedup(val);
+      else if(k==='boqItems') boqItems=_dedup(val);
     });
     console.log('[AutoRefresh] Firebase data refreshed at', new Date().toLocaleTimeString());
   } catch(e){ /* silent fail — don't disturb user */ }
