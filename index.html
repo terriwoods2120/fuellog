@@ -268,6 +268,7 @@ body{font-family:var(--fb);color:var(--white);touch-action:manipulation}
 .bb-cancel{background:var(--bg3);color:var(--muted);border:2px solid var(--border)}
 .bb-go{background:var(--green);color:#000}
 .bb-amber{background:var(--amber);color:#000}
+.bb-green{background:var(--green);color:#fff;border:none}
 .bb-red{background:var(--red);color:#fff}
 .bb-full{grid-column:1/-1}
 
@@ -1174,6 +1175,75 @@ input[type=file]{display:none}
   <div class="log-list" id="proj-boq-list"></div>
   <div class="pad-bot"></div>
 </div>
+<!-- ═══ DPR PICKER (Build A) ═══ -->
+<div class="screen" id="scr-dpr-pick">
+  <div class="topbar">
+    <button class="tb-back" onclick="show('scr-home')">‹</button>
+    <div style="flex:1"><div class="tb-title">DAILY PROJECT REPORT</div><div class="tb-sub" id="dpr-pick-sub"></div></div>
+  </div>
+  <div style="padding:8px 0">
+    <div style="font-size:12px;color:var(--muted);padding:6px 14px 10px">Select a project to file today's report (<span id="dpr-today"></span>).</div>
+    <div class="log-list" id="dpr-pick-list"></div>
+  </div>
+  <div class="pad-bot"></div>
+</div>
+<!-- ═══ DPR WIZARD (Build A) ═══ -->
+<div class="screen" id="scr-dpr-wizard">
+  <div class="topbar">
+    <button class="tb-back" onclick="show('scr-dpr-pick')">‹</button>
+    <div style="flex:1;min-width:0"><div class="tb-title" id="dpr-wiz-title" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">DPR</div><div class="tb-sub" id="dpr-wiz-sub"></div></div>
+  </div>
+  <div style="display:flex;gap:6px;padding:10px 14px 6px" id="dpr-dots"></div>
+  <div style="padding:6px 12px" id="dpr-wiz-body"></div>
+  <div class="pad-bot"></div>
+</div>
+<!-- ═══ WORK ENTRY (Phase 2 build 1) ═══ -->
+<div class="screen" id="scr-work-entry">
+  <div class="topbar">
+    <button class="tb-back" onclick="_workEntryBack()">‹</button>
+    <div style="flex:1;min-width:0"><div class="tb-title" id="we-title" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">LOG WORK</div><div class="tb-sub" id="we-sub"></div></div>
+  </div>
+  <div style="padding:10px 12px">
+    <div id="we-head"></div>
+    <div class="f-field"><label class="f-lbl">Date</label><input class="f-inp" id="we-date" type="date"></div>
+    <div class="sec-lbl" style="margin:6px 0 4px">Measurement</div>
+    <div id="we-lines"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+      <button class="big-btn bb-cancel" style="height:38px;font-size:13px;padding:0 14px" onclick="addWorkLine()">+ Add line</button>
+      <div style="text-align:right"><div style="font-size:11px;color:var(--muted)">Total</div><div style="font-size:16px;font-weight:700;color:var(--green)" id="we-total">0</div></div>
+    </div>
+    <div id="we-sub-wrap"></div>
+    <button class="big-btn bb-green" style="width:100%;height:48px;font-size:15px;margin-top:14px" onclick="saveWorkEntry()">SAVE WORK ENTRY</button>
+    <div class="pad-bot"></div>
+  </div>
+</div>
+<!-- ═══ SUBCONTRACTORS (Phase 2 build 1) ═══ -->
+<div class="screen" id="scr-subs">
+  <div class="topbar">
+    <button class="tb-back" onclick="show('scr-home')">‹</button>
+    <div style="flex:1"><div class="tb-title">SUBCONTRACTORS</div><div class="tb-sub" id="subs-sub">Item-rate labour</div></div>
+  </div>
+  <div id="subs-controls" style="padding:10px 12px 4px">
+    <button class="big-btn bb-cancel" style="width:100%;height:42px;font-size:14px" onclick="openAddSub()">+ Add subcontractor</button>
+    <div id="sub-form-wrap" style="display:none;margin-top:8px;background:var(--bg2);border:1px solid var(--amber);border-radius:9px;padding:10px">
+      <div id="sub-form-title" style="font-family:var(--fh);font-size:14px;color:var(--amber);margin-bottom:8px">Add subcontractor</div>
+      <div class="f-field"><label class="f-lbl">Name</label><input class="f-inp" id="sub-name" placeholder="e.g. Ramesh Painter"></div>
+      <div class="f-field"><label class="f-lbl">Phone (optional)</label><input class="f-inp" id="sub-phone" type="tel" inputmode="numeric"></div>
+      <div class="sec-lbl" style="margin:8px 0 4px">Rate contract</div>
+      <div class="f-field"><label class="f-lbl">Scope of work</label><input class="f-inp" id="sub-scope" placeholder="e.g. Internal + external plaster"></div>
+      <div style="display:flex;gap:8px">
+        <div class="f-field" style="flex:1"><label class="f-lbl">Rate ₹</label><input class="f-inp" id="sub-rate" type="number" inputmode="decimal"></div>
+        <div class="f-field" style="flex:1"><label class="f-lbl">Per unit</label><input class="f-inp" id="sub-unit" placeholder="sqm/sqft/cum"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="big-btn bb-amber" style="flex:1;height:44px;font-size:14px" onclick="saveSub()">SAVE</button>
+        <button class="big-btn bb-cancel" style="flex:1;height:44px;font-size:14px" onclick="closeSubForm()">Cancel</button>
+      </div>
+    </div>
+  </div>
+  <div class="log-list" id="subs-list"></div>
+  <div class="pad-bot"></div>
+</div>
 <!-- ═══ PUMP MANAGEMENT ═══ -->
 <div class="screen" id="scr-pumps">
   <div class="topbar">
@@ -1646,7 +1716,7 @@ input[type=file]{display:none}
 // ════════════════════════════════════
 // STORAGE
 // ════════════════════════════════════
-const SK={users:'fl7_users',fleet:'fl7_fleet',disbs:'fl7_disbs',readings:'fl7_readings',purchases:'fl7_purchases',pumps:'fl7_pumps',pumpFills:'fl7_pumpFills',sites:'fl7_sites',drivers:'fl7_drivers',musters:'fl7_musters',checklistTemplates:'fl7_clTemplates',checklistRecords:'fl7_clRecords',trips:'fl7_trips',customers:'fl7_customers',materials:'fl7_materials',staff:'fl7_staff',staffMusters:'fl7_staffMusters',pumpPayments:'fl7_pumpPayments',projects:'fl7_projects',boqItems:'fl7_boqItems'};
+const SK={users:'fl7_users',fleet:'fl7_fleet',disbs:'fl7_disbs',readings:'fl7_readings',purchases:'fl7_purchases',pumps:'fl7_pumps',pumpFills:'fl7_pumpFills',sites:'fl7_sites',drivers:'fl7_drivers',musters:'fl7_musters',checklistTemplates:'fl7_clTemplates',checklistRecords:'fl7_clRecords',trips:'fl7_trips',customers:'fl7_customers',materials:'fl7_materials',staff:'fl7_staff',staffMusters:'fl7_staffMusters',pumpPayments:'fl7_pumpPayments',projects:'fl7_projects',boqItems:'fl7_boqItems',workEntries:'fl7_workEntries',subcontractors:'fl7_subcontractors',subContracts:'fl7_subContracts',dailyReports:'fl7_dailyReports'};
 // Keys too large to cache in localStorage (Safari 5MB limit).
 // These are loaded fresh from Firebase on every login — no need to persist locally.
 // V54 FIX: LS_NO_CACHE must be declared BEFORE ld() and sv() reference it.
@@ -1706,7 +1776,7 @@ function _updateSyncBadge(){
 }
 
 // Keys containing transactional records — must MERGE, never overwrite with fewer entries
-const MERGE_KEYS = new Set(['disbs','pumpFills','purchases','readings','musters','trips','checklistRecords','staffMusters','pumpPayments']);
+const MERGE_KEYS = new Set(['disbs','pumpFills','purchases','readings','musters','trips','checklistRecords','staffMusters','pumpPayments','workEntries','dailyReports']);
 
 // Actual Firebase PUT with merge protection
 async function _fbWrite(key, value){
@@ -1907,7 +1977,7 @@ window.addEventListener('beforeunload', (e) => {
     return e.returnValue;
   }
 });
-let users=ld('users'),fleet=ld('fleet'),disbs=ld('disbs'),readings=ld('readings'),purchases=ld('purchases'),pumps=ld('pumps'),pumpFills=ld('pumpFills'),sites=ld('sites'),drivers=ld('drivers'),musters=ld('musters'),checklistTemplates=ld('checklistTemplates'),checklistRecords=ld('checklistRecords'),trips=ld('trips'),customers=ld('customers'),materials=ld('materials'),staff=ld('staff'),staffMusters=ld('staffMusters'),pumpPayments=ld('pumpPayments'),projects=ld('projects'),boqItems=ld('boqItems');
+let users=ld('users'),fleet=ld('fleet'),disbs=ld('disbs'),readings=ld('readings'),purchases=ld('purchases'),pumps=ld('pumps'),pumpFills=ld('pumpFills'),sites=ld('sites'),drivers=ld('drivers'),musters=ld('musters'),checklistTemplates=ld('checklistTemplates'),checklistRecords=ld('checklistRecords'),trips=ld('trips'),customers=ld('customers'),materials=ld('materials'),staff=ld('staff'),staffMusters=ld('staffMusters'),pumpPayments=ld('pumpPayments'),projects=ld('projects'),boqItems=ld('boqItems'),workEntries=ld('workEntries'),subcontractors=ld('subcontractors'),subContracts=ld('subContracts'),dailyReports=ld('dailyReports');
 
 
 // Bowser stock = total purchased into bowser minus total dispensed from bowser
@@ -1980,6 +2050,8 @@ function onEnter(id){
   if(id==='scr-pumps')     renderPumpLog();
   if(id==='scr-sites')     renderSitesLog();
   if(id==='scr-projects')  renderProjectsList();
+  if(id==='scr-dpr-pick')  { const t=document.getElementById('dpr-today'); if(t) t.textContent=fmtD(today()); }
+  if(id==='scr-subs')      { if(!isOwner()){show('scr-home');return;} renderSubsList(); }
   if(id==='scr-project-new'){ if(!isOwner()){show('scr-home');return;} fillProjectSiteSelect(); }
   if(id==='scr-drivers')   { renderDriverList(); const sw=document.getElementById('drv-salary-wrap'); if(sw) sw.style.display=isOwner()?'':'none'; }
   if(id==='scr-staff')     { if(!isOwner()){show('scr-home');return;} renderStaffList(); }
@@ -2966,7 +3038,7 @@ function renderHome(){
   applyTheme(); // ensure theme button icon is set
   // Update top bar
   document.getElementById('home-tag').textContent=
-    new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})+' · Chiddarwar Construction · V64';
+    new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})+' · Chiddarwar Construction · V69';
   document.getElementById('sess-who').textContent=sess.name;
   document.getElementById('sess-bdg').innerHTML=`<span class="bdg ${rBdg(sess.role)}">${rLbl(sess.role)}</span>`;
   // Show/hide bottom nav tabs based on role
@@ -2974,9 +3046,12 @@ function renderHome(){
   const moreBtn=document.getElementById('bnav-more');
   const reportsBtn=document.getElementById('bnav-reports');
   // Drivers/operators don't see trips, reports, or more
-  if(tripsBtn) tripsBtn.style.display=(isDriver()||isOperator()) ? 'none' : '';
-  if(moreBtn)moreBtn.style.display=isDriver()?'none':'';
-  if(reportsBtn)reportsBtn.style.display=isDriver()?'none':'';
+  const isSiteSup = sess.role==='sitesup';
+  const opsBtn=document.getElementById('bnav-ops');
+  if(tripsBtn) tripsBtn.style.display=(isDriver()||isOperator()||isSiteSup) ? 'none' : '';
+  if(opsBtn)   opsBtn.style.display=(isDriver()||isOperator()||isSiteSup) ? 'none' : '';
+  if(moreBtn)  moreBtn.style.display=isDriver()?'none':'';
+  if(reportsBtn) reportsBtn.style.display=(isDriver()||isSiteSup)?'none':'';
   // Render active tab
   const tab=_bnavTab||'home';
   bnavRender(tab);
@@ -2986,6 +3061,8 @@ function renderHome(){
 
 let _bnavTab='home';
 function bnavTab(tab){
+  // Site supervisors only have home + more
+  if(sess&&sess.role==='sitesup' && ['ops','trips','reports'].includes(tab)) tab='home';
   _bnavTab=tab;
   // Update active state
   ['home','ops','trips','reports','more'].forEach(t=>{
@@ -3029,6 +3106,11 @@ function bnavRender(tab){
 
 // ── DASHBOARD TAB ──
 function renderDashboard(dash,alerts){
+  // Site supervisors get a DPR-focused home, not the fuel dashboard
+  if(sess&&sess.role==='sitesup'){
+    renderSiteSupHome(dash,alerts);
+    return;
+  }
   const td=today();
   const stock=getBowserStock();
   const maxStock=purchases.reduce((a,p)=>a+p.litres,0)||2000;
@@ -3118,7 +3200,7 @@ function renderDashboard(dash,alerts){
         <div style="font-family:var(--fh);font-size:17px;color:${(()=>{const d=(readings||[]).filter(r=>r.date===td);const ids=new Set(d.map(r=>r.vehicleId));return ids.size===fleet.length?'var(--green)':ids.size>0?'var(--amber)':'var(--red)'})()}">${(()=>{const ids=new Set((readings||[]).filter(r=>r.date===td).map(r=>r.vehicleId));return ids.size+'/'+fleet.length})()}</div>
         <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:1px">READINGS</div>
       </div>
-      <div onclick="bnavTab('ops');setTimeout(()=>show('scr-source'),50)" style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 8px;text-align:center;cursor:pointer">
+      <div onclick="show('scr-reports');repQuick('today');repTab('daily');setTimeout(()=>{const e=document.getElementById('daily-veh-section');if(e)e.scrollIntoView({behavior:'smooth',block:'start'})},150)" style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 8px;text-align:center;cursor:pointer">
         <div style="font-size:20px;margin-bottom:2px">⛽</div>
         <div style="font-family:var(--fh);font-size:17px;color:${fuelled===fleet.length?'var(--green)':fuelled>0?'var(--amber)':'var(--red)'}">${fuelled}/${fleet.length}</div>
         <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:1px">FUELLED</div>
@@ -3180,7 +3262,7 @@ function renderDashboard(dash,alerts){
       : meterMismatch>0
         ? 'Meter before/after doesn\'t match litres — tap to review'
         : 'Dip gauge verification failed — tap to review';
-    alertHtml+=`<div class="dash-alert" style="background:rgba(255,61,61,.06);border:2px solid var(--red);cursor:pointer" onclick="show('scr-reports');repTab('daily')">
+    alertHtml+=`<div class="dash-alert" style="background:rgba(255,61,61,.06);border:2px solid var(--red);cursor:pointer" onclick="openMismatchReport()">
       <div class="dash-alert-row">
         <div style="font-size:24px">⚠️</div>
         <div style="flex:1">
@@ -3222,6 +3304,66 @@ function renderDashboard(dash,alerts){
 }
 
 // ── OPERATIONS TAB ──
+// ── SITE SUPERVISOR HOME ──
+function renderSiteSupHome(dash, alerts){
+  const td=today();
+  const myProj=_myProjects();
+  alerts.innerHTML='';
+
+  if(!myProj.length){
+    dash.innerHTML=`
+      <div style="padding:40px 20px;text-align:center">
+        <div style="font-size:48px;margin-bottom:12px">📋</div>
+        <div style="font-family:var(--fh);font-size:18px;color:var(--amber);margin-bottom:8px">No projects assigned</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.5">Ask the Owner to assign projects to your account in User setup.</div>
+      </div>`;
+    return;
+  }
+
+  // DPR status cards per assigned project
+  const cards=myProj.map(p=>{
+    const dpr=_findDPR(p.id,td);
+    const site=sites.find(s=>s.id===p.siteId);
+    const macCount=_siteMachines(p.siteId||'').length;
+    let statusBadge,statusColor,actionLabel;
+    if(!dpr){
+      statusBadge='NOT FILED'; statusColor='var(--red)'; actionLabel='START DPR →';
+    } else if(dpr.status==='verified'){
+      statusBadge='VERIFIED ✓'; statusColor='var(--green)'; actionLabel='VIEW →';
+    } else if(dpr.status==='submitted'){
+      statusBadge='SUBMITTED'; statusColor='var(--green)'; actionLabel='VIEW →';
+    } else {
+      statusBadge='DRAFT'; statusColor='var(--amber)'; actionLabel='CONTINUE →';
+    }
+    // machinery filled count
+    const machFilled=dpr?(dpr.machinery||[]).length:0;
+    return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin:0 14px 10px;cursor:pointer" onclick="startDPR('${p.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-family:var(--fh);font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(p.name)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${site?_esc(site.name):'—'} · ${fmtD(td)}</div>
+        </div>
+        <span style="font-size:11px;font-weight:700;color:${statusColor};border:1.5px solid ${statusColor};border-radius:7px;padding:2px 9px;white-space:nowrap;margin-left:8px">${statusBadge}</span>
+      </div>
+      ${dpr?`<div style="display:flex;gap:12px;margin-bottom:10px">
+        <div style="font-size:12px;color:var(--muted)">⚙️ <span style="color:var(--txt)">${machFilled}/${macCount}</span> machinery</div>
+        <div style="font-size:12px;color:var(--muted)">👷 <span style="color:var(--txt)">${(dpr.labour||[]).length}</span> labour entries</div>
+        <div style="font-size:12px;color:var(--muted)">📐 <span style="color:var(--txt)">${workEntries.filter(w=>w.projectId===p.id&&w.date===td).length}</span> work items</div>
+      </div>`:'<div style="font-size:12px;color:var(--muted);margin-bottom:10px">Tap to start today\'s report</div>'}
+      <div style="display:flex;justify-content:flex-end">
+        <span style="font-size:13px;font-weight:700;color:${statusColor}">${actionLabel}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  dash.innerHTML=`
+    <div style="padding:12px 14px 6px;display:flex;justify-content:space-between;align-items:baseline">
+      <div style="font-family:var(--fh);font-size:15px">Today's DPR Status</div>
+      <div style="font-size:11px;color:var(--muted)">${fmtD(td)}</div>
+    </div>
+    ${cards}`;
+}
+
 function renderOpsTab(el){
   const pending=disbs.filter(d=>(d.source==='can'||d.destType==='can')&&d.dipStatus==='pending').length;
   el.innerHTML=`
@@ -3449,6 +3591,9 @@ function renderFleetTab(el){
     <div class="act" onclick="show('scr-projects')">
       <div class="act-ico">📐</div><div class="act-txt"><div class="act-title">PROJECTS</div><div class="act-desc">BOQ · Work done · Progress</div></div><div class="act-arr">›</div>
     </div>
+    <div class="act" onclick="show('scr-subs')">
+      <div class="act-ico">👷</div><div class="act-txt"><div class="act-title">SUBCONTRACTORS</div><div class="act-desc">Item-rate labour · weekly payment</div></div><div class="act-arr">›</div>
+    </div>
     <div class="act" onclick="show('scr-sites')">
       <div class="act-ico">🏗</div><div class="act-txt"><div class="act-title">SITES</div><div class="act-desc">Manage project sites</div></div><div class="act-arr">›</div>
     </div>
@@ -3556,6 +3701,10 @@ function showFbDiagnostics(){
 
 function renderMoreTab(el){
   el.innerHTML=`
+    <div class="sec-lbl">Daily Report</div>
+    <div class="act prim" onclick="openDPRPicker()" style="border:2px solid var(--amber)">
+      <div class="act-ico">📋</div><div class="act-txt"><div class="act-title">FILE TODAY'S DPR</div><div class="act-desc">Machinery · Labour · Work done — for ${today()?fmtD(today()):'today'}</div></div><div class="act-arr">›</div>
+    </div>
     ${isOwner()||isAdmin()||isManager()?`
     <div class="sec-lbl">Tracking & Review</div>
     <div class="act" onclick="showAuditLog()">
@@ -3587,16 +3736,16 @@ function renderMoreTab(el){
       <div class="act-ico">📦</div><div class="act-txt"><div class="act-title">MATERIALS</div><div class="act-desc">Manage product types · Default rates</div></div><div class="act-arr">›</div>
     </div>`:''}
     <div class="sec-lbl" style="margin-top:4px">System</div>
+    ${isOwner()?`
     <div class="act" onclick="backupData()">
       <div class="act-ico">💾</div><div class="act-txt"><div class="act-title">BACKUP DATA</div><div class="act-desc">Download all data as JSON file</div></div><div class="act-arr">›</div>
     </div>
-    ${isOwner()?`
     <div class="act" onclick="showFbDiagnostics()">
       <div class="act-ico">🔬</div><div class="act-txt"><div class="act-title">FIREBASE DIAGNOSTICS</div><div class="act-desc">Debug trips data · Last sync counts · Storage check</div></div><div class="act-arr">›</div>
-    </div>`:''}
+    </div>
     <div class="act" onclick="restoreBackup()">
       <div class="act-ico">📂</div><div class="act-txt"><div class="act-title">RESTORE FROM BACKUP</div><div class="act-desc">Import JSON backup file to restore data</div></div><div class="act-arr">›</div>
-    </div>
+    </div>`:''}
     <div class="act" onclick="confirmLogout()">
       <div class="act-ico">↩</div><div class="act-txt"><div class="act-title">LOGOUT</div><div class="act-desc">Sign out of ${sess?.name||'account'}</div></div><div class="act-arr">›</div>
     </div>
@@ -6758,12 +6907,24 @@ function editUser(id){
     <div class="f-field"><label class="f-lbl">New PIN (leave blank to keep current)</label>
       <input class="f-inp" id="eu-pin" placeholder="New 4-digit PIN or leave blank"
         type="password" inputmode="numeric" maxlength="4"></div>
+    <div id="eu-proj-wrap" style="display:${u.role==='sitesup'?'block':'none'}">
+      <div class="sec-lbl" style="margin:8px 0 4px">Assigned projects (Site Supervisor)</div>
+      <div id="eu-proj-list" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px;max-height:180px;overflow:auto">
+        ${projects.length?projects.map(p=>`<label style="display:flex;align-items:center;gap:8px;padding:5px 4px;font-size:13px;cursor:pointer">
+          <input type="checkbox" class="eu-proj-cb" value="${p.id}" ${(u.assignedProjects||[]).includes(p.id)?'checked':''} style="width:18px;height:18px">
+          <span>${_esc(p.name)}</span></label>`).join(''):'<div style="font-size:12px;color:var(--muted)">No projects yet. Create projects first.</div>'}
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:5px">Supervisor will see only these projects when filing a DPR.</div>
+    </div>
     <div style="background:rgba(255,179,0,.07);border:1px solid var(--amber);border-radius:8px;
       padding:10px 12px;font-size:11px;color:var(--muted);font-weight:600;margin-top:4px">
       Leave PIN blank to keep existing PIN unchanged.
     </div>`;
   document.getElementById('edit-modal').dataset.editType='user';
   document.getElementById('edit-modal').dataset.userId=id;
+  // toggle project list when role changes to/from sitesup
+  const roleSel=document.getElementById('eu-role');
+  if(roleSel) roleSel.onchange=function(){ const w=document.getElementById('eu-proj-wrap'); if(w) w.style.display=this.value==='sitesup'?'block':'none'; };
   document.getElementById('edit-modal').classList.add('show');
 }
 
@@ -6776,7 +6937,11 @@ function saveUserEdit(){
   const pin=document.getElementById('eu-pin').value.trim();
   if(pin&&(pin.length!==4||isNaN(Number(pin)))){alert('PIN must be 4 digits or leave blank');return;}
   const role=document.getElementById('eu-role').value;
-  users[idx]={...users[idx],name,role,
+  let assignedProjects=users[idx].assignedProjects||[];
+  if(role==='sitesup'){
+    assignedProjects=[...document.querySelectorAll('.eu-proj-cb:checked')].map(c=>c.value);
+  }
+  users[idx]={...users[idx],name,role,assignedProjects,
     pin:pin||users[idx].pin,
     editedBy:sess.userId,editedByName:sess.name,editedAt:Date.now()};
   sv('users',users);
@@ -7320,33 +7485,41 @@ function getFuelAdded(vehicleId,fromDate,toDate){
 // Each reading entry stores: openingLtr, closingLtr, reading (hourmeter)
 // Hours worked per entry = current hourmeter - previous hourmeter
 // Consumed per entry = openingLtr + fuelFilled(that day) - closingLtr
-function getMachEfficiency(veh){
+function getMachEfficiency(veh,fromDate,toDate){
   const dipR=readings.filter(r=>r.vehicleId===veh.id&&r.type==='dip')
     .sort((a,b)=>a.date.localeCompare(b.date));
-  if(!dipR.length)return null;
 
+  // V70.1 — Option A: fuel comes from disbursements (always recorded), so a
+  // machine appears even with no dip readings. Hours from hourmeter when present.
+  // V70.2 — optional date range (matches getRoadEfficiency) so report respects filter
+  const inR=d=>(!fromDate||d>=fromDate)&&(!toDate||d<=toDate);
   let totalConsumed=0,totalHrs=0,hasConsumption=false,hasHours=false;
+  const bdMap={};
+  const ensure=d=>{if(!bdMap[d])bdMap[d]={date:d,hrs:0,fuel:0};return bdMap[d];};
 
+  // Fuel per date from disbursements + pump fills (the always-available source)
+  (disbs||[]).filter(d=>d.vehicleId===veh.id&&inR(d.date))
+    .forEach(d=>{if(d.litres>0){ensure(d.date).fuel+=d.litres;totalConsumed+=d.litres;hasConsumption=true;}});
+  (pumpFills||[]).filter(d=>d.vehicleId===veh.id&&inR(d.date))
+    .forEach(d=>{if(d.litres>0){ensure(d.date).fuel+=d.litres;totalConsumed+=d.litres;hasConsumption=true;}});
+
+  // Hours per dip entry = this hourmeter - previous hourmeter.
+  // Diff is attributed to the current reading's date; counted only if that date is in range.
   dipR.forEach((r,i)=>{
-    // Consumption per entry
-    if(r.openingLtr!=null&&r.closingLtr!=null){
-      const fuelFilled=getFuelAdded(veh.id,r.date,r.date);
-      const consumed=r.openingLtr+fuelFilled-r.closingLtr;
-      if(consumed>0){totalConsumed+=consumed;hasConsumption=true;}
-    }
-    // Hours per entry = this hourmeter - previous hourmeter
-    if(r.reading!=null&&i>0){
+    if(r.reading!=null&&i>0&&inR(r.date)){
       const prev=dipR[i-1];
       if(prev.reading!=null){
         const hrs=r.reading-prev.reading;
-        if(hrs>0){totalHrs+=hrs;hasHours=true;}
+        if(hrs>0){totalHrs+=hrs;hasHours=true;ensure(r.date).hrs+=hrs;}
       }
     }
   });
 
   if(!hasConsumption)return null;
-  if(!hasHours)return{consumed:totalConsumed,hours:null};
-  return{consumed:totalConsumed,hours:totalHrs,lph:totalConsumed/totalHrs};
+  const breakdown=Object.values(bdMap).sort((a,b)=>a.date.localeCompare(b.date))
+    .map(b=>({date:b.date,hrs:Math.round(b.hrs*100)/100,fuel:parseFloat(b.fuel.toFixed(1))}));
+  if(!hasHours)return{consumed:totalConsumed,hours:null,breakdown};
+  return{consumed:totalConsumed,hours:totalHrs,lph:totalConsumed/totalHrs,breakdown};
 }
 
 // ── ROAD VEHICLE EFFICIENCY ──
@@ -7531,6 +7704,29 @@ function repTab(t){
 function repFmtRange(r){
   if(r.from===r.to)return fmtD(r.from);
   return fmtD(r.from)+' – '+fmtD(r.to);
+}
+
+// V70: open Daily Ops with date range auto-widened to cover the oldest
+// unresolved mismatch (so a past-day mismatch is in range), then scroll to it.
+function openMismatchReport(){
+  const td=today();
+  const mm=disbs.filter(d=>(d.dipMatch===false||d.meterMismatch)&&!d.resolutionType);
+  const oldest=mm.length?mm.map(d=>d.date).sort()[0]:td;
+  show('scr-reports');
+  repActiveTab='daily';
+  ['daily','vehicle','financial','trips','muster'].forEach(k=>{
+    const b=document.getElementById('rtab-'+k);if(b)b.classList.toggle('active',k==='daily');
+  });
+  if(oldest<td){
+    // use custom range from oldest mismatch → today
+    repActiveQuick='custom';
+    ['today','week','month','custom'].forEach(k=>{const b=document.getElementById('rq-'+k);if(b)b.classList.toggle('active',k==='custom');});
+    const cr=document.getElementById('rep-custom-range');if(cr)cr.style.display='flex';
+    const rf=document.getElementById('rep-from');if(rf)rf.value=oldest;
+    const rt=document.getElementById('rep-to');if(rt)rt.value=td;
+  }
+  renderReports();
+  setTimeout(()=>{const e=document.getElementById('mismatch-section');if(e)e.scrollIntoView({behavior:'smooth',block:'start'})},200);
 }
 
 function getFuelRate(){
@@ -7739,7 +7935,7 @@ function renderReports(){
 
     <!-- Vehicle-wise Consumption -->
     ${vehList.length?`
-    <div class="rep-card">
+    <div class="rep-card" id="daily-veh-section">
       <div class="rep-hd">🚚 VEHICLE-WISE CONSUMPTION</div>
       <div style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse;font-size:12px">
@@ -8289,42 +8485,65 @@ function renderReports(){
     } else if(reportType==='machine'){
       const machines=fleet.filter(f=>isMachType(f.type));
       const ranked=machines.map(veh=>{
-        const eff=getMachEfficiency?getMachEfficiency(veh):null;
-        if(!eff?.lph) return null;
-        const totalL=allDisbs.filter(d=>d.vehicleId===veh.id).reduce((a,d)=>a+d.litres,0);
+        const eff=getMachEfficiency?getMachEfficiency(veh,range.from,range.to):null;
+        if(!eff) return null; // no fuel in this period → nothing to show
         const target=parseFloat(veh.expected)||null;
-        const pct=target?Math.round((target/eff.lph)*100):null; // lower is better for L/hr
-        return{veh,lph:eff.lph,totalL,target,pct};
-      }).filter(Boolean).sort((a,b)=>a.lph-b.lph); // most efficient first
+        const hasLph=eff.lph!=null;
+        const pct=(hasLph&&target)?Math.round((target/eff.lph)*100):null; // lower is better for L/hr
+        return{veh,lph:hasLph?eff.lph:null,totalHrs:eff.hours,totalFuel:eff.consumed,target,pct,breakdown:eff.breakdown||[]};
+      }).filter(Boolean).sort((a,b)=>{
+        // machines with L/hr first (most efficient first); no-hours machines at bottom by fuel desc
+        if(a.lph!=null&&b.lph!=null) return a.lph-b.lph;
+        if(a.lph!=null) return -1;
+        if(b.lph!=null) return 1;
+        return b.totalFuel-a.totalFuel;
+      });
 
       if(!ranked.length){
-        html+=`<div class="muted-txt" style="padding:40px;text-align:center">No hours data yet — add hour meter readings in Log Reading</div>`;
+        html+=`<div class="muted-txt" style="padding:40px;text-align:center">No machine fuel entries yet</div>`;
       } else {
         html+=`<div class="rep-card">
           <div class="rep-hd">⚙️ MACHINE HOURS EFFICIENCY — L/hr</div>
-          <div style="overflow-x:auto">
-            <table style="width:100%;border-collapse:collapse;font-size:12px">
-              <thead><tr style="background:var(--bg3);color:var(--muted)">
-                <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">#</th>
-                <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">MACHINE</th>
-                <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">L/hr</th>
-                <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">TARGET</th>
-                <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700">STATUS</th>
-              </tr></thead>
-              <tbody>
-                ${ranked.map(({veh,lph,target,pct},i)=>{
-                  const col=pct?pct>=100?'var(--green)':pct>=85?'var(--amber)':'var(--red)':'var(--muted)';
-                  const status=pct?pct>=100?'✅ On target':pct>=85?'⚠ Slightly high':'🔴 High consumption':'—';
-                  return`<tr style="border-top:1px solid var(--border)">
-                    <td style="padding:9px 10px;color:var(--muted);font-weight:700">${i+1}</td>
-                    <td style="padding:9px 10px;color:var(--white);font-weight:600">${vIco(veh.type)} ${veh.name}</td>
-                    <td style="padding:9px 10px;text-align:right;font-family:var(--fh);color:var(--amber)">${fmt(lph,2)}</td>
-                    <td style="padding:9px 10px;text-align:right;color:var(--muted)">${target||'—'}</td>
-                    <td style="padding:9px 10px;text-align:right;font-size:11px;font-weight:700;color:${col}">${status}</td>
-                  </tr>`;
-                }).join('')}
-              </tbody>
-            </table>
+          <div style="font-size:10px;color:var(--muted);padding:0 14px 10px">Tap a row to expand date-wise ledger · ${fmtD(range.from)} – ${fmtD(range.to)} · most efficient first</div>
+          <div>
+            ${ranked.map(({veh,lph,target,pct,totalHrs,totalFuel,breakdown},i)=>{
+              const noHrs=lph==null;
+              const col=pct?pct>=100?'var(--green)':pct>=85?'var(--amber)':'var(--red)':'var(--muted)';
+              const rowId='mach-row-'+veh.id;
+              const bdRows=breakdown.map(b=>{
+                const hrCol=b.hrs>0?'var(--white)':'var(--muted)';
+                const fuelCol=b.fuel>0?'var(--amber)':'var(--muted)';
+                return`<div style="display:grid;grid-template-columns:90px 1fr 1fr;align-items:center;padding:5px 14px 5px 28px;border-top:1px solid var(--border);background:var(--bg3)">
+                  <span style="font-size:11px;color:var(--muted)">${fmtD(b.date)}</span>
+                  <span style="font-size:11px;font-weight:600;color:${hrCol};text-align:right;padding-right:16px">${b.hrs>0?fmt(b.hrs,2)+' hr':'— hr'}</span>
+                  <span style="font-size:11px;font-weight:600;color:${fuelCol};text-align:right">${b.fuel>0?fmt(b.fuel,1)+' L':'— L'}</span>
+                </div>`;
+              }).join('');
+              return`<div style="border-top:1px solid var(--border)">
+                <div onclick="const d=document.getElementById('${rowId}');d.style.display=d.style.display==='none'?'block':'none'"
+                  style="display:flex;align-items:center;padding:9px 10px;cursor:pointer;gap:0">
+                  <span style="width:28px;color:var(--muted);font-weight:700;font-size:12px">${i+1}</span>
+                  <span style="flex:1;color:var(--white);font-weight:600;font-size:12px">${vIco(veh.type)} ${veh.name}${noHrs?` <span style="font-size:9px;color:var(--red);font-weight:700;background:rgba(255,61,61,.12);padding:1px 6px;border-radius:4px;margin-left:4px">⚠ NO HOURS</span>`:''}</span>
+                  <span style="font-family:var(--fh);color:${noHrs?'var(--muted)':'var(--amber)'};font-size:13px;font-weight:700;margin-right:10px">${noHrs?'—':fmt(lph,2)}</span>
+                  <span style="width:42px;text-align:right;color:var(--muted);font-size:12px">${target||'—'}</span>
+                  <span style="width:44px;text-align:right;font-weight:700;color:${col};font-size:12px;margin-left:6px">${pct?pct+'%':'—'}</span>
+                  <span style="color:var(--muted);font-size:14px;margin-left:8px">›</span>
+                </div>
+                <div id="${rowId}" style="display:none">
+                  <div style="display:grid;grid-template-columns:90px 1fr 1fr;padding:4px 14px 4px 28px;background:rgba(0,0,0,.3)">
+                    <span style="font-size:10px;color:var(--muted);font-weight:700">DATE</span>
+                    <span style="font-size:10px;color:var(--muted);font-weight:700;text-align:right;padding-right:16px">HRS RUN</span>
+                    <span style="font-size:10px;color:var(--muted);font-weight:700;text-align:right">FUEL ISSUED</span>
+                  </div>
+                  ${bdRows||`<div style="padding:8px 28px;font-size:11px;color:var(--muted)">No data</div>`}
+                  <div style="display:grid;grid-template-columns:90px 1fr 1fr;padding:7px 14px 7px 28px;background:rgba(251,191,36,.08);border-top:1px solid var(--border)">
+                    <span style="font-size:11px;color:var(--amber);font-weight:700">TOTAL</span>
+                    <span style="font-size:12px;color:${noHrs?'var(--red)':'var(--white)'};font-weight:700;text-align:right;padding-right:16px">${noHrs?'no hours entered':fmt(totalHrs,2)+' hr'}</span>
+                    <span style="font-size:12px;color:var(--amber);font-weight:700;text-align:right">${fmt(totalFuel,1)} L${noHrs?'':` → ${fmt(lph,2)} L/hr`}</span>
+                  </div>
+                </div>
+              </div>`;
+            }).join('')}
           </div>
         </div>`;
       }
@@ -10419,6 +10638,10 @@ document.getElementById('edit-modal').onclick=function(e){if(e.target===this)clo
 // Both are master collections: sv() full-array writes, Firebase-wins, NOT in MERGE_KEYS, NOT in LS_NO_CACHE.
 // ════════════════════════════════════
 let _curProjectId = null;        // project currently open in detail
+let _boqSearch = '';             // BOQ search query (build 1)
+let _boqCatFilter = '';          // BOQ category filter (build 1)
+let _curWorkBoqId = null;        // BOQ item being logged against
+let _workLines = [];             // in-progress measurement lines for the form
 let _projEditId   = null;        // project being edited (null = new)
 const _inr = n => '₹' + (Number(n)||0).toLocaleString('en-IN');
 
@@ -10441,6 +10664,63 @@ function _projBoq(pid){
   });
 }
 function _projBoqTotal(pid){ return _projBoq(pid).reduce((s,b)=>s+(Number(b.amount)||0),0); }
+
+// ========== WORK DONE (Phase 2 — build 1) ==========
+// Detect measurement template from a BOQ unit string.
+// Returns one of: 'cum' (n×L×W×T), 'sqm' (n×L×W), 'rm' (n×L), 'kg' (weight), 'num' (count)
+function _unitMode(unit){
+  const u=String(unit||'').toLowerCase().replace(/[^a-z]/g,'');
+  if(/^(cum|cmt|cm|m3|cubicmeter|cubicmetre|brass)/.test(u)) return 'cum';
+  if(/^(sqm|sm|m2|squaremeter|squaremetre|sqft|sft)/.test(u)) return 'sqm';
+  if(/^(rm|rmt|m|rmeter|rmetre|running|metre|meter|km)/.test(u)) return 'rm';
+  if(/^(kg|mt|ton|tonne|quintal|qtl)/.test(u)) return 'kg';
+  return 'num';
+}
+const _UNIT_COLS={cum:['nos','length','width','thickness'],sqm:['nos','length','width'],rm:['nos','length'],kg:['weight'],num:['nos']};
+const _UNIT_LBL={nos:'Nos',length:'L',width:'W',thickness:'D/Th',weight:'Wt (kg)'};
+// Compute qty for one measurement line given its fields and the unit mode
+function _lineQty(mode,ln){
+  const n=parseFloat(ln.nos)||0,L=parseFloat(ln.length)||0,W=parseFloat(ln.width)||0,T=parseFloat(ln.thickness)||0,wt=parseFloat(ln.weight)||0;
+  if(mode==='cum') return n*L*W*T;
+  if(mode==='sqm') return n*L*W;
+  if(mode==='rm')  return n*L;
+  if(mode==='kg')  return wt;
+  return n; // num
+}
+// All work entries for a BOQ item (any status)
+function _itemWork(boqItemId){ return workEntries.filter(w=>w.boqItemId===boqItemId); }
+// Total executed qty for a BOQ item
+function _itemDone(boqItemId){ return _itemWork(boqItemId).reduce((s,w)=>s+(Number(w.totalQty)||0),0); }
+// % complete (can exceed 100 — intentional, flags over-tender execution)
+function _itemPct(b){ const q=Number(b.qty)||0; if(!q) return 0; return (_itemDone(b.id)/q)*100; }
+// Subcontract helpers
+function _subName(subId){ const s=subcontractors.find(x=>x.id===subId); return s?s.name:''; }
+function _activeSubContracts(){ return subContracts.filter(c=>!c.archived); }
+
+// ========== DAILY PROJECT REPORT (DPR) — Build A ==========
+// Projects assigned to the current site supervisor (Owner/Manager see all active)
+function _myProjects(){
+  if(isManager()) return projects.filter(p=>(p.status||'active')!=='completed');
+  const me=users.find(u=>u.id===sess?.userId);
+  const ids=(me&&me.assignedProjects)||[];
+  return projects.filter(p=>ids.includes(p.id));
+}
+// Find or identify today's DPR for a project (one per project per day)
+function _findDPR(projectId,date){ return dailyReports.find(d=>d.projectId===projectId && d.date===date); }
+// Machines currently located at a project's site
+function _siteMachines(siteId){ return fleet.filter(v=>v.siteId===siteId); }
+// Machine uses hours or km? excavator/roller/plant=hr, tipper/tanker/car=km
+function _machMode(v){
+  const t=String(v&&v.type||'').toLowerCase();
+  if(/excav|roller|paver|mixer|plant|hmp|crusher|vsi|dozer|loader|grader|dg|genset|compact/.test(t)) return 'hr';
+  return 'km';
+}
+let _curDPRId=null;     // DPR currently open
+let _dprStep=1;         // wizard step
+let _dprMach={};        // {fleetId: {openHr,closeHr,openKm,closeKm,openFuel,closeFuel,fuelFilled}}
+let _dprReturn=false;   // V70: true when work-entry launched from DPR wizard step 3
+
+
 
 // ---------- LIST ----------
 function renderProjectsList(){
@@ -10541,6 +10821,8 @@ function openProject(id){
   document.getElementById('proj-det-sub').textContent=(p.workOrderNo?('WO '+p.workOrderNo):'')+(site?(' · '+site.name):'');
   document.getElementById('proj-det-edit').style.display=isOwner()?'':'none';
   document.getElementById('proj-boq-controls').style.display=isOwner()?'':'none';
+  _boqSearch=''; _boqCatFilter='';
+  _dprReturn=false;
   renderProjectDetail();
   show('scr-project-detail');
 }
@@ -10549,13 +10831,20 @@ function renderProjectDetail(){
   const boq=_projBoq(p.id);
   const boqTot=_projBoqTotal(p.id);
   const woAmt=Number(p.woAmount)||0;
+  // overall executed value across all items
+  const execVal=boq.reduce((s,b)=>s+(_itemDone(b.id)*(Number(b.rate)||0)),0);
+  const execPct=boqTot? (execVal/boqTot*100) : 0;
   // summary card
   const diff=woAmt? (boqTot-woAmt) : 0;
   document.getElementById('proj-det-summary').innerHTML=`
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px">
       <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:var(--muted);font-size:12px">WO Amount</span><span style="font-weight:700">${woAmt?_inr(woAmt):'—'}</span></div>
       <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:var(--muted);font-size:12px">BOQ Total (${boq.length} items)</span><span style="font-weight:700">${_inr(boqTot)}</span></div>
-      ${woAmt?`<div style="display:flex;justify-content:space-between"><span style="color:var(--muted);font-size:12px">BOQ vs WO</span><span style="font-weight:700;color:${Math.abs(diff)<1?'var(--green)':'var(--amber)'}">${diff>=0?'+':''}${_inr(diff)}</span></div>`:''}
+      ${woAmt?`<div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:var(--muted);font-size:12px">BOQ vs WO</span><span style="font-weight:700;color:${Math.abs(diff)<1?'var(--green)':'var(--amber)'}">${diff>=0?'+':''}${_inr(diff)}</span></div>`:''}
+      ${boqTot?`<div style="border-top:1px solid var(--border);margin-top:6px;padding-top:8px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="color:var(--muted);font-size:12px">Work done value</span><span style="font-weight:700;color:var(--green)">${_inr(execVal)} · ${execPct.toFixed(1)}%</span></div>
+        <div style="height:7px;background:var(--bg3);border-radius:4px;overflow:hidden"><div style="height:100%;width:${Math.min(100,execPct)}%;background:var(--green)"></div></div>
+      </div>`:''}
     </div>`;
   document.getElementById('proj-boq-total').textContent=boq.length?_inr(boqTot):'';
   // BOQ list
@@ -10564,7 +10853,27 @@ function renderProjectDetail(){
     el.innerHTML='<div style="padding:24px 16px;text-align:center;color:var(--muted);font-size:13px">No BOQ items yet.<br>'+(isOwner()?'Paste BOQ JSON or add items above.':'Ask Owner to load the BOQ.')+'</div>';
     return;
   }
-  el.innerHTML=boq.map((b,idx)=>{
+  // search filter (load-bearing for 254-item lists on phone)
+  const q=(_boqSearch||'').toLowerCase().trim();
+  const cat=_boqCatFilter||'';
+  const cats=[...new Set(boq.map(b=>String(b.category||'').trim()).filter(Boolean))];
+  let filtered=boq;
+  if(q) filtered=filtered.filter(b=>(String(b.itemNo||'')+' '+String(b.description||'')).toLowerCase().includes(q));
+  if(cat) filtered=filtered.filter(b=>String(b.category||'').trim()===cat);
+  const searchBar=`<div style="padding:0 12px 8px">
+    <div style="position:relative">
+      <input class="f-inp" id="boq-search" placeholder="🔍 Search item no. or keyword" value="${_esc(_boqSearch||'')}" oninput="_onBoqSearch(this.value)" style="padding-left:12px">
+    </div>
+    ${cats.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px">
+      <span onclick="_setBoqCat('')" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:7px;cursor:pointer;${!cat?'background:var(--amber);color:#1a1205':'border:1px solid var(--border);color:var(--muted)'}">All</span>
+      ${cats.map(c=>`<span onclick="_setBoqCat('${_esc(c)}')" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:7px;cursor:pointer;${cat===c?'background:var(--amber);color:#1a1205':'border:1px solid var(--border);color:var(--muted)'}">${_esc(c)}</span>`).join('')}
+    </div>`:''}
+    ${(q||cat)?`<div style="font-size:11px;color:var(--muted);margin-top:6px">${filtered.length} of ${boq.length} items</div>`:''}
+  </div>`;
+  el.innerHTML=searchBar+filtered.map((b,idx)=>{
+    const done=_itemDone(b.id), pct=_itemPct(b);
+    const over=pct>100.5;
+    const pctColor=over?'var(--red)':pct>=100?'var(--green)':pct>0?'var(--amber)':'var(--muted)';
     return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin:0 12px 8px">
       <div style="display:flex;justify-content:space-between;gap:8px">
         <div style="flex:1;min-width:0">
@@ -10577,11 +10886,554 @@ function renderProjectDetail(){
           <button onclick="delBoqItem('${b.id}')" style="background:var(--bg3);border:1px solid var(--red);color:var(--red);font-size:11px;font-weight:700;padding:5px 9px;border-radius:6px;cursor:pointer">🗑</button>
         </div>`:''}
       </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
+        <div style="flex:1">
+          <div style="height:6px;background:var(--bg3);border-radius:4px;overflow:hidden"><div style="height:100%;width:${Math.min(100,pct)}%;background:${pctColor}"></div></div>
+          <div style="font-size:11px;color:${pctColor};font-weight:700;margin-top:3px">${done.toLocaleString('en-IN')} ${_esc(b.unit||'')} done · ${pct.toFixed(1)}%${over?' ⚠ over qty':''}</div>
+        </div>
+        <button onclick="openWorkEntry('${b.id}')" style="background:var(--bg3);border:1px solid var(--green);color:var(--green);font-size:12px;font-weight:700;padding:6px 11px;border-radius:7px;cursor:pointer;white-space:nowrap">+ Work</button>
+      </div>
     </div>`;
   }).join('');
 }
 
-// ---------- BOQ: paste JSON import ----------
+// ========== WORK ENTRY FORM (build 1) ==========
+let _curWorkSubId='';
+let _editWorkId=null;   // V70: when editing an existing work entry (update-in-place)
+function _onBoqSearch(v){ _boqSearch=v; renderProjectDetail(); const i=document.getElementById('boq-search'); if(i){ i.focus(); const L=i.value.length; try{i.setSelectionRange(L,L);}catch(e){} } }
+function _setBoqCat(c){ _boqCatFilter=c; renderProjectDetail(); }
+function _workMode(){ const b=boqItems.find(x=>x.id===_curWorkBoqId); return _unitMode(b?b.unit:''); }
+function _todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+function openWorkEntry(boqItemId){
+  const b=boqItems.find(x=>x.id===boqItemId); if(!b){alert('Item not found');return;}
+  _curWorkBoqId=boqItemId;
+  _editWorkId=null;
+  _itemPickerOpen=false; _itemPickerSearch=''; _itemPickerCat='';
+  _workLines=[{nos:'',length:'',width:'',thickness:'',weight:'',desc:''}];
+  _curWorkSubId='';
+  renderWorkEntryForm();
+  // V70: if launched from DPR wizard, lock date to DPR date
+  if(_dprReturn){
+    const dpr=_curDPR();
+    const dt=document.getElementById('we-date');
+    if(dt&&dpr){ dt.value=dpr.date; }
+  }
+  show('scr-work-entry');
+}
+// V70: open the work-entry form to EDIT an existing record (site sup + Owner/Manager, draft only)
+function editWorkEntry(id){
+  const w=workEntries.find(x=>x.id===id); if(!w){alert('Entry not found');return;}
+  const b=boqItems.find(x=>x.id===w.boqItemId); if(!b){alert('BOQ item not found');return;}
+  _curWorkBoqId=w.boqItemId;
+  _editWorkId=id;
+  _itemPickerOpen=false; _itemPickerSearch=''; _itemPickerCat='';
+  _curWorkSubId=w.subContractId||'';
+  // rebuild editable lines from saved record
+  _workLines=(w.lines||[]).map(l=>({
+    nos:l.nos!=null?String(l.nos):'', length:l.length!=null?String(l.length):'',
+    width:l.width!=null?String(l.width):'', thickness:l.thickness!=null?String(l.thickness):'',
+    weight:l.weight!=null?String(l.weight):'', desc:l.desc||''
+  }));
+  if(!_workLines.length) _workLines=[{nos:'',length:'',width:'',thickness:'',weight:'',desc:''}];
+  renderWorkEntryForm();
+  const dt=document.getElementById('we-date'); if(dt) dt.value=w.date||_todayISO();
+  show('scr-work-entry');
+}
+function delWorkLine(i){ _readWorkLineInputs(); _workLines.splice(i,1); if(!_workLines.length) _workLines.push({nos:'',length:'',width:'',thickness:'',weight:'',desc:''}); renderWorkLines(); }
+function _readWorkLineInputs(){
+  const mode=_workMode(), cols=_UNIT_COLS[mode];
+  _workLines.forEach((ln,i)=>{
+    const d=document.getElementById('wl-desc-'+i); if(d) ln.desc=d.value;
+    cols.forEach(c=>{ const e=document.getElementById('wl-'+c+'-'+i); if(e) ln[c]=e.value; });
+  });
+}
+function _workTotal(){ const mode=_workMode(); return _workLines.reduce((s,ln)=>s+_lineQty(mode,ln),0); }
+function renderWorkEntryForm(){
+  const b=boqItems.find(x=>x.id===_curWorkBoqId); if(!b) return;
+  const mode=_unitMode(b.unit);
+  const done=_itemDone(b.id), pct=_itemPct(b);
+  document.getElementById('we-title').textContent='Log work — Item '+(b.itemNo||'');
+  document.getElementById('we-sub').textContent=(b.unit||'')+' · '+pct.toFixed(0)+'% done';
+  const dt=document.getElementById('we-date'); if(dt&&!dt.value) dt.value=_todayISO();
+  const modeLbl={cum:'Nos × L × W × Depth',sqm:'Nos × L × W',rm:'Nos × Length',kg:'Weight in kg (from BBS)',num:'Count'}[mode];
+  document.getElementById('we-head').innerHTML=`
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="font-size:13px;line-height:1.35;margin-bottom:4px;flex:1">${_esc(b.description||'')}</div>
+        <button onclick="_toggleItemPicker()" style="background:var(--bg3);border:1px solid var(--amber);color:var(--amber);font-size:11px;font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;white-space:nowrap">⇄ Change</button>
+      </div>
+      <div style="font-size:12px;color:var(--muted)">Tender: ${(Number(b.qty)||0).toLocaleString('en-IN')} ${_esc(b.unit||'')} · Done: ${done.toLocaleString('en-IN')} (${pct.toFixed(1)}%)</div>
+      <div style="font-size:11px;color:var(--amber);margin-top:5px">Measure as: ${modeLbl}</div>
+      <div id="we-item-picker" style="display:none;border-top:1px dashed var(--border);margin-top:10px;padding-top:10px"></div>
+    </div>`;
+  const subs=_activeSubContracts();
+  let subHtml='';
+  if(subs.length){
+    subHtml=`<div style="border-top:1px dashed var(--border);margin-top:10px;padding-top:10px">
+      <label class="f-lbl">👷 Subcontractor (optional — for their payment)</label>
+      <select class="f-inp" id="we-sub" onchange="_curWorkSubId=this.value;_updateWorkTotal()">
+        <option value="">— none (department work only) —</option>
+        ${subs.map(c=>`<option value="${c.id}" ${_curWorkSubId===c.id?'selected':''}>${_esc(_subName(c.subId))} — ${_esc(c.scope||'')} @ ${_inr(c.rate)}/${_esc(c.unit||'')}</option>`).join('')}
+      </select>
+      <div id="we-sub-accrue" style="font-size:12px;color:var(--green);margin-top:6px"></div>
+    </div>`;
+  } else {
+    subHtml=`<div style="border-top:1px dashed var(--border);margin-top:10px;padding-top:10px;font-size:11px;color:var(--muted)">No subcontractors set up. Add them under More → Subcontractors to enable item-rate payment tracking.</div>`;
+  }
+  document.getElementById('we-sub-wrap').innerHTML=subHtml;
+  renderWorkLines();
+}
+// V70: change-item picker on the work-entry form
+let _itemPickerOpen=false, _itemPickerSearch='', _itemPickerCat='';
+function _toggleItemPicker(){ _itemPickerOpen=!_itemPickerOpen; _renderItemPicker(); }
+function _onItemPickerSearch(v){ _itemPickerSearch=v; _renderItemPicker(); const i=document.getElementById('we-ip-search'); if(i){ i.focus(); const L=i.value.length; try{i.setSelectionRange(L,L);}catch(e){} } }
+function _setItemPickerCat(c){ _itemPickerCat=c; _renderItemPicker(); }
+function _renderItemPicker(){
+  const wrap=document.getElementById('we-item-picker'); if(!wrap) return;
+  if(!_itemPickerOpen){ wrap.style.display='none'; wrap.innerHTML=''; return; }
+  wrap.style.display='';
+  const cur=boqItems.find(x=>x.id===_curWorkBoqId);
+  const pid=cur?cur.projectId:(_curDPR()?_curDPR().projectId:_curProjectId);
+  const boq=_projBoq(pid);
+  const q=(_itemPickerSearch||'').toLowerCase().trim();
+  const cat=_itemPickerCat||'';
+  const cats=[...new Set(boq.map(b=>String(b.category||'').trim()).filter(Boolean))];
+  let filtered=boq;
+  if(q) filtered=filtered.filter(b=>(String(b.itemNo||'')+' '+String(b.description||'')).toLowerCase().includes(q));
+  if(cat) filtered=filtered.filter(b=>String(b.category||'').trim()===cat);
+  wrap.innerHTML=`
+    <div style="font-size:11px;color:var(--amber);font-weight:700;margin-bottom:6px">SELECT THE CORRECT ITEM</div>
+    <input class="f-inp" id="we-ip-search" placeholder="🔍 Search item no. or keyword" value="${_esc(_itemPickerSearch||'')}" oninput="_onItemPickerSearch(this.value)" style="padding-left:12px;margin-bottom:6px">
+    ${cats.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+      <span onclick="_setItemPickerCat('')" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:7px;cursor:pointer;${!cat?'background:var(--amber);color:#1a1205':'border:1px solid var(--border);color:var(--muted)'}">All</span>
+      ${cats.map(c=>`<span onclick="_setItemPickerCat('${_esc(c)}')" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:7px;cursor:pointer;${cat===c?'background:var(--amber);color:#1a1205':'border:1px solid var(--border);color:var(--muted)'}">${_esc(c)}</span>`).join('')}
+    </div>`:''}
+    <div style="max-height:230px;overflow-y:auto;border:1px solid var(--border);border-radius:8px">
+      ${filtered.length?filtered.map(b=>`<div onclick="_selectWorkItem('${b.id}')" style="padding:8px 10px;border-bottom:1px solid var(--border);cursor:pointer;${b.id===_curWorkBoqId?'background:rgba(251,191,36,.1)':''}">
+        <div style="font-size:11px;color:var(--amber);font-weight:700">Item ${_esc(b.itemNo||'')} · ${_esc(b.unit||'')}${b.id===_curWorkBoqId?' · current':''}</div>
+        <div style="font-size:12px;line-height:1.3">${_esc(b.description||'')}</div>
+      </div>`).join(''):'<div style="padding:14px;text-align:center;color:var(--muted);font-size:12px">No items match</div>'}
+    </div>
+    <div style="font-size:10px;color:var(--muted);margin-top:6px">Changing the item clears the measurement (units may differ). Re-enter for the new item.</div>`;
+}
+function _selectWorkItem(id){
+  if(id===_curWorkBoqId){ _itemPickerOpen=false; renderWorkEntryForm(); return; }
+  _curWorkBoqId=id;
+  _itemPickerOpen=false; _itemPickerSearch=''; _itemPickerCat='';
+  // reset measurement — unit may differ between items
+  _workLines=[{nos:'',length:'',width:'',thickness:'',weight:'',desc:''}];
+  renderWorkEntryForm();
+}
+function renderWorkLines(){
+  const mode=_workMode(), cols=_UNIT_COLS[mode];
+  const wrap=document.getElementById('we-lines');
+  const showDesc=(mode!=='kg');
+  const gridCols=`${showDesc?'1.3fr ':''}${cols.map(()=>'1fr').join(' ')} auto`;
+  const head=`<div style="display:grid;grid-template-columns:${gridCols};gap:5px;font-size:11px;color:var(--muted);padding:0 2px 4px">
+    ${showDesc?'<div>Description</div>':''}${cols.map(c=>`<div style="text-align:center">${_UNIT_LBL[c]}</div>`).join('')}<div></div></div>`;
+  const rows=_workLines.map((ln,i)=>`<div style="display:grid;grid-template-columns:${gridCols};gap:5px;margin-bottom:5px;align-items:center">
+    ${showDesc?`<input class="f-inp" id="wl-desc-${i}" value="${_esc(ln.desc||'')}" placeholder="e.g. lift wall" style="font-size:12px;padding:7px 8px" oninput="_workLines[${i}].desc=this.value">`:''}
+    ${cols.map(c=>`<input class="f-inp" id="wl-${c}-${i}" value="${ln[c]||''}" type="number" inputmode="decimal" style="font-size:13px;padding:7px 6px;text-align:center" oninput="_onWorkInput(${i},'${c}',this.value)">`).join('')}
+    <button onclick="delWorkLine(${i})" style="background:none;border:none;color:var(--red);font-size:18px;cursor:pointer;padding:0 4px">×</button>
+  </div>`).join('');
+  wrap.innerHTML=head+rows;
+  _updateWorkTotal();
+}
+function _onWorkInput(i,field,val){ _workLines[i][field]=val; _updateWorkTotal(); }
+function _updateWorkTotal(){
+  const b=boqItems.find(x=>x.id===_curWorkBoqId); if(!b) return;
+  const tot=_workTotal();
+  const te=document.getElementById('we-total'); if(te) te.textContent=tot.toLocaleString('en-IN',{maximumFractionDigits:3})+' '+(b.unit||'');
+  const ac=document.getElementById('we-sub-accrue');
+  if(ac){
+    const c=subContracts.find(x=>x.id===_curWorkSubId);
+    ac.textContent = c ? ('→ '+_inr(tot*(Number(c.rate)||0))+' will accrue to '+_subName(c.subId)) : '';
+  }
+}
+function saveWorkEntry(){
+  _readWorkLineInputs();
+  const b=boqItems.find(x=>x.id===_curWorkBoqId); if(!b){alert('Item not found');return;}
+  const mode=_unitMode(b.unit);
+  const lines=_workLines.filter(ln=>_lineQty(mode,ln)>0).map(ln=>{
+    const o={qty:_lineQty(mode,ln)};
+    if(mode!=='kg') o.desc=ln.desc||'';
+    _UNIT_COLS[mode].forEach(c=>{ o[c]=parseFloat(ln[c])||0; });
+    return o;
+  });
+  const tot=lines.reduce((s,l)=>s+l.qty,0);
+  if(tot<=0){ alert('Enter at least one measurement'); return; }
+  const dateEl=document.getElementById('we-date');
+  const dateVal=dateEl&&dateEl.value?dateEl.value:_todayISO();
+  let rec, isEdit=false;
+  const existing=_editWorkId?workEntries.find(x=>x.id===_editWorkId):null;
+  if(existing){
+    isEdit=true;
+    // update-in-place: keep original id, original author/timestamp; record the edit
+    rec={...existing, projectId:b.projectId, boqItemId:b.id, date:dateVal,
+      unitMode:mode, lines:lines, totalQty:tot, subContractId:_curWorkSubId||'',
+      editedBy:(sess&&sess.userId)||'', editedByName:(sess&&sess.name)||'', editedTs:Date.now()};
+    const idx=workEntries.findIndex(x=>x.id===_editWorkId);
+    if(idx>=0) workEntries[idx]=rec; else workEntries.push(rec);
+  } else {
+    rec={
+      id:uid(), projectId:b.projectId, boqItemId:b.id, date:dateVal,
+      unitMode:mode, lines:lines, totalQty:tot,
+      subContractId:_curWorkSubId||'',
+      enteredBy:(sess&&sess.userId)||'',
+      enteredByName:(sess&&sess.name)||'',
+      ts:Date.now()
+    };
+    workEntries.push(rec);
+  }
+  _fbWrite('workEntries/'+rec.id, rec);
+  _editWorkId=null;
+  flash(isEdit?'WORK UPDATED!':'WORK LOGGED!', tot.toLocaleString('en-IN')+' '+(b.unit||''));
+  // V70: return to DPR wizard step 3 if launched from there, else project detail
+  if(_dprReturn){
+    _dprStep=3; renderDPRStep(); show('scr-dpr-wizard');
+  } else {
+    openProject(b.projectId);
+  }
+}
+
+// ========== SUBCONTRACTORS (master data — sv full-array, Firebase-wins) ==========
+let _subEditId=null;
+function renderSubsList(){
+  const sub=document.getElementById('subs-sub');
+  if(sub) sub.textContent=subcontractors.length+' subcontractor'+(subcontractors.length===1?'':'s');
+  const el=document.getElementById('subs-list'); if(!el) return;
+  if(!subcontractors.length){
+    el.innerHTML='<div style="padding:30px 16px;text-align:center;color:var(--muted);font-size:14px">No subcontractors yet.<br>Tap <b>+ Add subcontractor</b> to create one.</div>';
+    return;
+  }
+  el.innerHTML=subcontractors.map(s=>{
+    const contracts=subContracts.filter(c=>c.subId===s.id&&!c.archived);
+    return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin:0 12px 8px">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:700">${_esc(s.name)}</div>
+          ${s.phone?`<div style="font-size:12px;color:var(--muted)">📞 ${_esc(s.phone)}</div>`:''}
+        </div>
+        <button onclick="delSub('${s.id}')" style="background:var(--bg3);border:1px solid var(--red);color:var(--red);font-size:11px;font-weight:700;padding:5px 9px;border-radius:6px;cursor:pointer">🗑</button>
+      </div>
+      ${contracts.map(c=>`<div style="font-size:12px;color:var(--amber);margin-top:5px;border-top:1px solid var(--border);padding-top:5px">${_esc(c.scope||'(no scope)')} · <b>${_inr(c.rate)}/${_esc(c.unit||'')}</b></div>`).join('')}
+    </div>`;
+  }).join('');
+}
+function openAddSub(){ _subEditId=null; document.getElementById('sub-form-title').textContent='Add subcontractor'; ['sub-name','sub-phone','sub-scope','sub-rate','sub-unit'].forEach(id=>document.getElementById(id).value=''); document.getElementById('sub-form-wrap').style.display=''; document.getElementById('sub-name').focus(); }
+function closeSubForm(){ document.getElementById('sub-form-wrap').style.display='none'; }
+function saveSub(){
+  if(!isOwner()){alert('Owner only');return;}
+  const name=document.getElementById('sub-name').value.trim();
+  if(!name){alert('Enter a name');return;}
+  const phone=document.getElementById('sub-phone').value.trim();
+  const scope=document.getElementById('sub-scope').value.trim();
+  const rate=parseFloat(document.getElementById('sub-rate').value)||0;
+  const unit=document.getElementById('sub-unit').value.trim();
+  const subRec={id:uid(),name,phone,ts:Date.now()};
+  subcontractors.push(subRec);
+  sv('subcontractors',subcontractors);
+  if(rate>0||scope){
+    const cRec={id:uid(),subId:subRec.id,projectId:'',scope,rate,unit,archived:false,ts:Date.now()};
+    subContracts.push(cRec);
+    sv('subContracts',subContracts);
+  }
+  closeSubForm();
+  renderSubsList();
+  flash('SAVED!',name);
+}
+function delSub(id){
+  if(!isOwner()){alert('Owner only');return;}
+  const s=subcontractors.find(x=>x.id===id); if(!s) return;
+  const used=workEntries.some(w=>{ const c=subContracts.find(x=>x.id===w.subContractId); return c&&c.subId===id; });
+  const msg=used?('Delete '+s.name+'? Work entries reference this subcontractor — their payment history will lose this link.'):('Delete '+s.name+'?');
+  showConfirm(msg,function(){
+    subcontractors=subcontractors.filter(x=>x.id!==id);
+    subContracts=subContracts.filter(c=>c.subId!==id);
+    sv('subcontractors',subcontractors);
+    sv('subContracts',subContracts);
+    renderSubsList();
+    flash('DELETED',s.name);
+  });
+}
+
+// ========== DPR WIZARD ==========
+// Entry: home button → project picker screen
+function openDPRPicker(){
+  const list=_myProjects();
+  const el=document.getElementById('dpr-pick-list');
+  document.getElementById('dpr-pick-sub').textContent=list.length+' project'+(list.length===1?'':'s')+' assigned';
+  if(!list.length){
+    el.innerHTML='<div style="padding:30px 16px;text-align:center;color:var(--muted);font-size:14px">No projects assigned to you.<br>Ask the Owner to assign projects in User setup.</div>';
+  } else {
+    el.innerHTML=list.map(p=>{
+      const ex=_findDPR(p.id,today());
+      const badge=ex?(ex.status==='submitted'?'<span style="font-size:10px;font-weight:700;color:var(--green);border:1px solid var(--green);border-radius:6px;padding:1px 7px">SUBMITTED</span>':ex.status==='verified'?'<span style="font-size:10px;font-weight:700;color:var(--blue);border:1px solid var(--blue);border-radius:6px;padding:1px 7px">VERIFIED</span>':'<span style="font-size:10px;font-weight:700;color:var(--amber);border:1px solid var(--amber);border-radius:6px;padding:1px 7px">DRAFT</span>'):'';
+      const site=sites.find(s=>s.id===p.siteId);
+      return `<div class="act" onclick="startDPR('${p.id}')" style="align-items:flex-start">
+        <div class="act-ico">📋</div>
+        <div class="act-txt" style="flex:1;min-width:0">
+          <div class="act-title" style="white-space:normal">${_esc(p.name)}</div>
+          <div class="act-desc">${site?_esc(site.name)+' · ':''}Today's DPR ${ex?'(continue)':'(new)'}</div>
+          ${badge?`<div style="margin-top:4px">${badge}</div>`:''}
+        </div><div class="act-arr">›</div>
+      </div>`;
+    }).join('');
+  }
+  show('scr-dpr-pick');
+}
+// Create or resume today's DPR for a project (today only — no backdate)
+function startDPR(projectId){
+  const p=projects.find(x=>x.id===projectId); if(!p){alert('Project not found');return;}
+  let dpr=_findDPR(projectId,today());
+  if(!dpr){
+    dpr={
+      id:uid(), projectId, siteId:p.siteId||'', date:today(),
+      status:'draft', machinery:[], labour:[],
+      loggedBy:sess.userId, loggedByName:sess.name, ts:Date.now()
+    };
+    dailyReports.push(dpr);
+    _fbWrite('dailyReports/'+dpr.id, dpr);
+  }
+  _curDPRId=dpr.id;
+  // hydrate machinery working-state from saved record
+  _dprMach={};
+  (dpr.machinery||[]).forEach(m=>{ _dprMach[m.fleetId]=m; });
+  _dprStep=1;
+  renderDPRStep();
+  show('scr-dpr-wizard');
+}
+function _curDPR(){ return dailyReports.find(d=>d.id===_curDPRId); }
+function dprGoStep(n){ _readMachInputs(); _dprStep=n; renderDPRStep(); }
+function renderDPRStep(){
+  const dpr=_curDPR(); if(!dpr) return;
+  const p=projects.find(x=>x.id===dpr.projectId);
+  document.getElementById('dpr-wiz-title').textContent=p?p.name:'DPR';
+  document.getElementById('dpr-wiz-sub').textContent=fmtD(dpr.date)+' · '+(dpr.status||'draft').toUpperCase();
+  // progress dots (3 steps in Build A: Machinery, Labour, Work Done)
+  const steps=['Machinery','Labour','Work Done'];
+  document.getElementById('dpr-dots').innerHTML=steps.map((s,i)=>{
+    const n=i+1, on=n===_dprStep, done=n<_dprStep;
+    return `<div onclick="dprGoStep(${n})" style="flex:1;text-align:center;cursor:pointer">
+      <div style="height:5px;border-radius:3px;background:${on?'var(--amber)':done?'var(--green)':'var(--bg3)'};margin-bottom:4px"></div>
+      <div style="font-size:10px;font-weight:700;color:${on?'var(--amber)':done?'var(--green)':'var(--muted)'}">${s}</div>
+    </div>`;
+  }).join('');
+  const body=document.getElementById('dpr-wiz-body');
+  if(_dprStep===1) renderDPRMachinery(body);
+  else if(_dprStep===2) body.innerHTML='<div style="padding:40px 16px;text-align:center;color:var(--muted)">Labour step — coming in next build.</div>';
+  else if(_dprStep===3) renderDPRWorkDone(body);
+}
+
+// ---- Step 1: Machinery ----
+function renderDPRMachinery(body){
+  const dpr=_curDPR(); if(!dpr) return;
+  const machines=_siteMachines(dpr.siteId);
+  if(!machines.length){
+    body.innerHTML='<div style="padding:30px 16px;text-align:center;color:var(--muted);font-size:13px">No machines assigned to this site.<br>Assign machinery to this site in Fleet setup, or skip to next step.</div>';
+    return;
+  }
+  body.innerHTML=`<div style="font-size:12px;color:var(--muted);padding:0 2px 8px">Fill what applies for each machine. Hours/KM/fuel are all optional.</div>`+
+  machines.map(v=>{
+    const mode=_machMode(v);
+    const m=_dprMach[v.id]||{};
+    return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:8px">
+      <div style="font-size:14px;font-weight:700;margin-bottom:2px">${_esc(v.name)}</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${_esc(v.type||'')} · ${mode==='hr'?'hour meter':'odometer'}</div>
+      <div style="display:flex;gap:8px;margin-bottom:7px">
+        <div style="flex:1"><label style="font-size:11px;color:var(--muted)">Opening ${mode==='hr'?'hrs':'km'}</label>
+          <input class="f-inp" id="m-open-${v.id}" type="number" inputmode="decimal" value="${mode==='hr'?(m.openHr??''):(m.openKm??'')}" style="padding:7px 8px"></div>
+        <div style="flex:1"><label style="font-size:11px;color:var(--muted)">Closing ${mode==='hr'?'hrs':'km'}</label>
+          <input class="f-inp" id="m-close-${v.id}" type="number" inputmode="decimal" value="${mode==='hr'?(m.closeHr??''):(m.closeKm??'')}" style="padding:7px 8px"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1"><label style="font-size:11px;color:var(--muted)">Open fuel (L)</label>
+          <input class="f-inp" id="m-of-${v.id}" type="number" inputmode="decimal" value="${m.openFuel??''}" style="padding:7px 8px"></div>
+        <div style="flex:1"><label style="font-size:11px;color:var(--muted)">Fuel filled (L)</label>
+          <input class="f-inp" id="m-ff-${v.id}" type="number" inputmode="decimal" value="${m.fuelFilled??''}" style="padding:7px 8px"></div>
+        <div style="flex:1"><label style="font-size:11px;color:var(--muted)">Close fuel (L)</label>
+          <input class="f-inp" id="m-cf-${v.id}" type="number" inputmode="decimal" value="${m.closeFuel??''}" style="padding:7px 8px"></div>
+      </div>
+      <input type="hidden" id="m-mode-${v.id}" value="${mode}">
+    </div>`;
+  }).join('')+
+  `<button class="big-btn bb-amber" style="width:100%;height:46px;font-size:14px;margin-top:6px" onclick="saveDPRMachinery()">SAVE MACHINERY → NEXT</button>`;
+}
+function _readMachInputs(){
+  const dpr=_curDPR(); if(!dpr) return;
+  _siteMachines(dpr.siteId).forEach(v=>{
+    const modeEl=document.getElementById('m-mode-'+v.id); if(!modeEl) return;
+    const mode=modeEl.value;
+    const open=document.getElementById('m-open-'+v.id), close=document.getElementById('m-close-'+v.id);
+    const of=document.getElementById('m-of-'+v.id), ff=document.getElementById('m-ff-'+v.id), cf=document.getElementById('m-cf-'+v.id);
+    const rec={fleetId:v.id, name:v.name, mode};
+    if(mode==='hr'){ rec.openHr=_numOrNull(open&&open.value); rec.closeHr=_numOrNull(close&&close.value); }
+    else { rec.openKm=_numOrNull(open&&open.value); rec.closeKm=_numOrNull(close&&close.value); }
+    rec.openFuel=_numOrNull(of&&of.value); rec.fuelFilled=_numOrNull(ff&&ff.value); rec.closeFuel=_numOrNull(cf&&cf.value);
+    // only keep if at least one field filled
+    const any=[rec.openHr,rec.closeHr,rec.openKm,rec.closeKm,rec.openFuel,rec.fuelFilled,rec.closeFuel].some(x=>x!=null);
+    if(any) _dprMach[v.id]=rec; else delete _dprMach[v.id];
+  });
+}
+function _numOrNull(v){ if(v===''||v==null) return null; const n=parseFloat(v); return isNaN(n)?null:n; }
+function saveDPRMachinery(){
+  _readMachInputs();
+  const dpr=_curDPR(); if(!dpr) return;
+  dpr.machinery=Object.values(_dprMach);
+  dpr.ts=Date.now();
+  _fbWrite('dailyReports/'+dpr.id, dpr);   // append-only single-record write
+  // write native readings + disbs so efficiency reports see this data
+  _syncMachineryToReports(dpr);
+  flash('MACHINERY SAVED','Linked to fuel reports');
+  _dprStep=2; renderDPRStep();
+}
+// Writes DPR machinery into readings (hours/fuel-level) and disbs (fuel filled),
+// tagged source:'dpr'. Updates existing same-day DPR records rather than duplicating.
+function _syncMachineryToReports(dpr){
+  (dpr.machinery||[]).forEach(m=>{
+    const v=gV(m.fleetId); const calib=v&&v.calibration||null;
+    // READINGS: hours + fuel levels
+    const hours=(m.mode==='hr')?( (m.closeHr!=null&&m.openHr!=null)?(m.closeHr-m.openHr):null):null;
+    const hasReading=(m.openFuel!=null||m.closeFuel!=null||hours!=null||m.openKm!=null||m.closeKm!=null);
+    if(hasReading){
+      const rId='dpr-r-'+dpr.id+'-'+m.fleetId;
+      const rec={
+        id:rId, date:dpr.date, ts:Date.now(), vehicleId:m.fleetId, type:'dip',
+        openingCm:null, closingCm:null,
+        openingLtr:m.openFuel!=null?m.openFuel:null,
+        closingLtr:m.closeFuel!=null?m.closeFuel:null,
+        reading:(m.mode==='hr'?(m.closeHr!=null?m.closeHr:null):(m.closeKm!=null?m.closeKm:null)),
+        readingOpen:(m.mode==='hr'?m.openHr:m.openKm), readingUnit:m.mode,
+        remarks:'Auto from DPR '+dpr.date,
+        source:'dpr', dprId:dpr.id,
+        loggedBy:dpr.loggedBy, loggedByName:dpr.loggedByName
+      };
+      const idx=readings.findIndex(r=>r.id===rId);
+      if(idx>=0) readings[idx]=rec; else readings.push(rec);
+      _fbWrite('readings/'+rId, rec);
+    }
+    // DISBS: fuel filled at site
+    if(m.fuelFilled!=null && m.fuelFilled>0){
+      const dId='dpr-d-'+dpr.id+'-'+m.fleetId;
+      const rec={
+        id:dId, date:dpr.date, ts:Date.now(),
+        vehicleId:m.fleetId, litres:m.fuelFilled, source:'dpr',
+        destType:null, meterBefore:null, meterAfter:null, meterDiff:null, meterMismatch:false,
+        operator:'', remarks:'Auto from DPR '+dpr.date,
+        loggedBy:dpr.loggedBy, loggedByName:dpr.loggedByName,
+        dprId:dpr.id, dipStatus:null,
+        gaugeBefore:null,gaugeAfter:null,gaugeIncreaseCm:null,gaugeIncreaseLtr:null,
+        diff:null,dipMatch:null,dipTakenBy:null,dipTakenByName:null,dipDate:null,dipRemarks:'',
+        photoBef:null,photoAft:null,dipTs:null
+      };
+      const idx=disbs.findIndex(d=>d.id===dId);
+      if(idx>=0) disbs[idx]=rec; else disbs.push(rec);
+      _fbWrite('disbs/'+dId, rec);
+    }
+  });
+}
+
+// ---- Step 3: Work Done (re-houses V65 work-entry engine into the wizard) ----
+let _dprWorkSearch='', _dprWorkCat='', _dprShowTodayWork=false;
+function _onDprWorkSearch(v){ _dprWorkSearch=v; renderDPRStep(); const i=document.getElementById('dpr-boq-search'); if(i){ i.focus(); const L=i.value.length; try{i.setSelectionRange(L,L);}catch(e){} } }
+function _setDprWorkCat(c){ _dprWorkCat=c; renderDPRStep(); }
+function _toggleDprTodayWork(){ _dprShowTodayWork=!_dprShowTodayWork; renderDPRStep(); }
+function renderDPRWorkDone(body){
+  const dpr=_curDPR(); if(!dpr){ body.innerHTML=''; return; }
+  const boq=_projBoq(dpr.projectId);
+  if(!boq.length){
+    body.innerHTML='<div style="padding:30px 16px;text-align:center;color:var(--muted);font-size:13px">No BOQ items for this project.<br>Owner can load the BOQ from the project screen.</div>';
+    return;
+  }
+  // today's work entries for this project (logged via this DPR's date)
+  const todayWork=workEntries.filter(w=>w.projectId===dpr.projectId&&w.date===dpr.date)
+    .sort((a,b)=>(b.ts||0)-(a.ts||0));
+
+  // tappable summary → toggles today's editable entry list
+  const summary=`<div onclick="_toggleDprTodayWork()" style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:9px;font-size:12px;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:space-between">
+    <span>📐 <span style="color:var(--green);font-weight:700">${todayWork.length}</span> work item${todayWork.length===1?'':'s'} logged today${todayWork.length?' · tap to review/edit':''}</span>
+    ${todayWork.length?`<span style="color:var(--amber);font-size:14px">${_dprShowTodayWork?'▴':'▾'}</span>`:''}
+  </div>`;
+
+  // editable list of today's entries
+  let todayList='';
+  if(_dprShowTodayWork && todayWork.length){
+    todayList=`<div style="background:var(--bg2);border:1px solid var(--amber);border-radius:9px;padding:8px;margin-bottom:9px">
+      <div style="font-size:11px;color:var(--amber);font-weight:700;padding:2px 4px 7px">TODAY'S ENTRIES</div>
+      ${todayWork.map(w=>{
+        const it=boqItems.find(x=>x.id===w.boqItemId);
+        const tm=w.ts?new Date(w.ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}):'';
+        const edited=w.editedTs?' · edited':'';
+        return `<div style="border-top:1px solid var(--border);padding:8px 4px;display:flex;align-items:center;gap:8px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;color:var(--white);font-weight:600;line-height:1.3">${it?('Item '+_esc(it.itemNo||'')+' — '+_esc((it.description||'').slice(0,46))+((it.description||'').length>46?'…':'')):'(item removed)'}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px"><span style="color:var(--green);font-weight:700">${(Number(w.totalQty)||0).toLocaleString('en-IN')} ${it?_esc(it.unit||''):''}</span>${tm?' · '+tm:''}${edited}</div>
+          </div>
+          <button onclick="editWorkEntry('${w.id}')" style="background:var(--bg3);border:1px solid var(--amber);color:var(--amber);font-size:12px;font-weight:700;padding:5px 10px;border-radius:6px;cursor:pointer">✎</button>
+          ${isOwner()?`<button onclick="delWorkEntry('${w.id}')" style="background:var(--bg3);border:1px solid var(--red);color:var(--red);font-size:12px;font-weight:700;padding:5px 10px;border-radius:6px;cursor:pointer">🗑</button>`:''}
+        </div>`;
+      }).join('')}
+      ${!isOwner()?`<div style="font-size:10px;color:var(--muted);padding:7px 4px 2px;border-top:1px solid var(--border)">Tap ✎ to correct a quantity or item. Only the Owner can delete an entry.</div>`:''}
+    </div>`;
+  }
+
+  const q=(_dprWorkSearch||'').toLowerCase().trim();
+  const cat=_dprWorkCat||'';
+  const cats=[...new Set(boq.map(b=>String(b.category||'').trim()).filter(Boolean))];
+  let filtered=boq;
+  if(q) filtered=filtered.filter(b=>(String(b.itemNo||'')+' '+String(b.description||'')).toLowerCase().includes(q));
+  if(cat) filtered=filtered.filter(b=>String(b.category||'').trim()===cat);
+
+  const searchBar=`<div style="margin-bottom:8px">
+    <input class="f-inp" id="dpr-boq-search" placeholder="🔍 Search item no. or keyword" value="${_esc(_dprWorkSearch||'')}" oninput="_onDprWorkSearch(this.value)" style="padding-left:12px">
+    ${cats.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px">
+      <span onclick="_setDprWorkCat('')" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:7px;cursor:pointer;${!cat?'background:var(--amber);color:#1a1205':'border:1px solid var(--border);color:var(--muted)'}">All</span>
+      ${cats.map(c=>`<span onclick="_setDprWorkCat('${_esc(c)}')" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:7px;cursor:pointer;${cat===c?'background:var(--amber);color:#1a1205':'border:1px solid var(--border);color:var(--muted)'}">${_esc(c)}</span>`).join('')}
+    </div>`:''}
+    ${(q||cat)?`<div style="font-size:11px;color:var(--muted);margin-top:6px">${filtered.length} of ${boq.length} items</div>`:''}
+  </div>`;
+
+  const rows=filtered.map((b,idx)=>{
+    const done=_itemDone(b.id), pct=_itemPct(b);
+    const over=pct>100.5;
+    const pctColor=over?'var(--red)':pct>=100?'var(--green)':pct>0?'var(--amber)':'var(--muted)';
+    const todayQty=todayWork.filter(w=>w.boqItemId===b.id).reduce((s,w)=>s+(Number(w.totalQty)||0),0);
+    return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:8px">
+      <div style="font-size:12px;color:var(--amber);font-weight:700">Item ${_esc(b.itemNo||(idx+1))}</div>
+      <div style="font-size:13px;margin:2px 0;line-height:1.35">${_esc(b.description||'')}</div>
+      <div style="font-size:12px;color:var(--muted)">${(Number(b.qty)||0).toLocaleString('en-IN')} ${_esc(b.unit||'')} tender${todayQty>0?` · <span style="color:var(--green);font-weight:700">+${todayQty.toLocaleString('en-IN')} today</span>`:''}</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
+        <div style="flex:1">
+          <div style="height:6px;background:var(--bg3);border-radius:4px;overflow:hidden"><div style="height:100%;width:${Math.min(100,pct)}%;background:${pctColor}"></div></div>
+          <div style="font-size:11px;color:${pctColor};font-weight:700;margin-top:3px">${done.toLocaleString('en-IN')} ${_esc(b.unit||'')} done · ${pct.toFixed(1)}%${over?' ⚠ over qty':''}</div>
+        </div>
+        <button onclick="_dprReturn=true;openWorkEntry('${b.id}')" style="background:var(--bg3);border:1px solid var(--green);color:var(--green);font-size:12px;font-weight:700;padding:6px 11px;border-radius:7px;cursor:pointer;white-space:nowrap">+ Work</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  body.innerHTML=summary+todayList+searchBar+(filtered.length?rows:'<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">No items match.</div>');
+}
+// V70: delete a work entry (Owner only) — tombstone + sv, same safe pattern as trips/fuel
+function delWorkEntry(id){
+  if(!isOwner()){ alert('Only Owner can delete a work entry'); return; }
+  const w=workEntries.find(x=>x.id===id); if(!w) return;
+  const it=boqItems.find(x=>x.id===w.boqItemId);
+  const label=`${it?('Item '+(it.itemNo||'')):'(item)'} · ${(Number(w.totalQty)||0).toLocaleString('en-IN')} ${it?(it.unit||''):''}`;
+  showConfirm(`Delete this work entry?\n\n${label}\n\nThis cannot be undone.`,function(){
+    workEntries=_dedup(workEntries||[]);
+    _recordDeletion('workEntries',id);
+    workEntries=(workEntries||[]).filter(x=>x.id!==id);
+    sv('workEntries',workEntries);
+    if(_curDPRId){ _dprStep=3; renderDPRStep(); }
+    flash('DELETED!','Work entry removed');
+  },'🗑','DELETE');
+}
+function _workEntryBack(){
+  if(_dprReturn){ _dprStep=3; renderDPRStep(); show('scr-dpr-wizard'); }
+  else show('scr-project-detail');
+}
 function toggleBoqPaste(){
   const w=document.getElementById('proj-boq-paste-wrap');
   w.style.display = w.style.display==='none' ? '' : 'none';
@@ -11738,7 +12590,7 @@ const FB_URL = 'https://fuellog-9f3c0-default-rtdb.firebaseio.com';
 const FB_KEY = 'AIzaSyB44pKu7YTc-Q_6GLC3mlaEBPJm3d3odPc';
 
 // All keys we sync to Firebase
-const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords','trips','customers','materials','staff','staffMusters','pumpPayments','projects','boqItems'];
+const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords','trips','customers','materials','staff','staffMusters','pumpPayments','projects','boqItems','workEntries','subcontractors','subContracts','dailyReports'];
 
 let fbOnline = false;
 let fbSyncing = false;
@@ -12305,6 +13157,10 @@ async function refreshData(){
       else if(k==='pumpPayments') pumpPayments=_dedup(val);
       else if(k==='projects') projects=_dedup(val);
       else if(k==='boqItems') boqItems=_dedup(val);
+      else if(k==='workEntries') workEntries=_dedup(val);
+      else if(k==='subcontractors') subcontractors=_dedup(val);
+      else if(k==='subContracts') subContracts=_dedup(val);
+      else if(k==='dailyReports') dailyReports=_dedup(val);
       });
       // Re-render current screen
       renderHome();
