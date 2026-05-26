@@ -7351,13 +7351,13 @@ function renderReadingsVehGrid(filter=''){
           ${bdPicker}
         </div>
         <div id="${panelId}" style="display:none;padding:8px 14px 10px">
-          ${doneVehs.length?`<div style="font-size:10px;color:var(--green);font-weight:700;letter-spacing:.6px;margin-bottom:5px">✅ ENTERED (${doneVehs.length})</div>
+          ${doneVehs.length?`<div style="font-size:10px;color:var(--green);font-weight:700;letter-spacing:.6px;margin-bottom:5px">✅ ENTERED (${doneVehs.length}) <span style="color:var(--muted);font-weight:600">· tap to view/edit</span></div>
           <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">
-            ${doneVehs.map(f=>`<span style="background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:var(--green);padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600">${f.name}</span>`).join('')}
+            ${doneVehs.map(f=>`<span onclick="openReadingEntry('${f.id}')" style="background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:var(--green);padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer">${f.name}</span>`).join('')}
           </div>`:''}
-          ${missVehs.length?`<div style="font-size:10px;color:var(--red);font-weight:700;letter-spacing:.6px;margin-bottom:5px">🔴 MISSING (${missVehs.length})</div>
+          ${missVehs.length?`<div style="font-size:10px;color:var(--red);font-weight:700;letter-spacing:.6px;margin-bottom:5px">🔴 MISSING (${missVehs.length}) <span style="color:var(--muted);font-weight:600">· tap to enter</span></div>
           <div style="display:flex;flex-wrap:wrap;gap:5px">
-            ${missVehs.map(f=>`<span style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:var(--red);padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600">${f.name}</span>`).join('')}
+            ${missVehs.map(f=>`<span onclick="openReadingEntry('${f.id}')" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:var(--red);padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer">${f.name}</span>`).join('')}
           </div>`:'<div style="font-size:12px;color:var(--green);font-weight:700">🎉 All vehicles entered!</div>'}
         </div>`;
     }
@@ -7567,6 +7567,24 @@ function saveReadingMach(vehId){
   const calib=veh?.calibration||null;
   const date=document.getElementById('re-date-field')?.value||today();
   if(isFutureDate(date)){alert('❌ Cannot enter readings for future dates.');return;}
+  // V80: hours-per-day sanity check (hourmeter is cumulative → delta = today − prior reading)
+  if(hours!=null){
+    const _prior=(readings||[])
+      .filter(r=>r.vehicleId===vehId && r.reading!=null && r.date<date && r.id!==window._readingEditId)
+      .sort((a,b)=>b.date.localeCompare(a.date)||((b.ts||0)-(a.ts||0)))[0]||null;
+    if(_prior && _prior.reading!=null){
+      const dayHrs=Math.round((hours-_prior.reading)*100)/100;
+      if(dayHrs>24){
+        alert('❌ '+dayHrs+' hrs/day is not possible (max 24). Check the hourmeter reading — it cannot be saved.');
+        return;
+      }
+      if(dayHrs>12){
+        if(!confirm('⚠️ This entry shows '+dayHrs+' hrs in one day (we rarely run over 12 hr/day).\n\nPrevious: '+_prior.reading+' hrs ('+fmtD(_prior.date)+')\nToday: '+hours+' hrs\n\nPlease verify the reading is correct. Save anyway?')){
+          return;
+        }
+      }
+    }
+  }
   const record={
     id:window._readingEditId||uid(),
     date,ts:Date.now(),vehicleId:vehId,type:'dip',
@@ -7672,24 +7690,27 @@ function getMachEfficiency(veh,fromDate,toDate){
     }
   });
 
-  if(!hasConsumption)return null;
+  // V80: inclusive — return a result if machine has EITHER fuel OR hours in period.
+  // Drop only when both absent. lph null unless both fuel and hours present.
+  if(!hasConsumption && !hasHours) return null;
   const breakdown=Object.values(bdMap).sort((a,b)=>a.date.localeCompare(b.date))
     .map(b=>({date:b.date,hrs:Math.round(b.hrs*100)/100,fuel:parseFloat(b.fuel.toFixed(1))}));
   if(!hasHours)return{consumed:totalConsumed,hours:null,breakdown};
+  if(!hasConsumption)return{consumed:0,hours:totalHrs,lph:null,breakdown};
   return{consumed:totalConsumed,hours:totalHrs,lph:totalConsumed/totalHrs,breakdown};
 }
 
 // ── ROAD VEHICLE EFFICIENCY ──
 function getRoadEfficiency(veh,fromDate,toDate){
-  // V54: Total KM / Total fuel. Date-by-date ledger for breakdown.
+  // V80: inclusive — return a result if vehicle has EITHER km readings OR fuel in period.
+  // kpl is null when either side is missing (UI shows "—"). Returns null only when BOTH absent.
   let kmR=readings.filter(r=>r.vehicleId===veh.id&&r.type==='km')
     .sort((a,b)=>a.date.localeCompare(b.date));
   const fd=fromDate||(kmR[0]?.date)||'2000-01-01';
   const td2=toDate||today();
   if(fromDate&&toDate) kmR=kmR.filter(r=>r.date>=fromDate&&r.date<=toDate);
-  if(!kmR.length)return null;
 
-  // Build km-per-date map
+  // Build km-per-date map (may be empty)
   const kmByDate={};
   let totalKm=0;
   kmR.forEach(r=>{
@@ -7699,9 +7720,8 @@ function getRoadEfficiency(veh,fromDate,toDate){
       totalKm=Math.round((totalKm+km)*100)/100;
     }
   });
-  if(!totalKm)return null;
 
-  // Build fuel-per-date map from disbs + pumpFills
+  // Build fuel-per-date map from disbs + pumpFills (may be empty)
   const fuelByDate={};
   (disbs||[]).filter(d=>d.vehicleId===veh.id&&d.date>=fd&&d.date<=td2)
     .forEach(d=>{fuelByDate[d.date]=(fuelByDate[d.date]||0)+d.litres;});
@@ -7709,7 +7729,9 @@ function getRoadEfficiency(veh,fromDate,toDate){
     .forEach(d=>{fuelByDate[d.date]=(fuelByDate[d.date]||0)+d.litres;});
 
   const totalConsumed=Object.values(fuelByDate).reduce((a,v)=>a+v,0);
-  if(totalConsumed<=0)return null;
+
+  // Nothing at all → drop the vehicle
+  if(totalKm<=0 && totalConsumed<=0) return null;
 
   // Union all dates with either km or fuel
   const allDates=[...new Set([...Object.keys(kmByDate),...Object.keys(fuelByDate)])].sort();
@@ -7719,7 +7741,13 @@ function getRoadEfficiency(veh,fromDate,toDate){
     fuel:parseFloat((fuelByDate[date]||0).toFixed(1))
   }));
 
-  return{consumed:totalConsumed,km:totalKm,kpl:totalKm/totalConsumed,breakdown};
+  const hasKm=totalKm>0, hasFuel=totalConsumed>0;
+  return{
+    consumed:totalConsumed,
+    km:totalKm,
+    kpl:(hasKm&&hasFuel)?totalKm/totalConsumed:null,
+    breakdown
+  };
 }
 
 // ── DELETE READING ──
@@ -8547,18 +8575,24 @@ function renderReports(){
         if(isMachType(veh.type)) return null;
         // V54: pass date range so efficiency respects filter
         const eff=getRoadEfficiency?getRoadEfficiency(veh,range.from,range.to):null;
-        if(!eff?.kpl) return null;
+        if(!eff) return null; // V80: show on EITHER km or fuel; null only when both absent
         const target=parseFloat(veh.expected)||null;
-        const pct=target?Math.round((eff.kpl/target)*100):null;
+        const pct=(eff.kpl&&target)?Math.round((eff.kpl/target)*100):null;
         return{veh,kpl:eff.kpl,totalKm:eff.km,totalFuel:eff.consumed,target,pct,breakdown:eff.breakdown||[]};
-      }).filter(Boolean).sort((a,b)=>b.kpl-a.kpl);
+      }).filter(Boolean).sort((a,b)=>{
+        // V80: vehicles with a real km/L first (best→worst), then "—" rows at bottom by fuel desc
+        if(a.kpl!=null&&b.kpl!=null) return b.kpl-a.kpl;
+        if(a.kpl!=null) return -1;
+        if(b.kpl!=null) return 1;
+        return b.totalFuel-a.totalFuel;
+      });
 
       if(!ranked.length){
-        html+=`<div class="muted-txt" style="padding:40px;text-align:center">No efficiency data yet — add KM readings in Log Reading</div>`;
+        html+=`<div class="muted-txt" style="padding:40px;text-align:center">No efficiency data yet — add KM readings or fuel in Log Reading</div>`;
       } else {
         html+=`<div class="rep-card">
           <div class="rep-hd">📊 FLEET EFFICIENCY RANKING — km/L</div>
-          <div style="font-size:10px;color:var(--muted);padding:0 14px 10px">Tap a row to expand date-wise ledger · ${fmtD(range.from)} – ${fmtD(range.to)}</div>
+          <div style="font-size:10px;color:var(--muted);padding:0 14px 10px">Tap a row to expand date-wise ledger · "—" = missing km or fuel · ${fmtD(range.from)} – ${fmtD(range.to)}</div>
           <div>
             ${ranked.map(({veh,kpl,target,pct,totalKm,totalFuel,breakdown},i)=>{
               const col=pct?pct>=100?'var(--green)':pct>=85?'var(--amber)':'var(--red)':'var(--muted)';
@@ -8577,7 +8611,7 @@ function renderReports(){
                   style="display:flex;align-items:center;padding:9px 10px;cursor:pointer;gap:0">
                   <span style="width:28px;color:var(--muted);font-weight:700;font-size:12px">${i+1}</span>
                   <span style="flex:1;color:var(--white);font-weight:600;font-size:12px">${vIco(veh.type)} ${veh.name}</span>
-                  <span style="font-family:var(--fh);color:var(--amber);font-size:13px;font-weight:700;margin-right:10px">${fmt(kpl,2)}</span>
+                  <span style="font-family:var(--fh);color:${kpl!=null?'var(--amber)':'var(--muted)'};font-size:13px;font-weight:700;margin-right:10px">${kpl!=null?fmt(kpl,2):'—'}</span>
                   <span style="width:42px;text-align:right;color:var(--muted);font-size:12px">${target||'—'}</span>
                   <span style="width:44px;text-align:right;font-weight:700;color:${col};font-size:12px;margin-left:6px">${pct?pct+'%':'—'}</span>
                   <span style="color:var(--muted);font-size:14px;margin-left:8px">›</span>
@@ -8591,8 +8625,8 @@ function renderReports(){
                   ${bdRows||`<div style="padding:8px 28px;font-size:11px;color:var(--muted)">No data</div>`}
                   <div style="display:grid;grid-template-columns:90px 1fr 1fr;padding:7px 14px 7px 28px;background:rgba(251,191,36,.08);border-top:1px solid var(--border)">
                     <span style="font-size:11px;color:var(--amber);font-weight:700">TOTAL</span>
-                    <span style="font-size:12px;color:var(--white);font-weight:700;text-align:right;padding-right:16px">${fmt(totalKm,2)} km</span>
-                    <span style="font-size:12px;color:var(--amber);font-weight:700;text-align:right">${fmt(totalFuel,1)} L → ${fmt(kpl,2)} km/L</span>
+                    <span style="font-size:12px;color:var(--white);font-weight:700;text-align:right;padding-right:16px">${totalKm>0?fmt(totalKm,2)+' km':'— km'}</span>
+                    <span style="font-size:12px;color:var(--amber);font-weight:700;text-align:right">${totalFuel>0?fmt(totalFuel,1)+' L':'— L'}${kpl!=null?' → '+fmt(kpl,2)+' km/L':' → —'}</span>
                   </div>
                 </div>
               </div>`;
@@ -8680,7 +8714,7 @@ function renderReports(){
                 <div onclick="const d=document.getElementById('${rowId}');d.style.display=d.style.display==='none'?'block':'none'"
                   style="display:flex;align-items:center;padding:9px 10px;cursor:pointer;gap:0">
                   <span style="width:28px;color:var(--muted);font-weight:700;font-size:12px">${i+1}</span>
-                  <span style="flex:1;color:var(--white);font-weight:600;font-size:12px">${vIco(veh.type)} ${veh.name}${noHrs?` <span style="font-size:9px;color:var(--red);font-weight:700;background:rgba(255,61,61,.12);padding:1px 6px;border-radius:4px;margin-left:4px">⚠ NO HOURS</span>`:''}</span>
+                  <span style="flex:1;color:var(--white);font-weight:600;font-size:12px">${vIco(veh.type)} ${veh.name}${(totalHrs<=0)?` <span style="font-size:9px;color:var(--red);font-weight:700;background:rgba(255,61,61,.12);padding:1px 6px;border-radius:4px;margin-left:4px">⚠ NO HOURS</span>`:(totalFuel<=0?` <span style="font-size:9px;color:var(--amber);font-weight:700;background:rgba(255,179,0,.12);padding:1px 6px;border-radius:4px;margin-left:4px">⚠ NO FUEL</span>`:'')}</span>
                   <span style="font-family:var(--fh);color:${noHrs?'var(--muted)':'var(--amber)'};font-size:13px;font-weight:700;margin-right:10px">${noHrs?'—':fmt(lph,2)}</span>
                   <span style="width:42px;text-align:right;color:var(--muted);font-size:12px">${target||'—'}</span>
                   <span style="width:44px;text-align:right;font-weight:700;color:${col};font-size:12px;margin-left:6px">${pct?pct+'%':'—'}</span>
@@ -8695,8 +8729,8 @@ function renderReports(){
                   ${bdRows||`<div style="padding:8px 28px;font-size:11px;color:var(--muted)">No data</div>`}
                   <div style="display:grid;grid-template-columns:90px 1fr 1fr;padding:7px 14px 7px 28px;background:rgba(251,191,36,.08);border-top:1px solid var(--border)">
                     <span style="font-size:11px;color:var(--amber);font-weight:700">TOTAL</span>
-                    <span style="font-size:12px;color:${noHrs?'var(--red)':'var(--white)'};font-weight:700;text-align:right;padding-right:16px">${noHrs?'no hours entered':fmt(totalHrs,2)+' hr'}</span>
-                    <span style="font-size:12px;color:var(--amber);font-weight:700;text-align:right">${fmt(totalFuel,1)} L${noHrs?'':` → ${fmt(lph,2)} L/hr`}</span>
+                    <span style="font-size:12px;color:${totalHrs>0?'var(--white)':'var(--red)'};font-weight:700;text-align:right;padding-right:16px">${totalHrs>0?fmt(totalHrs,2)+' hr':'no hours entered'}</span>
+                    <span style="font-size:12px;color:var(--amber);font-weight:700;text-align:right">${totalFuel>0?fmt(totalFuel,1)+' L':'— L'}${(!noHrs)?` → ${fmt(lph,2)} L/hr`:''}</span>
                   </div>
                 </div>
               </div>`;
@@ -10281,13 +10315,18 @@ function exportRepPDF(){
         if(isMachType(veh.type)) return null;
         // V54: pass date range
         const eff=typeof getRoadEfficiency==='function'?getRoadEfficiency(veh,range.from,range.to):null;
-        if(!eff?.kpl) return null;
+        if(!eff) return null; // V80: inclusive — show on km OR fuel
         const target=parseFloat(veh.expected)||null;
-        const pct=target?Math.round((eff.kpl/target)*100):null;
+        const pct=(eff.kpl&&target)?Math.round((eff.kpl/target)*100):null;
         return{veh,kpl:eff.kpl,totalKm:eff.km,totalFuel:eff.consumed,target,pct,breakdown:eff.breakdown||[]};
-      }).filter(Boolean).sort((a,b)=>b.kpl-a.kpl);
+      }).filter(Boolean).sort((a,b)=>{
+        if(a.kpl!=null&&b.kpl!=null) return b.kpl-a.kpl;
+        if(a.kpl!=null) return -1;
+        if(b.kpl!=null) return 1;
+        return b.totalFuel-a.totalFuel;
+      });
       body=`${header('FLEET EFFICIENCY RANKING — km/L')}
-      ${!ranked.length?'<div style="padding:40px;text-align:center;color:#999">No efficiency data — add KM readings in Log Reading</div>':`
+      ${!ranked.length?'<div style="padding:40px;text-align:center;color:#999">No efficiency data — add KM readings or fuel in Log Reading</div>':`
       <table>
         <thead><tr><th>#</th><th>Vehicle</th><th class="right">km/L</th><th class="right">Target</th><th class="right">vs Target</th><th class="right">Total KM</th><th class="right">Total Fuel</th></tr></thead>
         <tbody>
@@ -10303,11 +10342,11 @@ function exportRepPDF(){
             return`<tr>
               <td>${i+1}</td>
               <td><b>${veh.name}</b></td>
-              <td class="right" style="color:#e65100;font-weight:700">${fmt(kpl,2)}</td>
+              <td class="right" style="color:${kpl!=null?'#e65100':'#999'};font-weight:700">${kpl!=null?fmt(kpl,2):'—'}</td>
               <td class="right">${target||'—'}</td>
               <td class="right" style="color:${col};font-weight:700">${pct?pct+'%':'—'}</td>
-              <td class="right" style="font-weight:700">${totalKm} km</td>
-              <td class="right" style="font-weight:700">${fmt(totalFuel,1)} L</td>
+              <td class="right" style="font-weight:700">${totalKm>0?totalKm+' km':'—'}</td>
+              <td class="right" style="font-weight:700">${totalFuel>0?fmt(totalFuel,1)+' L':'—'}</td>
             </tr>${bdRows}`;
           }).join('')}
         </tbody>
@@ -10342,25 +10381,32 @@ function exportRepPDF(){
     } else if(reportType==='machine'){
       const machines=fleet.filter(f=>isMachType(f.type));
       const ranked=machines.map(veh=>{
-        const eff=typeof getMachEfficiency==='function'?getMachEfficiency(veh):null;
-        if(!eff?.lph) return null;
+        const eff=typeof getMachEfficiency==='function'?getMachEfficiency(veh,range.from,range.to):null;
+        if(!eff) return null; // V80: inclusive — show on fuel OR hours
         const target=parseFloat(veh.expected)||null;
-        const pct=target?Math.round((target/eff.lph)*100):null;
-        return{veh,lph:eff.lph,target,pct};
-      }).filter(Boolean).sort((a,b)=>a.lph-b.lph);
+        const pct=(eff.lph&&target)?Math.round((target/eff.lph)*100):null;
+        return{veh,lph:eff.lph,totalHrs:eff.hours||0,totalFuel:eff.consumed||0,target,pct};
+      }).filter(Boolean).sort((a,b)=>{
+        if(a.lph!=null&&b.lph!=null) return a.lph-b.lph;
+        if(a.lph!=null) return -1;
+        if(b.lph!=null) return 1;
+        return b.totalFuel-a.totalFuel;
+      });
       body=`${header('MACHINE HOURS EFFICIENCY — L/hr')}
-      ${!ranked.length?'<div style="padding:40px;text-align:center;color:#999">No hours data — add hour meter readings in Log Reading</div>':`
+      ${!ranked.length?'<div style="padding:40px;text-align:center;color:#999">No machine data — add hour meter readings or fuel in Log Reading</div>':`
       <table>
-        <thead><tr><th>#</th><th>Machine</th><th class="right">L/hr</th><th class="right">Target</th><th class="right">Status</th></tr></thead>
+        <thead><tr><th>#</th><th>Machine</th><th class="right">L/hr</th><th class="right">Target</th><th class="right">Total Hrs</th><th class="right">Total Fuel</th><th class="right">Status</th></tr></thead>
         <tbody>
-          ${ranked.map(({veh,lph,target,pct},i)=>{
+          ${ranked.map(({veh,lph,totalHrs,totalFuel,target,pct},i)=>{
             const col=pct?pct>=100?'green':pct>=85?'#e65100':'#c62828':'#999';
-            const status=pct?pct>=100?'On target':pct>=85?'Slightly high':'High consumption':'—';
+            const status=lph==null?(totalHrs<=0?'No hours':'No fuel'):(pct?pct>=100?'On target':pct>=85?'Slightly high':'High consumption':'—');
             return`<tr>
               <td>${i+1}</td>
               <td>${veh.name}</td>
-              <td class="right" style="color:#e65100;font-weight:700">${fmt(lph,2)}</td>
+              <td class="right" style="color:${lph!=null?'#e65100':'#999'};font-weight:700">${lph!=null?fmt(lph,2):'—'}</td>
               <td class="right">${target||'—'}</td>
+              <td class="right" style="font-weight:700">${totalHrs>0?fmt(totalHrs,2)+' hr':'—'}</td>
+              <td class="right" style="font-weight:700">${totalFuel>0?fmt(totalFuel,1)+' L':'—'}</td>
               <td class="right" style="color:${col};font-weight:700">${status}</td>
             </tr>`;
           }).join('')}
