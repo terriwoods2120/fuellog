@@ -1,3 +1,4 @@
+<!-- FuelLog PWA | Version: V80 | Date: 2026-05-26 | Chiddarwar Construction Co. Pvt. Ltd. | V80 FEATURE: Royalty (ETP) tracking on trips — new keyed-by-id `royalty` collection (LS_NO_CACHE+MERGE_KEYS+SK+FB_KEYS+dedup keysToClean, DONE_KEY v59→v60). Trip form: royalty slip rows (material murum/boulder + brass + ETP no.); destination auto-derives (internal→site, external→customer). Slips saved per-record via _fbWrite (Rule 9); edit-removed slips tombstoned via _recordDeletion. New 'Royalty (ETP) Register' option in Trips report dropdown (no Rule 8 risk — inside existing trips block) with material/destination/status filters, issued↔un-issued per-slip toggle (setRoyaltyIssued, per-record _fbWrite), summary tiles + print/PDF block. | V79 FIX (real): dailyReports added to LS_NO_CACHE so Firebase stores it keyed-by-id; was numeric array via StartupMerge full-array write so per-id DELETE no-opped and DPR resurrected; dedup keysToClean + DONE_KEY v58 to v59 repairs existing data. V78 (superseded): DPR resurrection — load-time tombstone filter on dailyReports + deleteDPR updates localStorage cache (root cause: dailyReports cached in localStorage, stale copy reloaded deleted DPR on refresh). | V77 FIX: dip/readings resurrection bug — 'readings' moved into LS_NO_CACHE keyed-object family (V57 pattern); 4 sv('readings',array) writes converted to per-record _fbWrite (Rule 9); delReading sv() removed (was re-corrupting keyed shape & defeating delete); dedup DONE_KEY v57→v58 to re-run array→keyed repair once per device -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1139,6 +1140,7 @@ input[type=file]{display:none}
     <button class="tb-back" id="proj-det-edit" onclick="openEditProject()" title="Edit project" style="font-size:18px">✎</button>
   </div>
   <div id="proj-det-summary" style="padding:10px 12px"></div>
+  <div id="proj-dpr-history" style="padding:0 12px"></div>
   <div class="sec-lbl" style="display:flex;justify-content:space-between;align-items:center">
     <span>Schedule B — BOQ</span>
     <span id="proj-boq-total" style="font-size:11px;color:var(--amber);font-weight:700"></span>
@@ -1190,7 +1192,7 @@ input[type=file]{display:none}
 <!-- ═══ DPR WIZARD (Build A) ═══ -->
 <div class="screen" id="scr-dpr-wizard">
   <div class="topbar">
-    <button class="tb-back" onclick="show('scr-dpr-pick')">‹</button>
+    <button class="tb-back" onclick="_dprWizBack()">‹</button>
     <div style="flex:1;min-width:0"><div class="tb-title" id="dpr-wiz-title" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">DPR</div><div class="tb-sub" id="dpr-wiz-sub"></div></div>
   </div>
   <div style="display:flex;gap:6px;padding:10px 14px 6px" id="dpr-dots"></div>
@@ -1716,11 +1718,11 @@ input[type=file]{display:none}
 // ════════════════════════════════════
 // STORAGE
 // ════════════════════════════════════
-const SK={users:'fl7_users',fleet:'fl7_fleet',disbs:'fl7_disbs',readings:'fl7_readings',purchases:'fl7_purchases',pumps:'fl7_pumps',pumpFills:'fl7_pumpFills',sites:'fl7_sites',drivers:'fl7_drivers',musters:'fl7_musters',checklistTemplates:'fl7_clTemplates',checklistRecords:'fl7_clRecords',trips:'fl7_trips',customers:'fl7_customers',materials:'fl7_materials',staff:'fl7_staff',staffMusters:'fl7_staffMusters',pumpPayments:'fl7_pumpPayments',projects:'fl7_projects',boqItems:'fl7_boqItems',workEntries:'fl7_workEntries',subcontractors:'fl7_subcontractors',subContracts:'fl7_subContracts',dailyReports:'fl7_dailyReports'};
+const SK={users:'fl7_users',fleet:'fl7_fleet',disbs:'fl7_disbs',readings:'fl7_readings',purchases:'fl7_purchases',pumps:'fl7_pumps',pumpFills:'fl7_pumpFills',sites:'fl7_sites',drivers:'fl7_drivers',musters:'fl7_musters',checklistTemplates:'fl7_clTemplates',checklistRecords:'fl7_clRecords',trips:'fl7_trips',customers:'fl7_customers',materials:'fl7_materials',staff:'fl7_staff',staffMusters:'fl7_staffMusters',pumpPayments:'fl7_pumpPayments',projects:'fl7_projects',boqItems:'fl7_boqItems',workEntries:'fl7_workEntries',subcontractors:'fl7_subcontractors',subContracts:'fl7_subContracts',dailyReports:'fl7_dailyReports',gangs:'fl7_gangs',dailyLabour:'fl7_dailyLabour',royalty:'fl7_royalty'};
 // Keys too large to cache in localStorage (Safari 5MB limit).
 // These are loaded fresh from Firebase on every login — no need to persist locally.
 // V54 FIX: LS_NO_CACHE must be declared BEFORE ld() and sv() reference it.
-const LS_NO_CACHE = new Set(['disbs','purchases','pumpFills','musters','staffMusters','checklistRecords','pumpPayments']);
+const LS_NO_CACHE = new Set(['disbs','purchases','pumpFills','musters','staffMusters','checklistRecords','pumpPayments','dailyLabour','readings','dailyReports','royalty']);
 // V54: ld() returns [] for LS_NO_CACHE keys — prevents stale localStorage data
 // (e.g. old purchases balance) from overriding Firebase on startup/deploy.
 const ld=k=>{if(LS_NO_CACHE.has(k))return[];try{return JSON.parse(localStorage.getItem(SK[k])||'[]')}catch{return[]}};
@@ -1776,7 +1778,7 @@ function _updateSyncBadge(){
 }
 
 // Keys containing transactional records — must MERGE, never overwrite with fewer entries
-const MERGE_KEYS = new Set(['disbs','pumpFills','purchases','readings','musters','trips','checklistRecords','staffMusters','pumpPayments','workEntries','dailyReports']);
+const MERGE_KEYS = new Set(['disbs','pumpFills','purchases','readings','musters','trips','checklistRecords','staffMusters','pumpPayments','workEntries','dailyReports','dailyLabour','royalty']);
 
 // Actual Firebase PUT with merge protection
 async function _fbWrite(key, value){
@@ -1811,6 +1813,7 @@ async function _fbWrite(key, value){
               else if(key==='musters') musters=writeValue;
               else if(key==='staffMusters') staffMusters=writeValue;
               else if(key==='trips') trips=writeValue.map(_normalizeTrip);
+              else if(key==='dailyLabour') dailyLabour=writeValue;
               console.log('[Merge] '+key+': preserved '+missing.length+' remote entries');
             }
             // Log any tombstoned IDs we're suppressing (helps debugging)
@@ -1977,7 +1980,13 @@ window.addEventListener('beforeunload', (e) => {
     return e.returnValue;
   }
 });
-let users=ld('users'),fleet=ld('fleet'),disbs=ld('disbs'),readings=ld('readings'),purchases=ld('purchases'),pumps=ld('pumps'),pumpFills=ld('pumpFills'),sites=ld('sites'),drivers=ld('drivers'),musters=ld('musters'),checklistTemplates=ld('checklistTemplates'),checklistRecords=ld('checklistRecords'),trips=ld('trips'),customers=ld('customers'),materials=ld('materials'),staff=ld('staff'),staffMusters=ld('staffMusters'),pumpPayments=ld('pumpPayments'),projects=ld('projects'),boqItems=ld('boqItems'),workEntries=ld('workEntries'),subcontractors=ld('subcontractors'),subContracts=ld('subContracts'),dailyReports=ld('dailyReports');
+let users=ld('users'),fleet=ld('fleet'),disbs=ld('disbs'),readings=ld('readings'),purchases=ld('purchases'),pumps=ld('pumps'),pumpFills=ld('pumpFills'),sites=ld('sites'),drivers=ld('drivers'),musters=ld('musters'),checklistTemplates=ld('checklistTemplates'),checklistRecords=ld('checklistRecords'),trips=ld('trips'),customers=ld('customers'),materials=ld('materials'),staff=ld('staff'),staffMusters=ld('staffMusters'),pumpPayments=ld('pumpPayments'),projects=ld('projects'),boqItems=ld('boqItems'),workEntries=ld('workEntries'),subcontractors=ld('subcontractors'),subContracts=ld('subContracts'),dailyReports=ld('dailyReports'),gangs=ld('gangs'),dailyLabour=ld('dailyLabour'),royalty=ld('royalty');
+
+// V77 FIX (DPR resurrection): deleteDPR removes from memory + Firebase + tombstones,
+// but dailyReports is cached in localStorage (not LS_NO_CACHE), so a hard-refresh
+// reloaded the stale cached copy that still held the deleted DPR. Strip any
+// locally-tombstoned ids on load. No Firebase write — purely hides deleted records.
+try { const _dprTomb=_getTombstones('dailyReports'); if(_dprTomb.size) dailyReports=(dailyReports||[]).filter(x=>x&&x.id&&!_dprTomb.has(x.id)); } catch(e){}
 
 
 // Bowser stock = total purchased into bowser minus total dispensed from bowser
@@ -2956,12 +2965,12 @@ function submitDriverChecklist(){
 // ════════════════════════════════════
 async function _fbDedupeCleanup(){
   if((!isOwner()&&!isAdmin())||!fbOnline) return;
-  const DONE_KEY='fl7_dedup_done_v57';
+  const DONE_KEY='fl7_dedup_done_v60';
   if(localStorage.getItem(DONE_KEY)==='1') return;
   console.log('[DedupV57] Starting one-time Firebase dedup + keyed-format cleanup...');
   const keysToClean=[
     'disbs','purchases','pumpFills','musters',
-    'staffMusters','checklistRecords','readings','trips','pumpPayments'
+    'staffMusters','checklistRecords','readings','trips','pumpPayments','dailyReports','royalty'
   ];
   let totalCleaned=0;
   for(const k of keysToClean){
@@ -3038,7 +3047,7 @@ function renderHome(){
   applyTheme(); // ensure theme button icon is set
   // Update top bar
   document.getElementById('home-tag').textContent=
-    new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})+' · Chiddarwar Construction · V69';
+    new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})+' · Chiddarwar Construction · V80';
   document.getElementById('sess-who').textContent=sess.name;
   document.getElementById('sess-bdg').innerHTML=`<span class="bdg ${rBdg(sess.role)}">${rLbl(sess.role)}</span>`;
   // Show/hide bottom nav tabs based on role
@@ -3588,9 +3597,6 @@ function renderFleetTab(el){
     <div class="act" onclick="if(!isOwner()){alert('Owner only');return;}show('scr-staff')">
       <div class="act-ico">🧑‍🤝‍🧑</div><div class="act-txt"><div class="act-title">STAFF MASTER</div><div class="act-desc">Gangs · Office · Daily Wage</div></div><div class="act-arr">›</div>
     </div>
-    <div class="act" onclick="show('scr-projects')">
-      <div class="act-ico">📐</div><div class="act-txt"><div class="act-title">PROJECTS</div><div class="act-desc">BOQ · Work done · Progress</div></div><div class="act-arr">›</div>
-    </div>
     <div class="act" onclick="show('scr-subs')">
       <div class="act-ico">👷</div><div class="act-txt"><div class="act-title">SUBCONTRACTORS</div><div class="act-desc">Item-rate labour · weekly payment</div></div><div class="act-arr">›</div>
     </div>
@@ -3705,6 +3711,11 @@ function renderMoreTab(el){
     <div class="act prim" onclick="openDPRPicker()" style="border:2px solid var(--amber)">
       <div class="act-ico">📋</div><div class="act-txt"><div class="act-title">FILE TODAY'S DPR</div><div class="act-desc">Machinery · Labour · Work done — for ${today()?fmtD(today()):'today'}</div></div><div class="act-arr">›</div>
     </div>
+    ${isOwner()||isAdmin()||isManager()?`
+    <div class="sec-lbl">Projects</div>
+    <div class="act" onclick="show('scr-projects')">
+      <div class="act-ico">📐</div><div class="act-txt"><div class="act-title">PROJECTS</div><div class="act-desc">BOQ · Work done · Progress · DPR history</div></div><div class="act-arr">›</div>
+    </div>`:''}
     ${isOwner()||isAdmin()||isManager()?`
     <div class="sec-lbl">Tracking & Review</div>
     <div class="act" onclick="showAuditLog()">
@@ -3906,6 +3917,7 @@ function openTripEntry(editId){
   // Reset state for fresh form
   window._tripSlipChips = null; // will be re-initialized from editing data
   window._tripMiscCharges = null; // will be re-initialized from editing data
+  window._tripRoyaltyRows = null; // V80: re-initialized from royalty collection
   window._tripSelDriverId = editing?.driverId || '';
   window._tripSelVehId = editing?.vehicleId || '';
   document.getElementById('trip-entry-title').textContent=editing?'EDIT TRIP':'NEW TRIP';
@@ -3933,6 +3945,7 @@ function openChargeForCustomer(custId){
   };
   window._tripSlipChips = null;
   window._tripMiscCharges = null;
+  window._tripRoyaltyRows = null;
   window._tripSelDriverId = '';
   window._tripSelVehId = '';
   document.getElementById('trip-entry-title').textContent='ADD CHARGE — '+c.name;
@@ -3957,6 +3970,16 @@ function renderTripEntryForm(editing){
   // Initialize misc charges array from existing data
   if(!Array.isArray(window._tripMiscCharges)){
     window._tripMiscCharges = Array.isArray(e.miscCharges) ? e.miscCharges.map(m=>({label:m.label||'',amount:Number(m.amount)||0,gstable:!!m.gstable})) : [];
+  }
+
+  // Initialize royalty rows (V80) — slips live in separate `royalty` collection, keyed by tripId
+  if(!Array.isArray(window._tripRoyaltyRows)){
+    const editId=_tripEntryState.editId;
+    if(editId){
+      window._tripRoyaltyRows=(royalty||[]).filter(r=>r.tripId===editId).map(r=>({id:r.id,material:r.material||'murum',brass:Number(r.brass)||0,etpNo:r.etpNo||'',issued:!!r.issued,ts:r.ts}));
+    } else {
+      window._tripRoyaltyRows=[];
+    }
   }
 
   // Initialize driver and vehicle selections
@@ -4109,9 +4132,19 @@ function renderTripEntryForm(editing){
     <div class="f-field"><label class="f-lbl">Driver Incentive ₹ (total)</label><input class="f-inp" id="trip-incentive" type="number" inputmode="decimal" value="${e.driverIncentive||''}" placeholder="0"></div>
 
     <div class="f-field"><label class="f-lbl">Remarks</label><textarea class="f-inp" id="trip-remarks" rows="2" style="resize:vertical">${e.remarks||''}</textarea></div>
+
+    <!-- ROYALTY SLIPS (V80) — each row: material + brass + ETP number. Destination follows trip (site for internal, customer for external). Issued status set later in report. -->
+    <div class="f-field" style="border:1.5px dashed var(--amber);border-radius:12px;padding:10px 12px;background:rgba(255,179,0,.04)">
+      <label class="f-lbl" style="color:var(--amber)">⛏ Royalty Slips (ETP)</label>
+      <div style="font-size:10px;color:var(--muted);font-weight:600;margin-bottom:8px">Add one row per royalty slip. Each slip has its own ETP number. Quantity need not match the trip load.</div>
+      <div id="trip-royalty-list"></div>
+      <button type="button" onclick="addRoyaltyRow()" style="margin-top:6px;width:100%;background:var(--bg3);border:1.5px solid var(--amber);color:var(--amber);font-family:var(--fb);font-weight:700;font-size:12px;padding:9px;border-radius:8px;cursor:pointer">+ Add Royalty Slip</button>
+    </div>
   `;
   // Render initial slip chips
   renderSlipChips();
+  // Render royalty rows (V80)
+  renderRoyaltyRows();
   // Render misc charges (if any) and refresh totals
   if(movementType==='external'){
     renderMiscCharges();
@@ -4243,6 +4276,48 @@ function removeSlipChip(idx){
   if(!window._tripSlipChips) return;
   window._tripSlipChips.splice(idx,1);
   renderSlipChips();
+}
+
+// ── ROYALTY ROWS (V80) ──
+function renderRoyaltyRows(){
+  const wrap=document.getElementById('trip-royalty-list');
+  if(!wrap) return;
+  const rows=window._tripRoyaltyRows||[];
+  if(rows.length===0){
+    wrap.innerHTML='<div style="color:var(--muted);font-size:11px;font-weight:600;padding:4px 0">No royalty slips. Tap below to add one.</div>';
+    return;
+  }
+  wrap.innerHTML=rows.map((r,i)=>`
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap">
+      <select onchange="updateRoyaltyRow(${i},'material',this.value)" style="flex:1;min-width:90px;background:var(--bg2);border:1px solid var(--border);color:var(--white);padding:8px;border-radius:6px;font-size:12px;font-family:var(--fb)">
+        <option value="murum"${r.material==='murum'?' selected':''}>Murum</option>
+        <option value="boulder"${r.material==='boulder'?' selected':''}>Boulder</option>
+      </select>
+      <input type="number" inputmode="decimal" placeholder="Brass" value="${r.brass||''}" onchange="updateRoyaltyRow(${i},'brass',this.value)" style="width:70px;background:var(--bg2);border:1px solid var(--border);color:var(--white);padding:8px;border-radius:6px;font-size:12px;font-family:var(--fb)">
+      <input type="text" placeholder="ETP No." value="${r.etpNo||''}" onchange="updateRoyaltyRow(${i},'etpNo',this.value)" style="flex:1;min-width:90px;background:var(--bg2);border:1px solid var(--border);color:var(--white);padding:8px;border-radius:6px;font-size:12px;font-family:var(--fb)">
+      <span onclick="removeRoyaltyRow(${i})" style="cursor:pointer;color:var(--red);font-weight:700;font-size:16px;padding:0 4px">✕</span>
+    </div>
+  `).join('');
+}
+
+function addRoyaltyRow(){
+  if(!Array.isArray(window._tripRoyaltyRows)) window._tripRoyaltyRows=[];
+  // Prefill material from previous row for fast entry
+  const prev=window._tripRoyaltyRows[window._tripRoyaltyRows.length-1];
+  window._tripRoyaltyRows.push({id:uid(),material:prev?prev.material:'murum',brass:0,etpNo:'',issued:false,ts:Date.now()});
+  renderRoyaltyRows();
+}
+
+function removeRoyaltyRow(idx){
+  if(!window._tripRoyaltyRows) return;
+  window._tripRoyaltyRows.splice(idx,1);
+  renderRoyaltyRows();
+}
+
+function updateRoyaltyRow(idx,field,value){
+  if(!window._tripRoyaltyRows||!window._tripRoyaltyRows[idx]) return;
+  if(field==='brass') window._tripRoyaltyRows[idx][field]=parseFloat(value)||0;
+  else window._tripRoyaltyRows[idx][field]=String(value||'').trim();
 }
 
 function onSlipKeyDown(e){
@@ -4590,6 +4665,46 @@ async function saveTrip(){
       flash(movementType==='external'?'✅ TRIP SAVED':'✅ INTERNAL TRIP','Recorded successfully');
     }
   }
+  // ── ROYALTY SLIPS (V80) — persist per-record to separate `royalty` collection (Rule 9) ──
+  {
+    const rRows=(window._tripRoyaltyRows||[]).filter(r=>r.etpNo||r.brass);
+    const tripIdForRoyalty=trip.id;
+    const toType=movementType==='internal'?'site':'customer';
+    const toId=movementType==='internal'?toSiteId:customerId;
+    // On edit: delete royalty slips that were removed from the form (tombstone, never sv full array)
+    if(editId){
+      const existing=(royalty||[]).filter(r=>r.tripId===editId);
+      const keptIds=new Set(rRows.map(r=>r.id));
+      existing.forEach(ex=>{
+        if(!keptIds.has(ex.id)){
+          _recordDeletion('royalty',ex.id);
+          const ri=royalty.findIndex(x=>x.id===ex.id);
+          if(ri!==-1) royalty.splice(ri,1);
+        }
+      });
+    }
+    rRows.forEach(r=>{
+      const existingRec=(royalty||[]).find(x=>x.id===r.id);
+      const rec={
+        id:r.id,
+        tripId:tripIdForRoyalty,
+        date:date,
+        material:r.material||'murum',
+        brass:Number(r.brass)||0,
+        etpNo:String(r.etpNo||'').trim(),
+        toType,toId,
+        issued:existingRec?!!existingRec.issued:!!r.issued,
+        issuedAt:existingRec?(existingRec.issuedAt||null):null,
+        issuedByName:existingRec?(existingRec.issuedByName||null):null,
+        loggedBy:existingRec?existingRec.loggedBy:sess.userId,
+        loggedByName:existingRec?existingRec.loggedByName:sess.name,
+        ts:existingRec?existingRec.ts:(r.ts||Date.now())
+      };
+      const idx=(royalty||[]).findIndex(x=>x.id===r.id);
+      if(idx!==-1) royalty[idx]=rec; else royalty.push(rec);
+      _fbWrite('royalty/'+rec.id,rec);
+    });
+  }
   sv('trips',trips);
   show('scr-home');
   bnavTab('trips');
@@ -4636,6 +4751,20 @@ function markTripPaid(tripId){
   flash('✅ PAYMENT RECORDED','₹'+fmt(amt,0)+' marked paid');
   if(typeof renderReports==='function') renderReports();
   if(typeof renderCustomers==='function' && document.getElementById('cust-list')) renderCustomers();
+}
+
+// ── ROYALTY: toggle issued/un-issued status (V80) — per-record _fbWrite (Rule 9) ──
+function setRoyaltyIssued(slipId,value){
+  if(!canTripEnter()){alert('Not authorized');return;}
+  const r=(royalty||[]).find(x=>x.id===slipId);
+  if(!r){alert('Slip not found');return;}
+  const nowIssued=(value==='issued');
+  r.issued=nowIssued;
+  r.issuedAt=nowIssued?Date.now():null;
+  r.issuedByName=nowIssued?sess.name:null;
+  _fbWrite('royalty/'+r.id,r);
+  flash(nowIssued?'✓ ISSUED':'↩ UN-ISSUED','ETP '+(r.etpNo||'')+' updated');
+  if(typeof renderReports==='function') renderReports();
 }
 
 function showTripLog(){
@@ -7432,7 +7561,8 @@ function saveReadingMach(vehId){
     flash('READING SAVED!',veh?.name||'');
   }
   window._readingEditId=null;
-  sv('readings',readings);
+  // V77 FIX: per-record keyed write (Rule 9) — never sv() full array for LS_NO_CACHE 'readings'
+  _fbWrite('readings/'+record.id, record);
   show('scr-readings');
 }
 
@@ -7464,7 +7594,8 @@ function saveReadingRoad(vehId){
     flash('READING SAVED!',veh?.name||'');
   }
   window._readingEditId=null;
-  sv('readings',readings);
+  // V77 FIX: per-record keyed write (Rule 9) — never sv() full array for LS_NO_CACHE 'readings'
+  _fbWrite('readings/'+record.id, record);
   show('scr-readings');
 }
 
@@ -7571,7 +7702,7 @@ function delReading(id){
   const r=readings.find(x=>x.id===id);
   const veh=gV(r?.vehicleId);
   showConfirm('Delete reading for "'+veh?.name+'"?',()=>{
-    _recordDeletion('readings',id);readings=readings.filter(x=>x.id!==id);sv('readings',readings);renderReports();
+    _recordDeletion('readings',id);readings=readings.filter(x=>x.id!==id);renderReports();
     flash('DELETED!','Reading removed');
   });
 }
@@ -8914,6 +9045,7 @@ function renderReports(){
         <option value="incentives"${reportType==='incentives'?' selected':''}>💰 Driver Incentive Register</option>
         <option value="dispatch"${reportType==='dispatch'?' selected':''}>🏗 Site Dispatch Log</option>
         <option value="dues"${reportType==='dues'?' selected':''}>⚠️ Outstanding Dues</option>
+        <option value="royalty"${reportType==='royalty'?' selected':''}>⛏ Royalty (ETP) Register</option>
       </select>
     </div>
     <div style="height:8px"></div>`;
@@ -9360,6 +9492,93 @@ function renderReports(){
             <div style="color:var(--muted);font-size:18px">›</div>
           </div>`;
         }).join(''):'<div class="muted-txt" style="padding:40px;text-align:center">No outstanding dues 🎉</div>'}`;
+      }
+    } else if(reportType==='royalty'){
+      // ── ROYALTY (ETP) REGISTER (V80) ──
+      if(typeof window._royMatFilter==='undefined') window._royMatFilter='all';
+      if(typeof window._royDestFilter==='undefined') window._royDestFilter='all';
+      if(typeof window._royIssFilter==='undefined') window._royIssFilter='all';
+
+      // Slips in date range (by slip date)
+      let slips=(royalty||[]).filter(r=>r.date>=range.from&&r.date<=range.to);
+      if(window._royMatFilter!=='all') slips=slips.filter(r=>r.material===window._royMatFilter);
+      if(window._royDestFilter!=='all') slips=slips.filter(r=>(r.toType+':'+r.toId)===window._royDestFilter);
+      if(window._royIssFilter==='issued') slips=slips.filter(r=>r.issued);
+      else if(window._royIssFilter==='unissued') slips=slips.filter(r=>!r.issued);
+      slips.sort((a,b)=>(b.ts||0)-(a.ts||0));
+
+      // Destination label helper
+      const destLabel=r=>{
+        if(r.toType==='site'){ const s=(sites||[]).find(x=>x.id===r.toId); return s?s.name:'(site)'; }
+        const c=(customers||[]).find(x=>x.id===r.toId); return c?c.name:'(customer)';
+      };
+      // Build destination filter options from all slips in range (pre-filter)
+      const allInRange=(royalty||[]).filter(r=>r.date>=range.from&&r.date<=range.to);
+      const destMap={};
+      allInRange.forEach(r=>{ const k=r.toType+':'+r.toId; if(!destMap[k]) destMap[k]={key:k,label:destLabel(r)}; });
+      const destOpts=`<option value="all">All Destinations</option>`+Object.values(destMap).map(d=>`<option value="${d.key}"${d.key===window._royDestFilter?' selected':''}>${d.label}</option>`).join('');
+
+      // Totals
+      const murumBrass=slips.filter(r=>r.material==='murum').reduce((a,r)=>a+(r.brass||0),0);
+      const boulderBrass=slips.filter(r=>r.material==='boulder').reduce((a,r)=>a+(r.brass||0),0);
+      const issuedBrass=slips.filter(r=>r.issued).reduce((a,r)=>a+(r.brass||0),0);
+      const unissuedBrass=slips.filter(r=>!r.issued).reduce((a,r)=>a+(r.brass||0),0);
+
+      html+=`
+      <!-- Filters -->
+      <div style="margin:0 14px 8px">
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+          <span style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px;width:70px">MATERIAL</span>
+          <select onchange="window._royMatFilter=this.value;renderReports()" style="flex:1;min-width:0;background:var(--bg2);border:1px solid var(--border);color:var(--white);padding:7px 8px;border-radius:6px;font-size:12px;font-family:var(--fb)">
+            <option value="all"${window._royMatFilter==='all'?' selected':''}>All Materials</option>
+            <option value="murum"${window._royMatFilter==='murum'?' selected':''}>Murum</option>
+            <option value="boulder"${window._royMatFilter==='boulder'?' selected':''}>Boulder</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+          <span style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px;width:70px">ISSUED TO</span>
+          <select onchange="window._royDestFilter=this.value;renderReports()" style="flex:1;min-width:0;background:var(--bg2);border:1px solid var(--border);color:var(--white);padding:7px 8px;border-radius:6px;font-size:12px;font-family:var(--fb)">${destOpts}</select>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px;width:70px">STATUS</span>
+          <select onchange="window._royIssFilter=this.value;renderReports()" style="flex:1;min-width:0;background:var(--bg2);border:1px solid var(--border);color:var(--white);padding:7px 8px;border-radius:6px;font-size:12px;font-family:var(--fb)">
+            <option value="all"${window._royIssFilter==='all'?' selected':''}>All</option>
+            <option value="issued"${window._royIssFilter==='issued'?' selected':''}>Issued (submitted)</option>
+            <option value="unissued"${window._royIssFilter==='unissued'?' selected':''}>Un-issued (balance with us)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Summary -->
+      <div style="margin:0 14px 0;background:linear-gradient(135deg,rgba(255,179,0,.1),rgba(255,179,0,.02));border:1.5px solid var(--amber);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="text-align:center"><div style="font-family:var(--fh);font-size:18px;color:var(--white)">${fmt(murumBrass,2)}</div><div style="font-size:9px;color:var(--muted);font-weight:700">MURUM BRASS</div></div>
+        <div style="text-align:center"><div style="font-family:var(--fh);font-size:18px;color:var(--white)">${fmt(boulderBrass,2)}</div><div style="font-size:9px;color:var(--muted);font-weight:700">BOULDER BRASS</div></div>
+        <div style="text-align:center"><div style="font-family:var(--fh);font-size:16px;color:var(--green)">${fmt(issuedBrass,2)}</div><div style="font-size:9px;color:var(--muted);font-weight:700">ISSUED</div></div>
+        <div style="text-align:center"><div style="font-family:var(--fh);font-size:16px;color:var(--red)">${fmt(unissuedBrass,2)}</div><div style="font-size:9px;color:var(--muted);font-weight:700">BALANCE (UN-ISSUED)</div></div>
+      </div>
+      <div style="margin:6px 14px 0;font-size:10px;color:var(--muted);font-weight:600">${slips.length} slip${slips.length!==1?'s':''}</div>`;
+
+      if(slips.length===0){
+        html+='<div class="muted-txt" style="padding:40px;text-align:center">No royalty slips in this period</div>';
+      } else {
+        html+=slips.map(r=>{
+          const issued=!!r.issued;
+          const matColor=r.material==='boulder'?'#8d6e63':'var(--amber)';
+          return `<div style="margin:6px 14px 0;background:var(--bg2);border:1px solid var(--border);border-left:3px solid ${issued?'var(--green)':'var(--red)'};border-radius:10px;padding:10px 12px">
+            <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
+              <div style="flex:1">
+                <div style="font-family:var(--fh);font-size:13px;color:var(--white)">ETP ${r.etpNo||'—'} · <span style="color:${matColor}">${r.material==='boulder'?'Boulder':'Murum'}</span> · ${fmt(r.brass,2)} brass</div>
+                <div style="font-size:10px;color:var(--muted)">${fmtD(r.date)} · → ${destLabel(r)}</div>
+              </div>
+              <div style="min-width:118px">
+                <select onchange="setRoyaltyIssued('${r.id}',this.value)" style="width:100%;background:${issued?'rgba(0,200,83,.1)':'rgba(255,61,61,.08)'};border:1px solid ${issued?'var(--green)':'var(--red)'};color:${issued?'var(--green)':'var(--red)'};padding:5px 6px;border-radius:6px;font-size:11px;font-weight:700;font-family:var(--fb)">
+                  <option value="unissued"${!issued?' selected':''}>Un-issued</option>
+                  <option value="issued"${issued?' selected':''}>✓ Issued</option>
+                </select>
+              </div>
+            </div>
+          </div>`;
+        }).join('');
       }
     }
 
@@ -10180,7 +10399,7 @@ function exportRepPDF(){
       @media print{body{padding:10px}}</style>`;
 
     const tripHeader=`<div class="header"><h1>📦 TRIPS — ${
-      reportType==='register'?'TRIP REGISTER':reportType==='customers'?'CUSTOMER-WISE SUMMARY':reportType==='materials'?'MATERIAL-WISE SUMMARY':reportType==='incentives'?'DRIVER INCENTIVE REGISTER':reportType==='dispatch'?'SITE DISPATCH LOG':'OUTSTANDING DUES'
+      reportType==='register'?'TRIP REGISTER':reportType==='customers'?'CUSTOMER-WISE SUMMARY':reportType==='materials'?'MATERIAL-WISE SUMMARY':reportType==='incentives'?'DRIVER INCENTIVE REGISTER':reportType==='dispatch'?'SITE DISPATCH LOG':reportType==='royalty'?'ROYALTY (ETP) REGISTER':'OUTSTANDING DUES'
     }</h1><div style="color:#666;font-size:10px;margin-top:4px">Chiddarwar Construction Co. Pvt. Ltd. · Period: ${repFmtRange(range)} · Generated: ${new Date().toLocaleString('en-IN')}</div></div>`;
 
     const tripPrintBar=`<div style="background:#111;padding:8px 16px;display:flex;gap:8px;align-items:center;position:sticky;top:0;z-index:100" class="no-print">
@@ -10291,6 +10510,31 @@ function exportRepPDF(){
         <td>${oldest?fmtD(oldest.date):'—'}</td></tr>`).join('')}
       </tbody>
       <tfoot><tr style="background:#ffebee;font-weight:700"><td colspan="2">TOTAL OUTSTANDING</td><td class="right" style="color:#c62828">${fmtINR(dueList.reduce((a,x)=>a+x.due,0))}</td><td colspan="2"></td></tr></tfoot></table>`;
+    } else if(reportType==='royalty'){
+      const _matF=window._royMatFilter||'all', _destF=window._royDestFilter||'all', _issF=window._royIssFilter||'all';
+      let slips=(royalty||[]).filter(r=>r.date>=range.from&&r.date<=range.to);
+      if(_matF!=='all') slips=slips.filter(r=>r.material===_matF);
+      if(_destF!=='all') slips=slips.filter(r=>(r.toType+':'+r.toId)===_destF);
+      if(_issF==='issued') slips=slips.filter(r=>r.issued); else if(_issF==='unissued') slips=slips.filter(r=>!r.issued);
+      slips.sort((a,b)=>(a.date.localeCompare(b.date))||((a.ts||0)-(b.ts||0)));
+      const _destLabel=r=>{ if(r.toType==='site'){const s=(sites||[]).find(x=>x.id===r.toId);return s?s.name:'(site)';} const c=(customers||[]).find(x=>x.id===r.toId);return c?c.name:'(customer)'; };
+      const murumB=slips.filter(r=>r.material==='murum').reduce((a,r)=>a+(r.brass||0),0);
+      const boulderB=slips.filter(r=>r.material==='boulder').reduce((a,r)=>a+(r.brass||0),0);
+      const issB=slips.filter(r=>r.issued).reduce((a,r)=>a+(r.brass||0),0);
+      const unissB=slips.filter(r=>!r.issued).reduce((a,r)=>a+(r.brass||0),0);
+      tripBody+=`<h2>Royalty (ETP) Register</h2>
+      <table><thead><tr><th>Date</th><th>ETP No.</th><th>Material</th><th class="right">Brass</th><th>Issued To</th><th>Status</th></tr></thead>
+      <tbody>${slips.map(r=>`
+        <tr><td>${fmtD(r.date)}</td><td><b>${r.etpNo||'—'}</b></td><td>${r.material==='boulder'?'Boulder':'Murum'}</td>
+        <td class="right">${fmt(r.brass,2)}</td><td>${_destLabel(r)}</td>
+        <td style="color:${r.issued?'green':'#c62828'};font-weight:700">${r.issued?'Issued':'Un-issued'}</td></tr>`).join('')}
+      </tbody>
+      <tfoot>
+        <tr style="background:#fff8e1;font-weight:700"><td colspan="3">MURUM TOTAL</td><td class="right">${fmt(murumB,2)}</td><td colspan="2"></td></tr>
+        <tr style="background:#fff8e1;font-weight:700"><td colspan="3">BOULDER TOTAL</td><td class="right">${fmt(boulderB,2)}</td><td colspan="2"></td></tr>
+        <tr style="background:#e8f5e9;font-weight:700"><td colspan="3">ISSUED (submitted)</td><td class="right" style="color:green">${fmt(issB,2)}</td><td colspan="2"></td></tr>
+        <tr style="background:#ffebee;font-weight:700"><td colspan="3">BALANCE (un-issued, with us)</td><td class="right" style="color:#c62828">${fmt(unissB,2)}</td><td colspan="2"></td></tr>
+      </tfoot></table>`;
     }
 
     tripBody+=`<div class="footer">Trips Report · ${repFmtRange(range)} · Chiddarwar Construction Co. Pvt. Ltd.</div>`;
@@ -10432,7 +10676,8 @@ async function saveEditMain(){
         editedBy:sess.userId,editedByName:sess.name,editedAt:Date.now(),
       };
     }
-    sv('readings',readings);
+    // V77 FIX: per-record keyed write (Rule 9) — never sv() full array for LS_NO_CACHE 'readings'
+    _fbWrite('readings/'+id, readings[idx]);
     flash('UPDATED!','Reading updated');
     closeEditModal();
     renderReports();
@@ -10823,6 +11068,7 @@ function openProject(id){
   document.getElementById('proj-boq-controls').style.display=isOwner()?'':'none';
   _boqSearch=''; _boqCatFilter='';
   _dprReturn=false;
+  _dprFromHistory=false;
   renderProjectDetail();
   show('scr-project-detail');
 }
@@ -10847,6 +11093,7 @@ function renderProjectDetail(){
       </div>`:''}
     </div>`;
   document.getElementById('proj-boq-total').textContent=boq.length?_inr(boqTot):'';
+  renderDPRHistory();
   // BOQ list
   const el=document.getElementById('proj-boq-list');
   if(!boq.length){
@@ -10897,6 +11144,143 @@ function renderProjectDetail(){
   }).join('');
 }
 
+// ═══ V71: OWNER/MANAGER DPR HISTORY (Project detail) ═══
+let _dprFromHistory=false;   // true when a DPR is opened from project-detail history (controls back nav)
+
+function _dprStatusBadge(st){
+  st=st||'draft';
+  if(st==='verified') return '<span style="font-size:10px;font-weight:700;color:var(--blue);border:1px solid var(--blue);border-radius:6px;padding:1px 7px">VERIFIED</span>';
+  if(st==='submitted') return '<span style="font-size:10px;font-weight:700;color:var(--green);border:1px solid var(--green);border-radius:6px;padding:1px 7px">SUBMITTED</span>';
+  return '<span style="font-size:10px;font-weight:700;color:var(--amber);border:1px solid var(--amber);border-radius:6px;padding:1px 7px">DRAFT</span>';
+}
+
+// Renders the DPR history block inside project detail. Manager+ only; site-sup sees nothing.
+function renderDPRHistory(){
+  const host=document.getElementById('proj-dpr-history');
+  if(!host) return;
+  if(!isManager()){ host.innerHTML=''; return; }   // site-sup / driver: no history access
+  const p=projects.find(x=>x.id===_curProjectId); if(!p){ host.innerHTML=''; return; }
+  const list=(dailyReports||[]).filter(d=>d.projectId===p.id).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const rows=list.length?list.map(d=>{
+    const edited=d.editedTs?` · <span style="color:var(--amber);font-size:10px">edited</span>`:'';
+    const nMach=(d.machinery||[]).length;
+    const nLab=(d.labour||[]).length;
+    const nWork=(workEntries||[]).filter(w=>w.projectId===p.id&&w.date===d.date).length;
+    const delBtn=isAdmin()?`<div onclick="event.stopPropagation();deleteDPR('${d.id}')" style="flex:none;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:9px;color:var(--red);font-size:15px;margin-left:6px" title="Delete DPR (Owner)">🗑</div>`:'';
+    return `<div class="act" onclick="openDPRForEdit('${d.id}')" style="align-items:center;margin-bottom:6px">
+      <div class="act-ico">📋</div>
+      <div class="act-txt" style="flex:1;min-width:0">
+        <div class="act-title" style="white-space:normal">${fmtD(d.date)}${d.date===today()?' · today':''}</div>
+        <div class="act-desc">⚙️ ${nMach} · 👷 ${nLab} · 📐 ${nWork}${edited}</div>
+        <div style="margin-top:4px">${_dprStatusBadge(d.status)}</div>
+      </div>${delBtn}<div class="act-arr">›</div>
+    </div>`;
+  }).join(''):'<div style="padding:10px 4px;color:var(--muted);font-size:12px">No DPRs recorded yet.</div>';
+  const backdateBtn=isAdmin()?`<button class="big-btn bb-cancel" style="width:100%;height:38px;font-size:13px;margin-bottom:8px" onclick="openBackdateDPR()">+ Backdated DPR (Owner)</button>`:'';
+  host.innerHTML=`<div class="sec-lbl" style="margin-top:4px">Daily Progress Reports</div>${backdateBtn}${rows}`;
+}
+
+// Owner-only: delete a DPR. Uses tombstone path (MERGE_KEYS collection) — NOT sv() array overwrite.
+// SAFE-DELETE: only an EMPTY DPR may be deleted. If the DPR has spawned any linked records —
+// fuel disbursements / machine readings (linked by dprId) or work-done entries (linked by
+// project+date) — deletion is blocked so those records never become orphans. Owner must clear
+// the entries inside the DPR first.
+function deleteDPR(id){
+  if(!isAdmin()){ alert('Only Owner can delete a DPR'); return; }
+  const d=(dailyReports||[]).find(x=>x.id===id);
+  if(!d) return;
+  const p=projects.find(x=>x.id===d.projectId);
+  const label=`${fmtD(d.date)}${d.date===today()?' · today':''}${p?(' · '+p.name):''}`;
+  // Count linked child data
+  const nMach=(d.machinery||[]).length;
+  const nLab=(d.labour||[]).length;
+  const nFuel=(disbs||[]).filter(x=>x.dprId===id).length;
+  const nRead=(readings||[]).filter(x=>x.dprId===id).length;
+  const nWork=(workEntries||[]).filter(w=>w.projectId===d.projectId && w.date===d.date).length;
+  if(nMach||nLab||nFuel||nRead||nWork){
+    const bits=[];
+    if(nMach) bits.push(nMach+' machine entr'+(nMach===1?'y':'ies'));
+    if(nFuel) bits.push(nFuel+' fuel record'+(nFuel===1?'':'s'));
+    if(nWork) bits.push(nWork+' work entr'+(nWork===1?'y':'ies'));
+    if(nLab)  bits.push(nLab+' labour entr'+(nLab===1?'y':'ies'));
+    alert('Cannot delete this DPR — it still has data attached:\n\n• '+bits.join('\n• ')+
+      '\n\nOpen the DPR, remove these entries first, then delete the empty DPR.\n\n(This protects your fuel ledger and work-done totals from leftover orphan records.)');
+    return;
+  }
+  showConfirm(`Delete this empty DPR?\n\n${label}\n\nThis cannot be undone.`,async function(){
+    _recordDeletion('dailyReports',id);
+    dailyReports=(dailyReports||[]).filter(x=>x.id!==id);
+    // V79: dailyReports is now LS_NO_CACHE (stored keyed-by-id in Firebase), so the
+    // per-id Firebase DELETE below targets the real path and the delete sticks.
+    // Delete the single record from Firebase (NOT a full-array sv() — Rule 9 safe).
+    // Without this the DPR resurrects on next sync, since _recordDeletion only tombstones locally.
+    try {
+      const token = await fbGetAuth();
+      const authParam = token ? 'auth='+token : 'auth='+FB_KEY;
+      await fetch(FB_URL+'/fuellog/dailyReports/'+id+'.json?'+authParam, {method:'DELETE'});
+    } catch(e){ console.warn('[deleteDPR] Firebase delete failed:', e); }
+    renderDPRHistory();
+    flash('DELETED!','DPR removed');
+  },'🗑','DELETE');
+}
+
+// Open an existing DPR into the wizard for editing (Manager+ view/edit; Owner can edit even verified).
+function openDPRForEdit(dprId){
+  if(!isManager()){ alert('Manager or Owner only'); return; }
+  const dpr=dailyReports.find(d=>d.id===dprId); if(!dpr){ alert('DPR not found'); return; }
+  // Owner-only override for verified DPRs
+  if(dpr.status==='verified' && !isAdmin()){
+    alert('This DPR is verified and locked. Only the Owner can edit a verified DPR.');
+    return;
+  }
+  _curDPRId=dpr.id;
+  _dprFromHistory=true;
+  _dprReturn=false;
+  _dprMach={};
+  (dpr.machinery||[]).forEach(m=>{ _dprMach[m.fleetId]=m; });
+  _dprStep=1;
+  renderDPRStep();
+  show('scr-dpr-wizard');
+}
+
+// Wizard back button — return to project detail when opened from history, else to picker.
+function _dprWizBack(){
+  if(_dprFromHistory){
+    _dprFromHistory=false;
+    renderProjectDetail();
+    show('scr-project-detail');
+  } else {
+    show('scr-dpr-pick');
+  }
+}
+
+// Owner-only: create a DPR for a PAST date, only if none exists for this project+date.
+function openBackdateDPR(){
+  if(!isAdmin()){ alert('Owner only'); return; }
+  const p=projects.find(x=>x.id===_curProjectId); if(!p){ alert('Project not found'); return; }
+  const d=prompt('Enter the backdated DPR date (YYYY-MM-DD).\nMust be a PAST date — today\u2019s DPR is created the normal way.');
+  if(d==null) return;
+  const dt=String(d).trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(dt)){ alert('Invalid format. Use YYYY-MM-DD, e.g. 2026-05-20'); return; }
+  if(dt>=today()){ alert('Backdate only. For today\u2019s DPR use the normal DPR flow.'); return; }
+  if(_findDPR(p.id,dt)){ alert('A DPR already exists for this project on '+fmtD(dt)+'. Open it from the history list to edit.'); return; }
+  const dpr={
+    id:uid(), projectId:p.id, siteId:p.siteId||'', date:dt,
+    status:'draft', machinery:[], labour:[],
+    loggedBy:sess.userId, loggedByName:sess.name, ts:Date.now(),
+    backdated:true, backdatedBy:sess.userId, backdatedByName:sess.name
+  };
+  dailyReports.push(dpr);
+  _fbWrite('dailyReports/'+dpr.id, dpr);   // append-only single-record write
+  _curDPRId=dpr.id;
+  _dprFromHistory=true;
+  _dprReturn=false;
+  _dprMach={};
+  _dprStep=1;
+  renderDPRStep();
+  show('scr-dpr-wizard');
+}
+
 // ========== WORK ENTRY FORM (build 1) ==========
 let _curWorkSubId='';
 let _editWorkId=null;   // V70: when editing an existing work entry (update-in-place)
@@ -10913,15 +11297,24 @@ function openWorkEntry(boqItemId){
   _workLines=[{nos:'',length:'',width:'',thickness:'',weight:'',desc:''}];
   _curWorkSubId='';
   renderWorkEntryForm();
-  // V70: if launched from DPR wizard, lock date to DPR date
+  // V71: launched from DPR wizard — HARD-LOCK date to the DPR date (read-only)
+  // so work can never be saved against the wrong day. Otherwise the form
+  // defaults to today, which silently mis-dated entries (e.g. 23rd DPR → 24th entry).
+  const dt=document.getElementById('we-date');
   if(_dprReturn){
     const dpr=_curDPR();
-    const dt=document.getElementById('we-date');
-    if(dt&&dpr){ dt.value=dpr.date; }
+    if(dt&&dpr){
+      dt.value=dpr.date;
+      dt.readOnly=true; dt.style.opacity='.6'; dt.style.pointerEvents='none';
+      dt.title='Locked to this DPR\u2019s date';
+    }
+  } else if(dt){
+    // free-standing work entry (project detail) — date editable
+    dt.readOnly=false; dt.style.opacity=''; dt.style.pointerEvents='';
   }
   show('scr-work-entry');
 }
-// V70: open the work-entry form to EDIT an existing record (site sup + Owner/Manager, draft only)
+// V71: open the work-entry form to EDIT an existing record (site sup + Owner/Manager, draft only)
 function editWorkEntry(id){
   const w=workEntries.find(x=>x.id===id); if(!w){alert('Entry not found');return;}
   const b=boqItems.find(x=>x.id===w.boqItemId); if(!b){alert('BOQ item not found');return;}
@@ -10937,7 +11330,18 @@ function editWorkEntry(id){
   }));
   if(!_workLines.length) _workLines=[{nos:'',length:'',width:'',thickness:'',weight:'',desc:''}];
   renderWorkEntryForm();
-  const dt=document.getElementById('we-date'); if(dt) dt.value=w.date||_todayISO();
+  const dt=document.getElementById('we-date');
+  if(dt){
+    dt.value=w.date||_todayISO();
+    // V71: if editing within a DPR, keep the date locked to the DPR date (read-only).
+    if(_dprReturn && _curDPR()){
+      dt.value=_curDPR().date;
+      dt.readOnly=true; dt.style.opacity='.6'; dt.style.pointerEvents='none';
+      dt.title='Locked to this DPR\u2019s date';
+    } else {
+      dt.readOnly=false; dt.style.opacity=''; dt.style.pointerEvents='';
+    }
+  }
   show('scr-work-entry');
 }
 function delWorkLine(i){ _readWorkLineInputs(); _workLines.splice(i,1); if(!_workLines.length) _workLines.push({nos:'',length:'',width:'',thickness:'',weight:'',desc:''}); renderWorkLines(); }
@@ -11222,7 +11626,7 @@ function renderDPRStep(){
   }).join('');
   const body=document.getElementById('dpr-wiz-body');
   if(_dprStep===1) renderDPRMachinery(body);
-  else if(_dprStep===2) body.innerHTML='<div style="padding:40px 16px;text-align:center;color:var(--muted)">Labour step — coming in next build.</div>';
+  else if(_dprStep===2) renderDPRLabour(body);
   else if(_dprStep===3) renderDPRWorkDone(body);
 }
 
@@ -11282,6 +11686,12 @@ function saveDPRMachinery(){
   const dpr=_curDPR(); if(!dpr) return;
   dpr.machinery=Object.values(_dprMach);
   dpr.ts=Date.now();
+  // V71: if this DPR was opened from history (a past/existing DPR), stamp the edit.
+  // Owner editing a VERIFIED DPR drops it back to submitted so the sign-off stays honest.
+  if(_dprFromHistory){
+    dpr.editedBy=sess.userId; dpr.editedByName=sess.name; dpr.editedTs=Date.now();
+    if(dpr.status==='verified'){ dpr.status='submitted'; dpr.unverifiedByEdit=true; }
+  }
   _fbWrite('dailyReports/'+dpr.id, dpr);   // append-only single-record write
   // write native readings + disbs so efficiency reports see this data
   _syncMachineryToReports(dpr);
@@ -11430,6 +11840,251 @@ function delWorkEntry(id){
     flash('DELETED!','Work entry removed');
   },'🗑','DELETE');
 }
+
+// ============================================================
+// ===== DPR STEP 2: LABOUR (dailyLabour + gangs) — V76 =====
+// Mirrors the Work-Done step. Each entry: projectId, dprId, gangId,
+// worker rows (label×count×rate), totalAmount, allocations[{boqItemId|MISC, percent}].
+// Gangs are GLOBAL master records (name + 10-digit phone). dailyLabour is
+// LS_NO_CACHE+MERGE_KEYS — saved per-record via _fbWrite (Rule 9). Gangs are
+// master data — saved via sv('gangs',...) (full array, append-only, never seeded).
+// ============================================================
+const MISC_BOQ = 'MISC';            // reserved allocation target = non-BOQ / misc work
+let _labGangId   = '';              // selected gang for the in-progress entry
+let _labRows     = [];              // [{label, count, rate}]
+let _labAlloc    = [];              // [{boqItemId, percent}]
+let _labEditId   = null;            // editing an existing dailyLabour entry
+let _labShowToday= false;           // toggle today's editable entry list
+let _labNewGang  = false;           // inline "new gang" form open?
+
+// ---- gang lookup helpers ----
+function _gang(id){ return (gangs||[]).find(g=>g.id===id); }
+function _labLineLabels(){ return [...new Set((dailyLabour||[]).flatMap(e=>(e.rows||[]).map(r=>String(r.label||'').trim())).filter(Boolean))]; }
+function _labRowTotal(){ return _labRows.reduce((s,r)=>s+((Number(r.count)||0)*(Number(r.rate)||0)),0); }
+function _labAllocPct(){ return _labAlloc.reduce((s,a)=>s+(Number(a.percent)||0),0); }
+
+// ---- read live inputs back into state before any re-render ----
+function _readLabInputs(){
+  _labRows.forEach((r,i)=>{
+    const l=document.getElementById('lab-lbl-'+i); if(l) r.label=l.value;
+    const c=document.getElementById('lab-cnt-'+i); if(c) r.count=c.value;
+    const rt=document.getElementById('lab-rt-'+i); if(rt) r.rate=rt.value;
+  });
+  _labAlloc.forEach((a,i)=>{
+    const b=document.getElementById('lab-alloc-boq-'+i); if(b) a.boqItemId=b.value;
+    const p=document.getElementById('lab-alloc-pct-'+i); if(p) a.percent=p.value;
+  });
+}
+
+function addLabRow(){ _readLabInputs(); _labRows.push({label:'',count:'',rate:''}); _dprStep=2; renderDPRStep(); }
+function delLabRow(i){ _readLabInputs(); _labRows.splice(i,1); if(!_labRows.length) _labRows.push({label:'',count:'',rate:''}); _dprStep=2; renderDPRStep(); }
+function addLabAlloc(){ _readLabInputs(); _labAlloc.push({boqItemId:'',percent:''}); _dprStep=2; renderDPRStep(); }
+function delLabAlloc(i){ _readLabInputs(); _labAlloc.splice(i,1); _dprStep=2; renderDPRStep(); }
+
+// ---- gang creation (inline) ----
+function _toggleLabNewGang(){ _readLabInputs(); _labNewGang=!_labNewGang; _dprStep=2; renderDPRStep(); }
+function saveLabGang(){
+  const nm=(document.getElementById('lab-ng-name')||{}).value||'';
+  const ph=(document.getElementById('lab-ng-phone')||{}).value||'';
+  const name=nm.trim(), phone=ph.replace(/\D/g,'');
+  if(!name){ alert('Enter gang / leader name'); return; }
+  if(phone.length!==10){ alert('Phone must be exactly 10 digits'); return; }
+  if((gangs||[]).some(g=>g.phone===phone)){ alert('A gang with this phone already exists'); return; }
+  const g={ id:uid(), name:name, phone:phone, createdBy:(sess&&sess.userId)||'', ts:Date.now() };
+  gangs=gangs||[]; gangs.push(g);
+  sv('gangs', gangs);                 // master collection — full array (append-only, never seeded)
+  _labGangId=g.id; _labNewGang=false;
+  _dprStep=2; renderDPRStep();
+  flash('GANG ADDED!', name);
+}
+function _onLabGangPick(v){ _readLabInputs(); if(v==='__new'){ _labGangId=''; _labNewGang=true; } else { _labGangId=v; _labNewGang=false; } _dprStep=2; renderDPRStep(); }
+function _toggleLabToday(){ _readLabInputs(); _labShowToday=!_labShowToday; _dprStep=2; renderDPRStep(); }
+
+// ---- the Step 2 renderer ----
+function renderDPRLabour(body){
+  const dpr=_curDPR(); if(!dpr){ body.innerHTML=''; return; }
+  const boq=_projBoq(dpr.projectId);
+  if(!_labRows.length) _labRows=[{label:'',count:'',rate:''}];
+  if(!_labAlloc.length) _labAlloc=[{boqItemId:'',percent:''}];
+
+  // today's labour entries for this DPR
+  const today=(dailyLabour||[]).filter(e=>e.dprId===dpr.id).sort((a,b)=>(b.ts||0)-(a.ts||0));
+  const summary=`<div onclick="_toggleLabToday()" style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:9px;font-size:12px;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:space-between">
+    <span>👷 <span style="color:var(--green);font-weight:700">${today.length}</span> labour entr${today.length===1?'y':'ies'} logged today${today.length?' · tap to review/edit':''}</span>
+    ${today.length?`<span style="color:var(--amber);font-size:14px">${_labShowToday?'▴':'▾'}</span>`:''}
+  </div>`;
+
+  let todayList='';
+  if(_labShowToday && today.length){
+    todayList=`<div style="background:var(--bg2);border:1px solid var(--amber);border-radius:9px;padding:8px;margin-bottom:9px">
+      <div style="font-size:11px;color:var(--amber);font-weight:700;padding:2px 4px 7px">TODAY'S LABOUR</div>
+      ${today.map(e=>{
+        const g=_gang(e.gangId);
+        const tm=e.ts?new Date(e.ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}):'';
+        const edited=e.editedTs?' · edited':'';
+        const ppl=(e.rows||[]).reduce((s,r)=>s+(Number(r.count)||0),0);
+        const allocTxt=(e.allocations||[]).map(a=>{
+          if(a.boqItemId===MISC_BOQ) return 'Misc '+(Number(a.percent)||0)+'%';
+          const it=boqItems.find(x=>x.id===a.boqItemId);
+          return (it?('Item '+_esc(it.itemNo||'')):'?')+' '+(Number(a.percent)||0)+'%';
+        }).join(' · ');
+        return `<div style="border-top:1px solid var(--border);padding:8px 4px;display:flex;align-items:center;gap:8px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;color:var(--white);font-weight:600;line-height:1.3">${g?_esc(g.name):'(gang removed)'} · ${ppl} worker${ppl===1?'':'s'}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px"><span style="color:var(--green);font-weight:700">₹${(Number(e.totalAmount)||0).toLocaleString('en-IN')}</span>${allocTxt?' · '+allocTxt:''}${tm?' · '+tm:''}${edited}</div>
+          </div>
+          <button onclick="editLabEntry('${e.id}')" style="background:var(--bg3);border:1px solid var(--amber);color:var(--amber);font-size:12px;font-weight:700;padding:5px 10px;border-radius:6px;cursor:pointer">✎</button>
+          ${isOwner()?`<button onclick="delLabEntry('${e.id}')" style="background:var(--bg3);border:1px solid var(--red);color:var(--red);font-size:12px;font-weight:700;padding:5px 10px;border-radius:6px;cursor:pointer">🗑</button>`:''}
+        </div>`;
+      }).join('')}
+      ${!isOwner()?`<div style="font-size:10px;color:var(--muted);padding:7px 4px 2px;border-top:1px solid var(--border)">Tap ✎ to correct an entry. Only the Owner can delete.</div>`:''}
+    </div>`;
+  }
+
+  // gang picker + inline new-gang form
+  const gangOpts=(gangs||[]).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''))
+    .map(g=>`<option value="${g.id}" ${_labGangId===g.id?'selected':''}>${_esc(g.name)} · ${_esc(g.phone||'')}</option>`).join('');
+  const gangPicker=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:9px">
+    <div style="font-size:11px;color:var(--amber);font-weight:700;margin-bottom:6px">GANG / LABOUR LEADER</div>
+    <select class="f-inp" onchange="_onLabGangPick(this.value)">
+      <option value="">— select gang —</option>
+      ${gangOpts}
+      <option value="__new">➕ New gang…</option>
+    </select>
+    ${_labNewGang?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
+      <input class="f-inp" id="lab-ng-name" placeholder="Gang / leader name" style="margin-bottom:6px">
+      <input class="f-inp" id="lab-ng-phone" placeholder="Phone (10 digits)" inputmode="numeric" maxlength="10" style="margin-bottom:6px">
+      <div style="display:flex;gap:7px">
+        <button onclick="saveLabGang()" style="flex:1;background:var(--green);border:none;color:#06210f;font-size:13px;font-weight:700;padding:8px;border-radius:7px;cursor:pointer">Save gang</button>
+        <button onclick="_toggleLabNewGang()" style="background:var(--bg3);border:1px solid var(--border);color:var(--muted);font-size:13px;padding:8px 14px;border-radius:7px;cursor:pointer">Cancel</button>
+      </div>
+    </div>`:''}
+  </div>`;
+
+  // worker rows (label × count × rate) with datalist autocomplete
+  const labelsDL=`<datalist id="lab-labels">${_labLineLabels().map(l=>`<option value="${_esc(l)}">`).join('')}</datalist>`;
+  const rowsBlock=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:9px">
+    <div style="font-size:11px;color:var(--amber);font-weight:700;margin-bottom:6px">WORKERS</div>
+    ${labelsDL}
+    ${_labRows.map((r,i)=>`<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+      <input class="f-inp" id="lab-lbl-${i}" list="lab-labels" placeholder="Category (e.g. Male)" value="${_esc(r.label||'')}" style="flex:2;margin:0">
+      <input class="f-inp" id="lab-cnt-${i}" placeholder="No." inputmode="numeric" value="${_esc(r.count||'')}" oninput="_labLive()" style="flex:1;margin:0">
+      <span style="color:var(--muted);font-size:13px">×₹</span>
+      <input class="f-inp" id="lab-rt-${i}" placeholder="Rate" inputmode="numeric" value="${_esc(r.rate||'')}" oninput="_labLive()" style="flex:1;margin:0">
+      <button onclick="delLabRow(${i})" style="background:var(--bg3);border:1px solid var(--red);color:var(--red);font-size:13px;padding:6px 9px;border-radius:6px;cursor:pointer">✕</button>
+    </div>`).join('')}
+    <button onclick="addLabRow()" style="background:var(--bg3);border:1px dashed var(--amber);color:var(--amber);font-size:12px;font-weight:700;padding:6px 12px;border-radius:7px;cursor:pointer;margin-top:2px">+ Add worker row</button>
+    <div style="border-top:1px solid var(--border);margin-top:9px;padding-top:8px;font-size:13px;display:flex;justify-content:space-between">
+      <span style="color:var(--muted)">Day total</span>
+      <span id="lab-total" style="color:var(--green);font-weight:700">₹${_labRowTotal().toLocaleString('en-IN')}</span>
+    </div>
+  </div>`;
+
+  // allocation rows (BOQ item or Misc + percent)
+  const boqOpts=boq.map(b=>`<option value="${b.id}">Item ${_esc(b.itemNo||'')} — ${_esc((b.description||'').slice(0,40))}</option>`).join('');
+  const allocPct=_labAllocPct();
+  const allocColor=Math.abs(allocPct-100)<0.01?'var(--green)':'var(--amber)';
+  const allocBlock=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:9px">
+    <div style="font-size:11px;color:var(--amber);font-weight:700;margin-bottom:2px">CHARGE TO (BOQ allocation)</div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:7px">Default 100% to one item. Split across items if needed — must total 100%. Use “Misc / Non-BOQ” for repair / off-BOQ work.</div>
+    ${_labAlloc.map((a,i)=>`<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+      <select class="f-inp" id="lab-alloc-boq-${i}" style="flex:3;margin:0">
+        <option value="">— select —</option>
+        ${boqOpts}
+        <option value="${MISC_BOQ}" ${a.boqItemId===MISC_BOQ?'selected':''}>🔧 Misc / Non-BOQ work</option>
+      </select>
+      <input class="f-inp" id="lab-alloc-pct-${i}" placeholder="%" inputmode="numeric" value="${_esc(a.percent||'')}" oninput="_labLive()" style="flex:1;margin:0">
+      <span style="color:var(--muted);font-size:13px">%</span>
+      ${_labAlloc.length>1?`<button onclick="delLabAlloc(${i})" style="background:var(--bg3);border:1px solid var(--red);color:var(--red);font-size:13px;padding:6px 9px;border-radius:6px;cursor:pointer">✕</button>`:''}
+    </div>`).join('')}
+    <button onclick="addLabAlloc()" style="background:var(--bg3);border:1px dashed var(--amber);color:var(--amber);font-size:12px;font-weight:700;padding:6px 12px;border-radius:7px;cursor:pointer;margin-top:2px">+ Split to another item</button>
+    <div style="border-top:1px solid var(--border);margin-top:9px;padding-top:8px;font-size:13px;display:flex;justify-content:space-between">
+      <span style="color:var(--muted)">Allocated</span>
+      <span id="lab-allocpct" style="color:${allocColor};font-weight:700">${allocPct.toFixed(0)}%${Math.abs(allocPct-100)<0.01?' ✓':''}</span>
+    </div>
+  </div>`;
+
+  const saveBtn=`<button onclick="saveLabEntry()" style="width:100%;background:var(--green);border:none;color:#06210f;font-size:15px;font-weight:800;padding:13px;border-radius:9px;cursor:pointer;margin-bottom:8px">${_labEditId?'UPDATE LABOUR':'SAVE LABOUR ENTRY'}</button>`;
+  const cancelEdit=_labEditId?`<button onclick="_labResetForm();_dprStep=2;renderDPRStep()" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--muted);font-size:13px;padding:9px;border-radius:8px;cursor:pointer;margin-bottom:8px">Cancel edit</button>`:'';
+
+  body.innerHTML=summary+todayList+gangPicker+rowsBlock+allocBlock+saveBtn+cancelEdit;
+  // set BOQ <select> values post-render (MISC handled via <option selected>; real BOQ ids set here)
+  _labAlloc.forEach((a,i)=>{ if(a.boqItemId && a.boqItemId!==MISC_BOQ){ const s=document.getElementById('lab-alloc-boq-'+i); if(s) s.value=a.boqItemId; } });
+}
+
+// live recompute of the two totals without full re-render (keeps focus)
+function _labLive(){
+  _readLabInputs();
+  const t=document.getElementById('lab-total'); if(t) t.textContent='₹'+_labRowTotal().toLocaleString('en-IN');
+  const p=document.getElementById('lab-allocpct'); if(p){ const pc=_labAllocPct(); p.textContent=pc.toFixed(0)+'%'+(Math.abs(pc-100)<0.01?' ✓':''); p.style.color=Math.abs(pc-100)<0.01?'var(--green)':'var(--amber)'; }
+}
+
+function _labResetForm(){ _labGangId=''; _labRows=[{label:'',count:'',rate:''}]; _labAlloc=[{boqItemId:'',percent:''}]; _labEditId=null; _labNewGang=false; }
+
+function editLabEntry(id){
+  const e=(dailyLabour||[]).find(x=>x.id===id); if(!e){ alert('Entry not found'); return; }
+  _labGangId=e.gangId||'';
+  _labRows=(e.rows||[]).map(r=>({label:r.label||'',count:r.count,rate:r.rate}));
+  if(!_labRows.length) _labRows=[{label:'',count:'',rate:''}];
+  _labAlloc=(e.allocations||[]).map(a=>({boqItemId:a.boqItemId,percent:a.percent}));
+  if(!_labAlloc.length) _labAlloc=[{boqItemId:'',percent:''}];
+  _labEditId=id; _labShowToday=false; _labNewGang=false;
+  _dprStep=2; renderDPRStep();
+}
+
+function saveLabEntry(){
+  _readLabInputs();
+  const dpr=_curDPR(); if(!dpr){ alert('No DPR open'); return; }
+  if(!_labGangId){ alert('Select a gang'); return; }
+  const rows=_labRows
+    .map(r=>({label:String(r.label||'').trim(), count:Number(r.count)||0, rate:Number(r.rate)||0}))
+    .filter(r=>r.count>0 && r.rate>0);
+  if(!rows.length){ alert('Enter at least one worker row with count and rate'); return; }
+  const total=rows.reduce((s,r)=>s+(r.count*r.rate),0);
+  // allocations
+  const alloc=_labAlloc
+    .map(a=>({boqItemId:a.boqItemId, percent:Number(a.percent)||0}))
+    .filter(a=>a.boqItemId && a.percent>0);
+  if(!alloc.length){ alert('Allocate this labour to at least one BOQ item or Misc'); return; }
+  const pct=alloc.reduce((s,a)=>s+a.percent,0);
+  if(Math.abs(pct-100)>0.01){ alert('Allocation must total exactly 100% (currently '+pct.toFixed(0)+'%)'); return; }
+
+  let rec, isEdit=false;
+  const existing=_labEditId?(dailyLabour||[]).find(x=>x.id===_labEditId):null;
+  if(existing){
+    isEdit=true;
+    rec={...existing, projectId:dpr.projectId, dprId:dpr.id, gangId:_labGangId, date:dpr.date,
+      rows:rows, totalAmount:total, allocations:alloc,
+      editedBy:(sess&&sess.userId)||'', editedByName:(sess&&sess.name)||'', editedTs:Date.now()};
+    const idx=dailyLabour.findIndex(x=>x.id===_labEditId);
+    if(idx>=0) dailyLabour[idx]=rec; else dailyLabour.push(rec);
+  } else {
+    rec={ id:uid(), projectId:dpr.projectId, dprId:dpr.id, gangId:_labGangId, date:dpr.date,
+      rows:rows, totalAmount:total, allocations:alloc,
+      enteredBy:(sess&&sess.userId)||'', enteredByName:(sess&&sess.name)||'', ts:Date.now() };
+    dailyLabour=dailyLabour||[]; dailyLabour.push(rec);
+  }
+  _fbWrite('dailyLabour/'+rec.id, rec);     // Rule 9: single record, never sv() the array
+  _labResetForm();
+  flash(isEdit?'LABOUR UPDATED!':'LABOUR LOGGED!', '₹'+total.toLocaleString('en-IN'));
+  _dprStep=2; renderDPRStep();
+}
+
+function delLabEntry(id){
+  if(!isOwner()){ alert('Only Owner can delete a labour entry'); return; }
+  const e=(dailyLabour||[]).find(x=>x.id===id); if(!e) return;
+  const g=_gang(e.gangId);
+  const label=`${g?_esc(g.name):'(gang)'} · ₹${(Number(e.totalAmount)||0).toLocaleString('en-IN')}`;
+  showConfirm(`Delete this labour entry?\n\n${label}\n\nThis cannot be undone.`,function(){
+    dailyLabour=_dedup(dailyLabour||[]);
+    _recordDeletion('dailyLabour',id);
+    dailyLabour=(dailyLabour||[]).filter(x=>x.id!==id);
+    _dprStep=2; renderDPRStep();
+    flash('DELETED!','Labour entry removed');
+  },'🗑','DELETE');
+}
+// ===== END DPR STEP 2: LABOUR =====
+
 function _workEntryBack(){
   if(_dprReturn){ _dprStep=3; renderDPRStep(); show('scr-dpr-wizard'); }
   else show('scr-project-detail');
@@ -11448,12 +12103,22 @@ function importBoqJson(){
   if(!Array.isArray(arr)){ alert('JSON must be an array of items [ {...}, {...} ]'); return; }
   const pid=_curProjectId;
   showConfirm('Import '+arr.length+' items? This REPLACES the current BOQ for this project.',function(){
-    // remove existing items for this project, then add new
+    // V71: preserve IDs across re-import. Match incoming items to existing ones
+    // by itemNo so work entries (which reference boqItemId) stay linked.
+    // Only genuinely new item numbers get a fresh id. Prevents orphaned work entries.
+    const existing=boqItems.filter(b=>b.projectId===pid);
+    const byItemNo={};
+    existing.forEach(b=>{ const k=String(b.itemNo==null?'':b.itemNo).trim(); if(k) byItemNo[k]=b; });
+    const usedKeys=new Set();
+    // remove existing items for this project, then re-add (reusing ids where itemNo matches)
     boqItems=boqItems.filter(b=>b.projectId!==pid);
     arr.forEach(it=>{
       const qty=parseFloat(it.qty)||0, rate=parseFloat(it.rate)||0;
+      const noKey=String(it.itemNo!=null?it.itemNo:'').trim();
+      const prior=(noKey && !usedKeys.has(noKey)) ? byItemNo[noKey] : null;
+      if(prior) usedKeys.add(noKey);
       boqItems.push({
-        id:uid(), projectId:pid,
+        id:(prior?prior.id:uid()), projectId:pid,
         itemNo:(it.itemNo!=null?String(it.itemNo):''),
         description:String(it.description||it.desc||''),
         unit:String(it.unit||''),
@@ -12590,7 +13255,7 @@ const FB_URL = 'https://fuellog-9f3c0-default-rtdb.firebaseio.com';
 const FB_KEY = 'AIzaSyB44pKu7YTc-Q_6GLC3mlaEBPJm3d3odPc';
 
 // All keys we sync to Firebase
-const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords','trips','customers','materials','staff','staffMusters','pumpPayments','projects','boqItems','workEntries','subcontractors','subContracts','dailyReports'];
+const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords','trips','customers','materials','staff','staffMusters','pumpPayments','projects','boqItems','workEntries','subcontractors','subContracts','dailyReports','gangs','dailyLabour','royalty'];
 
 let fbOnline = false;
 let fbSyncing = false;
@@ -12958,6 +13623,11 @@ async function fbInit(){
       else if(k==='pumpPayments') pumpPayments=_dedup(val);
       else if(k==='projects') projects=_dedup(val);
       else if(k==='boqItems') boqItems=_dedup(val);
+      else if(k==='workEntries') workEntries=_dedup(val);
+      else if(k==='subcontractors') subcontractors=_dedup(val);
+      else if(k==='subContracts') subContracts=_dedup(val);
+      else if(k==='dailyReports') dailyReports=_dedup(val);
+      else if(k==='royalty') royalty=_dedup(val);
 
       window._fbDiagnostics.perKey[k] = _diag;
     });
@@ -12996,6 +13666,11 @@ async function fbInit(){
       else if(k==='pumpPayments') pumpPayments=val;
         else if(k==='projects') projects=val;
         else if(k==='boqItems') boqItems=val;
+        else if(k==='workEntries') workEntries=val;
+        else if(k==='subcontractors') subcontractors=val;
+        else if(k==='subContracts') subContracts=val;
+        else if(k==='dailyReports') dailyReports=val;
+        else if(k==='royalty') royalty=val;
       }catch(e){}
     });
     // Seed only if localStorage also had no materials
@@ -13244,6 +13919,10 @@ setInterval(async()=>{
       else if(k==='pumpPayments') pumpPayments=_dedup(val);
       else if(k==='projects') projects=_dedup(val);
       else if(k==='boqItems') boqItems=_dedup(val);
+      else if(k==='workEntries') workEntries=_dedup(val);
+      else if(k==='subcontractors') subcontractors=_dedup(val);
+      else if(k==='subContracts') subContracts=_dedup(val);
+      else if(k==='dailyReports') dailyReports=_dedup(val);
     });
     console.log('[AutoRefresh] Firebase data refreshed at', new Date().toLocaleTimeString());
   } catch(e){ /* silent fail — don't disturb user */ }
