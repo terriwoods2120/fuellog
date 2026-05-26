@@ -3918,6 +3918,7 @@ function openTripEntry(editId){
   window._tripSlipChips = null; // will be re-initialized from editing data
   window._tripMiscCharges = null; // will be re-initialized from editing data
   window._tripRoyaltyRows = null; // V80: re-initialized from royalty collection
+  window._tripRoyaltySiteId = undefined; // V80: re-initialized per form open
   window._tripSelDriverId = editing?.driverId || '';
   window._tripSelVehId = editing?.vehicleId || '';
   document.getElementById('trip-entry-title').textContent=editing?'EDIT TRIP':'NEW TRIP';
@@ -3946,6 +3947,7 @@ function openChargeForCustomer(custId){
   window._tripSlipChips = null;
   window._tripMiscCharges = null;
   window._tripRoyaltyRows = null;
+  window._tripRoyaltySiteId = undefined;
   window._tripSelDriverId = '';
   window._tripSelVehId = '';
   document.getElementById('trip-entry-title').textContent='ADD CHARGE — '+c.name;
@@ -3976,9 +3978,16 @@ function renderTripEntryForm(editing){
   if(!Array.isArray(window._tripRoyaltyRows)){
     const editId=_tripEntryState.editId;
     if(editId){
-      window._tripRoyaltyRows=(royalty||[]).filter(r=>r.tripId===editId).map(r=>({id:r.id,material:r.material||'murum',brass:Number(r.brass)||0,etpNo:r.etpNo||'',issued:!!r.issued,ts:r.ts}));
+      const slips=(royalty||[]).filter(r=>r.tripId===editId);
+      window._tripRoyaltyRows=slips.map(r=>({id:r.id,material:r.material||'murum',brass:Number(r.brass)||0,etpNo:r.etpNo||'',issued:!!r.issued,ts:r.ts}));
+      // royalty site (internal): take from existing slip's toId if it was a site
+      if(typeof window._tripRoyaltySiteId==='undefined'){
+        const sSlip=slips.find(r=>r.toType==='site'&&r.toId);
+        window._tripRoyaltySiteId=sSlip?sSlip.toId:(e.toSiteId||'');
+      }
     } else {
       window._tripRoyaltyRows=[];
+      if(typeof window._tripRoyaltySiteId==='undefined') window._tripRoyaltySiteId=e.toSiteId||'';
     }
   }
 
@@ -4137,6 +4146,15 @@ function renderTripEntryForm(editing){
     <div class="f-field" style="border:1.5px dashed var(--amber);border-radius:12px;padding:10px 12px;background:rgba(255,179,0,.04)">
       <label class="f-lbl" style="color:var(--amber)">⛏ Royalty Slips (ETP)</label>
       <div style="font-size:10px;color:var(--muted);font-weight:600;margin-bottom:8px">Add one row per royalty slip. Each slip has its own ETP number. Quantity need not match the trip load.</div>
+      ${movementType==='internal'?`
+      <div style="margin-bottom:8px">
+        <label class="f-lbl" style="font-size:10px">Royalty issued to site</label>
+        <select id="trip-royalty-site" class="f-inp" style="background:var(--bg3);color:var(--white)" onchange="window._tripRoyaltySiteId=this.value">
+          <option value="">Select site for royalty...</option>${(sites||[]).map(s=>`<option value="${s.id}"${s.id===(window._tripRoyaltySiteId||e.toSiteId)?' selected':''}>${s.name}</option>`).join('')}
+        </select>
+        <div style="font-size:9px;color:var(--muted);font-weight:600;margin-top:3px">All slips on this trip are issued to this site (can differ from the trip's To-Site).</div>
+      </div>`:`
+      <div style="margin-bottom:8px;font-size:11px;color:var(--green);font-weight:700">Royalty issued to customer (on this trip's customer name)</div>`}
       <div id="trip-royalty-list"></div>
       <button type="button" onclick="addRoyaltyRow()" style="margin-top:6px;width:100%;background:var(--bg3);border:1.5px solid var(--amber);color:var(--amber);font-family:var(--fb);font-weight:700;font-size:12px;padding:9px;border-radius:8px;cursor:pointer">+ Add Royalty Slip</button>
     </div>
@@ -4574,6 +4592,13 @@ async function saveTrip(){
   // Slip numbers — stored as array
   const slipNos=[...(window._tripSlipChips||[])];
 
+  // V80: if internal trip has royalty slips, a royalty site must be picked
+  const _rSlipCount=(window._tripRoyaltyRows||[]).filter(r=>r.etpNo||r.brass).length;
+  if(movementType==='internal' && _rSlipCount>0){
+    const _rSite=document.getElementById('trip-royalty-site')?.value||window._tripRoyaltySiteId||'';
+    if(!_rSite){alert('Select the site to which royalty is issued (royalty section).');return;}
+  }
+
   const trip={
     id:editId||uid(),
     ts:editId?orig.ts:Date.now(),
@@ -4670,7 +4695,8 @@ async function saveTrip(){
     const rRows=(window._tripRoyaltyRows||[]).filter(r=>r.etpNo||r.brass);
     const tripIdForRoyalty=trip.id;
     const toType=movementType==='internal'?'site':'customer';
-    const toId=movementType==='internal'?toSiteId:customerId;
+    const royaltySiteId=document.getElementById('trip-royalty-site')?.value||window._tripRoyaltySiteId||'';
+    const toId=movementType==='internal'?royaltySiteId:customerId;
     // On edit: delete royalty slips that were removed from the form (tombstone, never sv full array)
     if(editId){
       const existing=(royalty||[]).filter(r=>r.tripId===editId);
