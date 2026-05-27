@@ -1,4 +1,4 @@
-<!-- FuelLog PWA | Version: V80 | Date: 2026-05-26 | Chiddarwar Construction Co. Pvt. Ltd. | V80 FEATURE: Royalty (ETP) tracking on trips — new keyed-by-id `royalty` collection (LS_NO_CACHE+MERGE_KEYS+SK+FB_KEYS+dedup keysToClean, DONE_KEY v59→v60). Trip form: royalty slip rows (material murum/boulder + brass + ETP no.); destination auto-derives (internal→site, external→customer). Slips saved per-record via _fbWrite (Rule 9); edit-removed slips tombstoned via _recordDeletion. New 'Royalty (ETP) Register' option in Trips report dropdown (no Rule 8 risk — inside existing trips block) with material/destination/status filters, issued↔un-issued per-slip toggle (setRoyaltyIssued, per-record _fbWrite), summary tiles + print/PDF block. | V79 FIX (real): dailyReports added to LS_NO_CACHE so Firebase stores it keyed-by-id; was numeric array via StartupMerge full-array write so per-id DELETE no-opped and DPR resurrected; dedup keysToClean + DONE_KEY v58 to v59 repairs existing data. V78 (superseded): DPR resurrection — load-time tombstone filter on dailyReports + deleteDPR updates localStorage cache (root cause: dailyReports cached in localStorage, stale copy reloaded deleted DPR on refresh). | V77 FIX: dip/readings resurrection bug — 'readings' moved into LS_NO_CACHE keyed-object family (V57 pattern); 4 sv('readings',array) writes converted to per-record _fbWrite (Rule 9); delReading sv() removed (was re-corrupting keyed shape & defeating delete); dedup DONE_KEY v57→v58 to re-run array→keyed repair once per device -->
+<!-- FuelLog PWA | Version: V83 | Date: 2026-05-27 | Chiddarwar Construction Co. Pvt. Ltd. | V83 FEATURE: Trip reports acknowledge extra materials (V82 multi-material). New tripMaterialLines(t) helper returns uniform list of primary+extra material lines; per-LINE amount (qty×rate) for multi-material trips, falls back to t.amount for old single-material trips (no double-count). Trip Register (screen+print) now lists extra materials under primary with qty & line amount. Material-wise Summary (screen+print) rolls up each material line separately — extras counted toward their own material's qty/revenue, trip-count deduped per trip. Site Dispatch Log (screen) includes extra materials in the site's material set. Both renderReports paths updated per Rule 8. PDF refinement: multi-material rows (internal) now show each material with its own qty in the Material column (packing-list style), QTY column shows dash; single-material rows unchanged. PDF multi-material packing-list done. Note: trip-level GST/misc not attributed to individual materials in Material-wise revenue (shows pre-GST material value — correct for that report). Additive read-only reporting change, no data write, no storage-wiring touch. | V82 FEATURE: Multi-material per trip + searchable material picker. Trip form material <select> replaced with type-to-search combobox (helpers _matPickerFilter/_matPickerSelect/_matPickerClose, index -1=primary, 0..n=extra lines). 'Add Material +' next to Material* adds extra material rows (new extraLines[] field on trip: {materialId,materialName,quantity,unit,rate,amount}); primary material stays in flat fields unchanged (backward compatible - old/single-material trips have no extraLines). External: each extra line has own rate -> line amount; internal: rate/amount zeroed. GST + misc stay trip-level (sum across all lines). updateTripAmount adds extraTotal into subtotal+GST base. Business rule ENFORCED: a trip is EITHER multi-trip (count>1, single material) OR multi-material (count locked to 1) - addTripMaterialLine blocks if count>1, onTripCountChange resets count to 1 if extras exist. saveTrip persists extraLines (filters blank materialId). State window._tripExtraLines reset+init like other trip arrays; carried in _currentTripEdit across re-renders. trips still in MERGE_KEYS, sv('trips') unchanged - additive field only, no new collection, no sync-core change. | V81 FEATURE: DPR Labour piece-rate work — labour entry now supports PIECE-RATE lines (BOQ item + work-done qty × rate, charged direct to item) ALONGSIDE existing daily-wage worker rows; one entry can mix both. New pieceRows[] field on dailyLabour records (same collection, no storage-wiring change — already LS_NO_CACHE+MERGE_KEYS+per-record _fbWrite). Allocation block now OPTIONAL (no forced 100%; only splits the daily-wage total). Entry saves with at least one worker row OR one piece-rate line. Purpose: per-gang ledger of item-rate + daily-wage work owed → prompt payment (capture half of queued labourPayments ledger). editLabEntry/reset/today-summary updated. Backward compatible: old entries without pieceRows treated as empty. | V80 FEATURE: Royalty (ETP) tracking on trips — new keyed-by-id `royalty` collection (LS_NO_CACHE+MERGE_KEYS+SK+FB_KEYS+dedup keysToClean, DONE_KEY v59→v60). Trip form: royalty slip rows (material murum/boulder + brass + ETP no.); destination auto-derives (internal→site, external→customer). Slips saved per-record via _fbWrite (Rule 9); edit-removed slips tombstoned via _recordDeletion. New 'Royalty (ETP) Register' option in Trips report dropdown (no Rule 8 risk — inside existing trips block) with material/destination/status filters, issued↔un-issued per-slip toggle (setRoyaltyIssued, per-record _fbWrite), summary tiles + print/PDF block. | V79 FIX (real): dailyReports added to LS_NO_CACHE so Firebase stores it keyed-by-id; was numeric array via StartupMerge full-array write so per-id DELETE no-opped and DPR resurrected; dedup keysToClean + DONE_KEY v58 to v59 repairs existing data. V78 (superseded): DPR resurrection — load-time tombstone filter on dailyReports + deleteDPR updates localStorage cache (root cause: dailyReports cached in localStorage, stale copy reloaded deleted DPR on refresh). | V77 FIX: dip/readings resurrection bug — 'readings' moved into LS_NO_CACHE keyed-object family (V57 pattern); 4 sv('readings',array) writes converted to per-record _fbWrite (Rule 9); delReading sv() removed (was re-corrupting keyed shape & defeating delete); dedup DONE_KEY v57→v58 to re-run array→keyed repair once per device -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -3047,7 +3047,7 @@ function renderHome(){
   applyTheme(); // ensure theme button icon is set
   // Update top bar
   document.getElementById('home-tag').textContent=
-    new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})+' · Chiddarwar Construction · V80';
+    new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})+' · Chiddarwar Construction · V83';
   document.getElementById('sess-who').textContent=sess.name;
   document.getElementById('sess-bdg').innerHTML=`<span class="bdg ${rBdg(sess.role)}">${rLbl(sess.role)}</span>`;
   // Show/hide bottom nav tabs based on role
@@ -3919,6 +3919,7 @@ function openTripEntry(editId){
   window._tripMiscCharges = null; // will be re-initialized from editing data
   window._tripRoyaltyRows = null; // V80: re-initialized from royalty collection
   window._tripRoyaltySiteId = undefined; // V80: re-initialized per form open
+  window._tripExtraLines = null; // V82: extra material lines, re-initialized from editing data
   window._tripSelDriverId = editing?.driverId || '';
   window._tripSelVehId = editing?.vehicleId || '';
   document.getElementById('trip-entry-title').textContent=editing?'EDIT TRIP':'NEW TRIP';
@@ -3948,6 +3949,7 @@ function openChargeForCustomer(custId){
   window._tripMiscCharges = null;
   window._tripRoyaltyRows = null;
   window._tripRoyaltySiteId = undefined;
+  window._tripExtraLines = null; // V82
   window._tripSelDriverId = '';
   window._tripSelVehId = '';
   document.getElementById('trip-entry-title').textContent='ADD CHARGE — '+c.name;
@@ -3960,7 +3962,6 @@ function renderTripEntryForm(editing){
   const td=today();
   const dateVal=e.date||td;
   const siteOpts=(sites||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
-  const matOpts=(materials||[]).map(m=>`<option value="${m.id}"${m.id===e.materialId?' selected':''}>${m.name} (${m.unit})</option>`).join('');
   const custOpts=(customers||[]).map(c=>`<option value="${c.id}"${c.id===e.customerId?' selected':''}>${c.name} · ${c.phone||'no phone'}</option>`).join('');
   const movementType=e.movementType||'external';
 
@@ -3991,6 +3992,14 @@ function renderTripEntryForm(editing){
     }
   }
 
+  // Initialize extra material lines (V82) — additional materials carried on the same trip.
+  // Primary material stays in the flat fields; these are the EXTRAS only. Old/single-material trips have none.
+  if(!Array.isArray(window._tripExtraLines)){
+    window._tripExtraLines = Array.isArray(e.extraLines)
+      ? e.extraLines.map(l=>({materialId:l.materialId||'',quantity:Number(l.quantity)||0,unit:l.unit||'',rate:Number(l.rate)||0,amount:Number(l.amount)||0}))
+      : [];
+  }
+
   // Initialize driver and vehicle selections
   const selDriver = (drivers||[]).find(d=>d.id===e.driverId);
   const selVehicle = (fleet||[]).find(f=>f.id===e.vehicleId);
@@ -4000,7 +4009,7 @@ function renderTripEntryForm(editing){
   document.getElementById('trip-entry-body').innerHTML=`
     <div class="f-r2">
       <div class="f-field"><label class="f-lbl">Date *</label><input class="f-inp" id="trip-date" type="date" value="${dateVal}" max="${today()}" ${!isOwner()&&editing?'readonly':''}></div>
-      <div class="f-field"><label class="f-lbl">Number of Trips *</label><input class="f-inp" id="trip-count" type="number" inputmode="numeric" value="${e.numTrips||1}" min="1" oninput="updateTripAmount()" onchange="updateTripAmount()" onblur="updateTripAmount()"></div>
+      <div class="f-field"><label class="f-lbl">Number of Trips *</label><input class="f-inp" id="trip-count" type="number" inputmode="numeric" value="${e.numTrips||1}" min="1" oninput="onTripCountChange();updateTripAmount()" onchange="onTripCountChange();updateTripAmount()" onblur="updateTripAmount()"></div>
     </div>
 
     <!-- Slip Numbers — chip input -->
@@ -4087,10 +4096,20 @@ function renderTripEntryForm(editing){
       </select>
     </div>`}
 
-    <div class="f-field"><label class="f-lbl">Material *</label>
-      <select class="f-inp" id="trip-material" style="background:var(--bg3);color:var(--white)" onchange="onTripMaterialChange()">
-        <option value="">Select material...</option>${matOpts}
-      </select>
+    <div class="f-field">
+      <label class="f-lbl" style="display:flex;justify-content:space-between;align-items:center">
+        <span>Material *</span>
+        <span onclick="addTripMaterialLine()" style="color:var(--amber);font-size:11px;font-weight:700;cursor:pointer;line-height:1;font-family:var(--fb)" title="Add another material to this trip">Add Material ＋</span>
+      </label>
+      <div style="position:relative">
+        <input class="f-inp" id="trip-material-txt" type="text" autocomplete="off"
+          placeholder="Type to search material..."
+          value="${e.materialId?(materials.find(m=>m.id===e.materialId)||{name:''}).name+(materials.find(m=>m.id===e.materialId)?.unit?' ('+materials.find(m=>m.id===e.materialId).unit+')':''):''}"
+          oninput="_matPickerFilter(-1)" onfocus="_matPickerFilter(-1)" onblur="setTimeout(function(){_matPickerClose(-1)},200)"
+          style="background:var(--bg3);color:var(--white)">
+        <input type="hidden" id="trip-material" value="${e.materialId||''}">
+        <div id="trip-material-list" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:999;background:var(--bg2);border:1px solid var(--amber);border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto"></div>
+      </div>
     </div>
 
     <div class="f-r2">
@@ -4102,8 +4121,12 @@ function renderTripEntryForm(editing){
     <div class="f-r2">
       <div class="f-field"><label class="f-lbl">Rate ₹</label><input class="f-inp" id="trip-rate" type="number" inputmode="decimal" value="${e.rate||''}" placeholder="0" oninput="updateTripAmount()" onchange="updateTripAmount()" onblur="updateTripAmount()"></div>
       <div class="f-field"><label class="f-lbl">Subtotal ₹</label><input class="f-inp" id="trip-subtotal" type="number" inputmode="decimal" value="${e.subtotal||e.amount||''}" placeholder="auto-calc" style="font-family:var(--fh);background:var(--bg2);color:var(--muted)" readonly></div>
-    </div>
+    </div>`:''}
 
+    <!-- V82: extra material lines — stacked below the COMPLETE primary material section (name + qty/unit + rate/subtotal). Renders for both internal & external. -->
+    <div id="trip-extra-mat-list"></div>
+
+    ${movementType==='external'?`
     <!-- Misc Charges (collapsed by default) -->
     <div class="f-field" id="trip-misc-wrap" style="display:${(e.miscCharges&&e.miscCharges.length)?'block':'none'}">
       <label class="f-lbl">Misc Charges (loading, detention, late fee, etc.)</label>
@@ -4163,6 +4186,8 @@ function renderTripEntryForm(editing){
   renderSlipChips();
   // Render royalty rows (V80)
   renderRoyaltyRows();
+  // Render extra material lines (V82)
+  renderTripExtraLines();
   // Render misc charges (if any) and refresh totals
   if(movementType==='external'){
     renderMiscCharges();
@@ -4192,6 +4217,7 @@ function _currentTripEdit(){
     numTrips:parseInt(document.getElementById('trip-count')?.value)||1,
     driverIncentive:parseFloat(document.getElementById('trip-incentive')?.value)||0,
     remarks:document.getElementById('trip-remarks')?.value||'',
+    extraLines:Array.isArray(window._tripExtraLines)?window._tripExtraLines:[],
     movementType
   };
   return {...editing,...live};
@@ -4205,6 +4231,137 @@ function onTripMaterialChange(){
   const rateInp=document.getElementById('trip-rate');
   if(unitInp&&!unitInp.value) unitInp.value=mat.unit||'';
   if(rateInp&&!rateInp.value&&mat.rate) {rateInp.value=mat.rate; updateTripAmount();}
+}
+
+// ── V82: SEARCHABLE MATERIAL PICKER (index -1 = primary line; 0..n = extra line) ──
+function _matPickerFilter(idx){
+  const txt=idx<0?document.getElementById('trip-material-txt'):document.getElementById('trip-mat-txt-'+idx);
+  const list=idx<0?document.getElementById('trip-material-list'):document.getElementById('trip-mat-list-'+idx);
+  if(!txt||!list) return;
+  const q=(txt.value||'').toLowerCase().trim();
+  const filtered=q?(materials||[]).filter(m=>m.name.toLowerCase().includes(q)):(materials||[]);
+  if(!filtered.length){
+    list.innerHTML='<div style="padding:10px 12px;font-size:12px;color:var(--muted)">No match</div>';
+  } else {
+    list.innerHTML=filtered.map(m=>
+      `<div onmousedown="_matPickerSelect(${idx},'${m.id}')"
+        style="padding:10px 12px;font-size:13px;color:var(--white);cursor:pointer;border-bottom:1px solid var(--border);font-family:var(--fb)"
+        onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+        ${m.name}<span style="color:var(--muted);font-size:11px;margin-left:6px">${m.unit||''}</span>
+      </div>`
+    ).join('');
+  }
+  list.style.display='block';
+}
+
+function _matPickerSelect(idx,id){
+  const mat=(materials||[]).find(m=>m.id===id);
+  if(!mat) return;
+  if(idx<0){
+    const hidEl=document.getElementById('trip-material');
+    const txtEl=document.getElementById('trip-material-txt');
+    if(hidEl) hidEl.value=id;
+    if(txtEl) txtEl.value=mat.name+(mat.unit?' ('+mat.unit+')':'');
+    _matPickerClose(idx);
+    onTripMaterialChange();
+  } else {
+    const line=(window._tripExtraLines||[])[idx];
+    if(line){
+      line.materialId=id;
+      if(!line.unit) line.unit=mat.unit||'';
+      if(!line.rate && mat.rate) line.rate=mat.rate;
+    }
+    _matPickerClose(idx);
+    renderTripExtraLines();
+    updateTripAmount();
+  }
+}
+
+function _matPickerClose(idx){
+  const list=idx<0?document.getElementById('trip-material-list'):document.getElementById('trip-mat-list-'+idx);
+  if(list) list.style.display='none';
+}
+
+// ── V82: EXTRA MATERIAL LINES ──
+// Business rule: a trip is EITHER multi-trip (count>1, single material) OR multi-material (one trip).
+function addTripMaterialLine(){
+  const cnt=parseInt(document.getElementById('trip-count')?.value)||1;
+  if(cnt>1){
+    alert('A multi-material trip must be a single trip.\n\n"Number of Trips" is '+cnt+'. Set it to 1 to add more materials, or log the extra materials as separate entries.');
+    return;
+  }
+  if(!Array.isArray(window._tripExtraLines)) window._tripExtraLines=[];
+  window._tripExtraLines.push({materialId:'',quantity:0,unit:'',rate:0,amount:0});
+  renderTripExtraLines();
+}
+
+// If user raises Number of Trips above 1 while extra materials exist, warn and block.
+function onTripCountChange(){
+  const cntEl=document.getElementById('trip-count');
+  const cnt=parseInt(cntEl?.value)||1;
+  if(cnt>1 && (window._tripExtraLines||[]).length>0){
+    alert('This entry has extra materials, so it must be a single trip.\n\nRemove the extra materials first if you want to log multiple trips.');
+    if(cntEl){ cntEl.value=1; }
+  }
+}
+
+function delTripMaterialLine(i){
+  if(!Array.isArray(window._tripExtraLines)) return;
+  window._tripExtraLines.splice(i,1);
+  renderTripExtraLines();
+  updateTripAmount();
+}
+
+function updateTripExtraLine(i,field,val){
+  const line=(window._tripExtraLines||[])[i];
+  if(!line) return;
+  if(field==='quantity'||field==='rate') line[field]=parseFloat(val)||0;
+  else line[field]=val;
+  updateTripAmount();
+}
+
+function renderTripExtraLines(){
+  const wrap=document.getElementById('trip-extra-mat-list');
+  if(!wrap) return;
+  const lines=window._tripExtraLines||[];
+  const isExt=(document.querySelector('input[name="trip-mtype"]:checked')?.value
+              ||_currentTripEdit()?.movementType||'external')==='external';
+  if(!lines.length){ wrap.innerHTML=''; return; }
+  const header='<div style="font-size:11px;font-weight:700;color:var(--amber);font-family:var(--fb);margin:4px 0 8px;letter-spacing:.5px">ADDITIONAL MATERIALS ON THIS TRIP</div>';
+  wrap.innerHTML=header+lines.map((l,i)=>{
+    const mat=(materials||[]).find(m=>m.id===l.materialId);
+    const matDisplay=mat?mat.name+(mat.unit?' ('+mat.unit+')':''):'';
+    const lineAmt=isExt?((Number(l.quantity)||0)*(Number(l.rate)||0)):0;
+    return `<div style="border:1.5px dashed var(--border);border-radius:10px;padding:10px;margin-bottom:8px;background:var(--bg2)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:10px;font-weight:700;color:var(--muted);font-family:var(--fb)">EXTRA MATERIAL ${i+1}</span>
+        <span onclick="delTripMaterialLine(${i})" style="color:var(--red);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fb)">✕ Remove</span>
+      </div>
+      <div style="position:relative;margin-bottom:6px">
+        <input class="f-inp" id="trip-mat-txt-${i}" type="text" autocomplete="off" placeholder="Type to search material..."
+          value="${matDisplay}"
+          oninput="_matPickerFilter(${i})" onfocus="_matPickerFilter(${i})" onblur="setTimeout(function(){_matPickerClose(${i})},200)"
+          style="background:var(--bg3);color:var(--white)">
+        <div id="trip-mat-list-${i}" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:998;background:var(--bg2);border:1px solid var(--amber);border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto"></div>
+      </div>
+      <div class="f-r2">
+        <div class="f-field" style="margin:0"><label class="f-lbl" style="font-size:10px">Quantity</label>
+          <input class="f-inp" type="number" inputmode="decimal" value="${l.quantity||''}" placeholder="0"
+            oninput="updateTripExtraLine(${i},'quantity',this.value)"></div>
+        <div class="f-field" style="margin:0"><label class="f-lbl" style="font-size:10px">Unit</label>
+          <input class="f-inp" type="text" value="${l.unit||''}" placeholder="brass / MT"
+            oninput="updateTripExtraLine(${i},'unit',this.value)"></div>
+      </div>
+      ${isExt?`<div class="f-r2" style="margin-top:6px">
+        <div class="f-field" style="margin:0"><label class="f-lbl" style="font-size:10px">Rate ₹</label>
+          <input class="f-inp" type="number" inputmode="decimal" value="${l.rate||''}" placeholder="0"
+            oninput="updateTripExtraLine(${i},'rate',this.value)"></div>
+        <div class="f-field" style="margin:0"><label class="f-lbl" style="font-size:10px">Line Amount ₹</label>
+          <input class="f-inp" id="trip-line-amt-${i}" type="number" value="${lineAmt>0?lineAmt.toFixed(0):''}" placeholder="auto" readonly
+            style="font-family:var(--fh);background:var(--bg3);color:var(--muted)"></div>
+      </div>`:''}
+    </div>`;
+  }).join('');
 }
 
 // Normalize a trip object — Firebase converts arrays with numeric keys to objects.
@@ -4466,6 +4623,11 @@ function updateTripAmount(){
   const gstInp=document.getElementById('trip-gst-amt');
   const amtInp=document.getElementById('trip-amount');
   const subtotal=qty*rate*trips;
+  // V82: add extra material lines (each = qty × rate, NOT multiplied by numTrips — they ride the same trips)
+  let extraTotal=0;
+  (window._tripExtraLines||[]).forEach(l=>{
+    extraTotal+=(Number(l.quantity)||0)*(Number(l.rate)||0);
+  });
   // Read misc charges from in-memory state
   const misc=window._tripMiscCharges||[];
   let miscGstable=0,miscNonGstable=0;
@@ -4473,10 +4635,16 @@ function updateTripAmount(){
     const amt=parseFloat(m.amount)||0;
     if(m.gstable) miscGstable+=amt; else miscNonGstable+=amt;
   });
-  const gstBase=subtotal+miscGstable;
+  const gstBase=subtotal+extraTotal+miscGstable;
   const gstAmount=gstBase*(gstPct/100);
-  const total=subtotal+miscGstable+miscNonGstable+gstAmount;
+  const total=subtotal+extraTotal+miscGstable+miscNonGstable+gstAmount;
+  // Primary Subtotal field shows ONLY the primary material (extras have their own per-line amounts).
   if(subInp) subInp.value=subtotal>0?subtotal.toFixed(0):'';
+  // V82: refresh each extra line's Line Amount field live (qty × rate)
+  (window._tripExtraLines||[]).forEach((l,i)=>{
+    const el=document.getElementById('trip-line-amt-'+i);
+    if(el){ const la=(Number(l.quantity)||0)*(Number(l.rate)||0); el.value=la>0?la.toFixed(0):''; }
+  });
   if(gstInp) gstInp.value=gstAmount>0?gstAmount.toFixed(0):'';
   // Only update amount field if user is NOT currently editing it manually.
   // This prevents fighting user override while still recalculating when they edit qty/rate.
@@ -4614,6 +4782,18 @@ async function saveTrip(){
     customerId,
     materialId,
     materialName:(materials.find(m=>m.id===materialId)||{}).name||'',
+    extraLines:(window._tripExtraLines||[]).filter(l=>l.materialId).map(l=>{
+      const lr=movementType==='external'?(Number(l.rate)||0):0;
+      const lq=Number(l.quantity)||0;
+      return {
+        materialId:l.materialId,
+        materialName:(materials.find(m=>m.id===l.materialId)||{}).name||'',
+        quantity:lq,
+        unit:String(l.unit||'').trim(),
+        rate:lr,
+        amount:movementType==='external'?(lq*lr):0
+      };
+    }),
     customerOwnVehicle: customerOwnVehicle||false,
     customerVehicleNo: customerOwnVehicle ? customerVehicleNo : '',
     customerDriverName: customerOwnVehicle ? customerDriverName : '',
@@ -7921,6 +8101,29 @@ function getFuelRate(){
   return 90;
 }
 
+// V83: returns all material lines on a trip as a uniform list (primary + extras).
+// Each: {materialId, name, quantity, unit, rate, amount, isPrimary}. Old/single-material trips return just the primary.
+// NOTE: `amount` is the per-LINE amount (qty×rate), NOT the trip grand total. For old single-material trips
+// where rate may be 0 but t.amount holds the value, primary falls back to t.amount so revenue still shows.
+function tripMaterialLines(t){
+  const out=[];
+  const hasExtras=Array.isArray(t.extraLines)&&t.extraLines.some(l=>l&&l.materialId);
+  if(t.materialId){
+    const m=(materials||[]).find(x=>x.id===t.materialId);
+    const q=Number(t.quantity)||0, r=Number(t.rate)||0;
+    // Primary line amount: qty×rate when extras exist (so it isn't the grand total); otherwise the trip amount
+    // (covers old trips, misc charges, GST, manual overrides on single-material trips).
+    const primAmt=hasExtras?(q*r):(Number(t.amount)||(q*r));
+    out.push({materialId:t.materialId,name:m?m.name:(t.materialName||'?'),quantity:q,unit:t.unit||(m?m.unit:''),rate:r,amount:primAmt,isPrimary:true});
+  }
+  (t.extraLines||[]).forEach(l=>{
+    if(!l.materialId) return;
+    const m=(materials||[]).find(x=>x.id===l.materialId);
+    out.push({materialId:l.materialId,name:m?m.name:(l.materialName||'?'),quantity:Number(l.quantity)||0,unit:l.unit||(m?m.unit:''),rate:Number(l.rate)||0,amount:Number(l.amount)||0,isPrimary:false});
+  });
+  return out;
+}
+
 function renderReports(){
   const el=document.getElementById('rep-content');
   if(!el)return;
@@ -9164,6 +9367,7 @@ function renderReports(){
                 <div style="font-family:var(--fh);font-size:13px;color:var(--white)">${isExt?cust?.name||'?':toS?.name||'?'}</div>
                 <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">${fmtD(t.date)} · ${veh?.name||'?'} · ${drv?.name||'?'} · ${t.numTrips||1} trip${(t.numTrips||1)!==1?'s':''}</div>
                 ${mat?`<div style="font-size:11px;color:var(--white);font-weight:600;margin-top:2px">📦 ${mat.name}${t.quantity?` · ${fmt(t.quantity,1)} ${t.unit||mat.unit}`:''}</div>`:''}
+                ${(t.extraLines||[]).filter(l=>l.materialId).map(l=>{const em=(materials||[]).find(x=>x.id===l.materialId);return em?`<div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:1px">＋ ${em.name}${l.quantity?` · ${fmt(l.quantity,1)} ${l.unit||em.unit}`:''}${(isExt&&l.amount)?` · ${fmtINR(l.amount)}`:''}</div>`:'';}).join('')}
               </div>
               <div style="text-align:right;flex-shrink:0">
                 ${isExt?`<div style="font-family:var(--fh);font-size:14px;color:var(--green)">${fmtINR(t.amount)}</div>${due>0?`<div style="font-size:10px;color:var(--red);font-weight:700">DUE ${fmtINR(due)}</div>`:`<div style="font-size:10px;color:var(--green);font-weight:700">PAID</div>`}`:`<div style="font-size:11px;color:var(--blue);font-weight:700">INTERNAL</div>`}
@@ -9302,11 +9506,16 @@ function renderReports(){
     // ── REPORT 3: MATERIAL-WISE SUMMARY ──
     } else if(reportType==='materials'){
       const matMap={};
-      allTrips.filter(t=>t.materialId).forEach(t=>{
-        if(!matMap[t.materialId]) matMap[t.materialId]={trips:[],qty:0,revenue:0};
-        matMap[t.materialId].trips.push(t);
-        matMap[t.materialId].qty+=(t.quantity||0)*(t.numTrips||1);
-        if(t.movementType==='external') matMap[t.materialId].revenue+=(t.amount||0);
+      allTrips.forEach(t=>{
+        const isExtTrip=t.movementType==='external';
+        tripMaterialLines(t).forEach(line=>{
+          if(!matMap[line.materialId]) matMap[line.materialId]={trips:[],qty:0,revenue:0};
+          // track unique trips per material (so trip count stays sane even if same material twice)
+          if(!matMap[line.materialId].trips.includes(t)) matMap[line.materialId].trips.push(t);
+          // primary qty rides numTrips; extras are single-trip by rule (numTrips forced to 1 when extras exist)
+          matMap[line.materialId].qty+=line.quantity*(line.isPrimary?(t.numTrips||1):1);
+          if(isExtTrip) matMap[line.materialId].revenue+=(line.amount||0);
+        });
       });
       const ranked=Object.entries(matMap).map(([id,v])=>({m:(materials||[]).find(m=>m.id===id),...v})).filter(x=>x.m).sort((a,b)=>b.revenue-a.revenue);
       const drillId=window._tripRepDrillId;
@@ -9445,6 +9654,7 @@ function renderReports(){
         siteMap[t.fromSiteId].qty+=(t.quantity||0)*(t.numTrips||1);
         if(t.movementType==='external') siteMap[t.fromSiteId].revenue+=(t.amount||0);
         if(t.materialId) siteMap[t.fromSiteId].materials.add(t.materialId);
+        (t.extraLines||[]).forEach(l=>{ if(l.materialId) siteMap[t.fromSiteId].materials.add(l.materialId); });
       });
       const ranked=Object.entries(siteMap).map(([id,v])=>({s:(sites||[]).find(s=>s.id===id),...v})).filter(x=>x.s).sort((a,b)=>b.qty-a.qty);
       const drillId=window._tripRepDrillId;
@@ -10506,12 +10716,21 @@ function exportRepPDF(){
         const cust=(customers||[]).find(c=>c.id===t.customerId); const mat=(materials||[]).find(m=>m.id===t.materialId);
         const isExt=t.movementType==='external'; const due=(t.amount||0)-(t.amountPaid||0);
         const isChargeOnly=isExt&&!t.materialId&&(!t.quantity||t.quantity===0);
-        const matLabel=isChargeOnly?'<i style="color:#999">Misc charge</i>':(mat?.name||'—');
+        const _extras=(t.extraLines||[]).filter(l=>l.materialId);
+        const _isMulti=_extras.length>0;
+        // Multi-material (internal): packing-list style — each material with its own qty in the Material column.
+        const primaryMatLine=_isMulti
+          ? `${mat?.name||'—'}${t.quantity?' · '+fmt(t.quantity,1)+' '+(t.unit||mat?.unit||''):''}`
+          : (isChargeOnly?'<i style="color:#999">Misc charge</i>':(mat?.name||'—'));
+        const extraMatList=_extras.map(l=>{const em=(materials||[]).find(x=>x.id===l.materialId);return em?`<div style="font-size:8px;color:#666">＋ ${em.name}${l.quantity?' · '+fmt(l.quantity,1)+' '+(l.unit||em.unit):''}</div>`:'';}).join('');
+        const matLabel=primaryMatLine+extraMatList;
         const gstSuffix=t.gstPercent>0?`<div style="font-size:8px;color:#999">incl. GST ${t.gstPercent}% (₹${fmt(t.gstAmount||0,0)})</div>`:'';
+        // QTY column: dash for multi-material (qty now shown per-material in Material column); normal for single.
+        const qtyCell=_isMulti?'<span style="color:#999">—</span>':(t.quantity?fmt(t.quantity,1)+' '+t.unit:'—')+(t.numTrips>1?' ×'+t.numTrips:'');
         return`<tr><td>${fmtD(t.date)}</td><td style="font-size:9px">${_fmtSlips(t)||'—'}</td><td>${t.customerOwnVehicle?(t.customerDriverName?t.customerDriverName+' (cust.)':'Cust. driver'):(drv?.name||'—')}</td>
           <td>${t.customerOwnVehicle?('Cust.'+(t.customerVehicleNo?' '+t.customerVehicleNo:'')):v?.name||'—'}</td>
           <td>${fromS?.name||'—'}</td><td>${isExt?cust?.name||'?':toS?.name||'—'}</td>
-          <td>${matLabel}</td><td>${t.quantity?fmt(t.quantity,1)+' '+t.unit:'—'}${t.numTrips>1?' ×'+t.numTrips:''}</td>
+          <td>${matLabel}</td><td>${qtyCell}</td>
           <td class="right" style="font-weight:700">${isExt?fmtINR(t.amount)+gstSuffix:'—'}</td>
           <td style="font-size:9px;color:${isExt?(due>0?'#c62828':'green'):'#999'}">${isExt?(due>0?'DUE '+fmtINR(due):'PAID'):'INT'}</td></tr>`;
       }).join('')}</tbody>
@@ -10534,11 +10753,14 @@ function exportRepPDF(){
 
     } else if(reportType==='materials'){
       const matMap={};
-      allTrips.filter(t=>t.materialId).forEach(t=>{
-        if(!matMap[t.materialId])matMap[t.materialId]={qty:0,revenue:0,trips:0};
-        matMap[t.materialId].qty+=(t.quantity||0)*(t.numTrips||1);
-        if(t.movementType==='external')matMap[t.materialId].revenue+=(t.amount||0);
-        matMap[t.materialId].trips+=(t.numTrips||1);
+      allTrips.forEach(t=>{
+        const isExtTrip=t.movementType==='external';
+        tripMaterialLines(t).forEach(line=>{
+          if(!matMap[line.materialId])matMap[line.materialId]={qty:0,revenue:0,trips:0,_seen:new Set()};
+          matMap[line.materialId].qty+=line.quantity*(line.isPrimary?(t.numTrips||1):1);
+          if(isExtTrip)matMap[line.materialId].revenue+=(line.amount||0);
+          if(!matMap[line.materialId]._seen.has(t.id)){ matMap[line.materialId]._seen.add(t.id); matMap[line.materialId].trips+=(t.numTrips||1); }
+        });
       });
       tripBody+=`<h2>Material-wise Summary</h2>
       <table><thead><tr><th>#</th><th>Material</th><th class="right">Qty</th><th class="right">Trips</th><th class="right">Revenue</th></tr></thead>
@@ -11924,6 +12146,7 @@ function delWorkEntry(id){
 const MISC_BOQ = 'MISC';            // reserved allocation target = non-BOQ / misc work
 let _labGangId   = '';              // selected gang for the in-progress entry
 let _labRows     = [];              // [{label, count, rate}]
+let _labPieceRows= [];              // V81: piece-rate lines [{boqItemId, qty, rate}] — work done × rate, charged direct to BOQ item
 let _labAlloc    = [];              // [{boqItemId, percent}]
 let _labEditId   = null;            // editing an existing dailyLabour entry
 let _labShowToday= false;           // toggle today's editable entry list
@@ -11933,6 +12156,7 @@ let _labNewGang  = false;           // inline "new gang" form open?
 function _gang(id){ return (gangs||[]).find(g=>g.id===id); }
 function _labLineLabels(){ return [...new Set((dailyLabour||[]).flatMap(e=>(e.rows||[]).map(r=>String(r.label||'').trim())).filter(Boolean))]; }
 function _labRowTotal(){ return _labRows.reduce((s,r)=>s+((Number(r.count)||0)*(Number(r.rate)||0)),0); }
+function _labPieceTotal(){ return _labPieceRows.reduce((s,r)=>s+((Number(r.qty)||0)*(Number(r.rate)||0)),0); }
 function _labAllocPct(){ return _labAlloc.reduce((s,a)=>s+(Number(a.percent)||0),0); }
 
 // ---- read live inputs back into state before any re-render ----
@@ -11946,12 +12170,19 @@ function _readLabInputs(){
     const b=document.getElementById('lab-alloc-boq-'+i); if(b) a.boqItemId=b.value;
     const p=document.getElementById('lab-alloc-pct-'+i); if(p) a.percent=p.value;
   });
+  _labPieceRows.forEach((r,i)=>{
+    const b=document.getElementById('lab-pc-boq-'+i); if(b) r.boqItemId=b.value;
+    const q=document.getElementById('lab-pc-qty-'+i); if(q) r.qty=q.value;
+    const rt=document.getElementById('lab-pc-rt-'+i); if(rt) r.rate=rt.value;
+  });
 }
 
 function addLabRow(){ _readLabInputs(); _labRows.push({label:'',count:'',rate:''}); _dprStep=2; renderDPRStep(); }
 function delLabRow(i){ _readLabInputs(); _labRows.splice(i,1); if(!_labRows.length) _labRows.push({label:'',count:'',rate:''}); _dprStep=2; renderDPRStep(); }
 function addLabAlloc(){ _readLabInputs(); _labAlloc.push({boqItemId:'',percent:''}); _dprStep=2; renderDPRStep(); }
 function delLabAlloc(i){ _readLabInputs(); _labAlloc.splice(i,1); _dprStep=2; renderDPRStep(); }
+function addLabPiece(){ _readLabInputs(); _labPieceRows.push({boqItemId:'',qty:'',rate:''}); _dprStep=2; renderDPRStep(); }
+function delLabPiece(i){ _readLabInputs(); _labPieceRows.splice(i,1); _dprStep=2; renderDPRStep(); }
 
 // ---- gang creation (inline) ----
 function _toggleLabNewGang(){ _readLabInputs(); _labNewGang=!_labNewGang; _dprStep=2; renderDPRStep(); }
@@ -11995,14 +12226,17 @@ function renderDPRLabour(body){
         const tm=e.ts?new Date(e.ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}):'';
         const edited=e.editedTs?' · edited':'';
         const ppl=(e.rows||[]).reduce((s,r)=>s+(Number(r.count)||0),0);
+        const pcCount=(e.pieceRows||[]).length;
         const allocTxt=(e.allocations||[]).map(a=>{
           if(a.boqItemId===MISC_BOQ) return 'Misc '+(Number(a.percent)||0)+'%';
           const it=boqItems.find(x=>x.id===a.boqItemId);
           return (it?('Item '+_esc(it.itemNo||'')):'?')+' '+(Number(a.percent)||0)+'%';
         }).join(' · ');
+        const pieceTxt=pcCount?(pcCount+' piece-rate item'+(pcCount===1?'':'s')):'';
+        const workTxt=[ppl?(ppl+' worker'+(ppl===1?'':'s')):'', pieceTxt].filter(Boolean).join(' · ')||'—';
         return `<div style="border-top:1px solid var(--border);padding:8px 4px;display:flex;align-items:center;gap:8px">
           <div style="flex:1;min-width:0">
-            <div style="font-size:12px;color:var(--white);font-weight:600;line-height:1.3">${g?_esc(g.name):'(gang removed)'} · ${ppl} worker${ppl===1?'':'s'}</div>
+            <div style="font-size:12px;color:var(--white);font-weight:600;line-height:1.3">${g?_esc(g.name):'(gang removed)'} · ${workTxt}</div>
             <div style="font-size:11px;color:var(--muted);margin-top:2px"><span style="color:var(--green);font-weight:700">₹${(Number(e.totalAmount)||0).toLocaleString('en-IN')}</span>${allocTxt?' · '+allocTxt:''}${tm?' · '+tm:''}${edited}</div>
           </div>
           <button onclick="editLabEntry('${e.id}')" style="background:var(--bg3);border:1px solid var(--amber);color:var(--amber);font-size:12px;font-weight:700;padding:5px 10px;border-radius:6px;cursor:pointer">✎</button>
@@ -12036,7 +12270,7 @@ function renderDPRLabour(body){
   // worker rows (label × count × rate) with datalist autocomplete
   const labelsDL=`<datalist id="lab-labels">${_labLineLabels().map(l=>`<option value="${_esc(l)}">`).join('')}</datalist>`;
   const rowsBlock=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:9px">
-    <div style="font-size:11px;color:var(--amber);font-weight:700;margin-bottom:6px">WORKERS</div>
+    <div style="font-size:11px;color:var(--amber);font-weight:700;margin-bottom:6px">WORKERS (daily wage × count)</div>
     ${labelsDL}
     ${_labRows.map((r,i)=>`<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
       <input class="f-inp" id="lab-lbl-${i}" list="lab-labels" placeholder="Category (e.g. Male)" value="${_esc(r.label||'')}" style="flex:2;margin:0">
@@ -12054,11 +12288,39 @@ function renderDPRLabour(body){
 
   // allocation rows (BOQ item or Misc + percent)
   const boqOpts=boq.map(b=>`<option value="${b.id}">Item ${_esc(b.itemNo||'')} — ${_esc((b.description||'').slice(0,40))}</option>`).join('');
+
+  // V81: PIECE-RATE WORK block — work done × rate, charged direct to a BOQ item
+  const pieceBlock=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:9px">
+    <div style="font-size:11px;color:var(--amber);font-weight:700;margin-bottom:2px">PIECE-RATE WORK (work done × rate)</div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:7px">Pick the BOQ item, enter the quantity the gang executed and the agreed rate. Charged directly to that item. Leave empty if none.</div>
+    ${_labPieceRows.map((r,i)=>`<div style="border:1px solid var(--border);border-radius:7px;padding:8px;margin-bottom:7px">
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+        <select class="f-inp" id="lab-pc-boq-${i}" style="flex:1;margin:0">
+          <option value="">— select BOQ item —</option>
+          ${boqOpts}
+        </select>
+        <button onclick="delLabPiece(${i})" style="background:var(--bg3);border:1px solid var(--red);color:var(--red);font-size:13px;padding:6px 9px;border-radius:6px;cursor:pointer">✕</button>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input class="f-inp" id="lab-pc-qty-${i}" placeholder="Work done (qty)" inputmode="decimal" value="${_esc(r.qty||'')}" oninput="_labLive()" style="flex:2;margin:0">
+        <span style="color:var(--muted);font-size:13px">×₹</span>
+        <input class="f-inp" id="lab-pc-rt-${i}" placeholder="Rate" inputmode="decimal" value="${_esc(r.rate||'')}" oninput="_labLive()" style="flex:1;margin:0">
+        <span id="lab-pc-amt-${i}" style="color:var(--green);font-weight:700;font-size:13px;min-width:64px;text-align:right">₹${((Number(r.qty)||0)*(Number(r.rate)||0)).toLocaleString('en-IN')}</span>
+      </div>
+    </div>`).join('')}
+    <button onclick="addLabPiece()" style="background:var(--bg3);border:1px dashed var(--amber);color:var(--amber);font-size:12px;font-weight:700;padding:6px 12px;border-radius:7px;cursor:pointer;margin-top:2px">+ Add piece-rate item</button>
+    <div style="border-top:1px solid var(--border);margin-top:9px;padding-top:8px;font-size:13px;display:flex;justify-content:space-between">
+      <span style="color:var(--muted)">Piece-rate total</span>
+      <span id="lab-piece-total" style="color:var(--green);font-weight:700">₹${_labPieceTotal().toLocaleString('en-IN')}</span>
+    </div>
+  </div>`;
+
+  // allocation rows (BOQ item or Misc + percent)
   const allocPct=_labAllocPct();
   const allocColor=Math.abs(allocPct-100)<0.01?'var(--green)':'var(--amber)';
   const allocBlock=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:9px">
-    <div style="font-size:11px;color:var(--amber);font-weight:700;margin-bottom:2px">CHARGE TO (BOQ allocation)</div>
-    <div style="font-size:10px;color:var(--muted);margin-bottom:7px">Default 100% to one item. Split across items if needed — must total 100%. Use “Misc / Non-BOQ” for repair / off-BOQ work.</div>
+    <div style="font-size:11px;color:var(--amber);font-weight:700;margin-bottom:2px">CHARGE TO (BOQ allocation) — optional</div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:7px">Optional: splits the WORKERS (daily-wage) total across BOQ items. Leave blank to keep it unassigned. Piece-rate items above are already charged to their own item. Use “Misc / Non-BOQ” for repair / off-BOQ work.</div>
     ${_labAlloc.map((a,i)=>`<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
       <select class="f-inp" id="lab-alloc-boq-${i}" style="flex:3;margin:0">
         <option value="">— select —</option>
@@ -12079,9 +12341,11 @@ function renderDPRLabour(body){
   const saveBtn=`<button onclick="saveLabEntry()" style="width:100%;background:var(--green);border:none;color:#06210f;font-size:15px;font-weight:800;padding:13px;border-radius:9px;cursor:pointer;margin-bottom:8px">${_labEditId?'UPDATE LABOUR':'SAVE LABOUR ENTRY'}</button>`;
   const cancelEdit=_labEditId?`<button onclick="_labResetForm();_dprStep=2;renderDPRStep()" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--muted);font-size:13px;padding:9px;border-radius:8px;cursor:pointer;margin-bottom:8px">Cancel edit</button>`:'';
 
-  body.innerHTML=summary+todayList+gangPicker+rowsBlock+allocBlock+saveBtn+cancelEdit;
+  body.innerHTML=summary+todayList+gangPicker+rowsBlock+pieceBlock+allocBlock+saveBtn+cancelEdit;
   // set BOQ <select> values post-render (MISC handled via <option selected>; real BOQ ids set here)
   _labAlloc.forEach((a,i)=>{ if(a.boqItemId && a.boqItemId!==MISC_BOQ){ const s=document.getElementById('lab-alloc-boq-'+i); if(s) s.value=a.boqItemId; } });
+  // V81: set piece-rate BOQ <select> values post-render
+  _labPieceRows.forEach((r,i)=>{ if(r.boqItemId){ const s=document.getElementById('lab-pc-boq-'+i); if(s) s.value=r.boqItemId; } });
 }
 
 // live recompute of the two totals without full re-render (keeps focus)
@@ -12089,15 +12353,19 @@ function _labLive(){
   _readLabInputs();
   const t=document.getElementById('lab-total'); if(t) t.textContent='₹'+_labRowTotal().toLocaleString('en-IN');
   const p=document.getElementById('lab-allocpct'); if(p){ const pc=_labAllocPct(); p.textContent=pc.toFixed(0)+'%'+(Math.abs(pc-100)<0.01?' ✓':''); p.style.color=Math.abs(pc-100)<0.01?'var(--green)':'var(--amber)'; }
+  // V81: piece-rate live amounts + total
+  _labPieceRows.forEach((r,i)=>{ const a=document.getElementById('lab-pc-amt-'+i); if(a) a.textContent='₹'+((Number(r.qty)||0)*(Number(r.rate)||0)).toLocaleString('en-IN'); });
+  const pt=document.getElementById('lab-piece-total'); if(pt) pt.textContent='₹'+_labPieceTotal().toLocaleString('en-IN');
 }
 
-function _labResetForm(){ _labGangId=''; _labRows=[{label:'',count:'',rate:''}]; _labAlloc=[{boqItemId:'',percent:''}]; _labEditId=null; _labNewGang=false; }
+function _labResetForm(){ _labGangId=''; _labRows=[{label:'',count:'',rate:''}]; _labPieceRows=[]; _labAlloc=[{boqItemId:'',percent:''}]; _labEditId=null; _labNewGang=false; }
 
 function editLabEntry(id){
   const e=(dailyLabour||[]).find(x=>x.id===id); if(!e){ alert('Entry not found'); return; }
   _labGangId=e.gangId||'';
   _labRows=(e.rows||[]).map(r=>({label:r.label||'',count:r.count,rate:r.rate}));
   if(!_labRows.length) _labRows=[{label:'',count:'',rate:''}];
+  _labPieceRows=(e.pieceRows||[]).map(r=>({boqItemId:r.boqItemId||'',qty:r.qty,rate:r.rate}));
   _labAlloc=(e.allocations||[]).map(a=>({boqItemId:a.boqItemId,percent:a.percent}));
   if(!_labAlloc.length) _labAlloc=[{boqItemId:'',percent:''}];
   _labEditId=id; _labShowToday=false; _labNewGang=false;
@@ -12108,31 +12376,42 @@ function saveLabEntry(){
   _readLabInputs();
   const dpr=_curDPR(); if(!dpr){ alert('No DPR open'); return; }
   if(!_labGangId){ alert('Select a gang'); return; }
+  // attendance worker rows (daily wage × count)
   const rows=_labRows
     .map(r=>({label:String(r.label||'').trim(), count:Number(r.count)||0, rate:Number(r.rate)||0}))
     .filter(r=>r.count>0 && r.rate>0);
-  if(!rows.length){ alert('Enter at least one worker row with count and rate'); return; }
-  const total=rows.reduce((s,r)=>s+(r.count*r.rate),0);
-  // allocations
+  const rowTotal=rows.reduce((s,r)=>s+(r.count*r.rate),0);
+  // V81: piece-rate lines (work done × rate, charged direct to BOQ item)
+  const pieceRows=_labPieceRows
+    .map(r=>({boqItemId:String(r.boqItemId||''), qty:Number(r.qty)||0, rate:Number(r.rate)||0}))
+    .filter(r=>r.boqItemId && r.qty>0 && r.rate>0)
+    .map(r=>({...r, amount:Math.round(r.qty*r.rate*100)/100}));
+  const pieceTotal=pieceRows.reduce((s,r)=>s+r.amount,0);
+  // V81: an entry needs SOMETHING — at least one worker row OR one piece-rate line
+  if(!rows.length && !pieceRows.length){
+    alert('Add at least one worker row (daily wage) or one piece-rate item (work done × rate).');
+    return;
+  }
+  // V81: allocation is now OPTIONAL — assign if the sup picked items; no 100% enforcement.
+  // Only applies to the attendance (worker) total.
   const alloc=_labAlloc
     .map(a=>({boqItemId:a.boqItemId, percent:Number(a.percent)||0}))
     .filter(a=>a.boqItemId && a.percent>0);
-  if(!alloc.length){ alert('Allocate this labour to at least one BOQ item or Misc'); return; }
-  const pct=alloc.reduce((s,a)=>s+a.percent,0);
-  if(Math.abs(pct-100)>0.01){ alert('Allocation must total exactly 100% (currently '+pct.toFixed(0)+'%)'); return; }
+
+  const total=rowTotal+pieceTotal;
 
   let rec, isEdit=false;
   const existing=_labEditId?(dailyLabour||[]).find(x=>x.id===_labEditId):null;
   if(existing){
     isEdit=true;
     rec={...existing, projectId:dpr.projectId, dprId:dpr.id, gangId:_labGangId, date:dpr.date,
-      rows:rows, totalAmount:total, allocations:alloc,
+      rows:rows, pieceRows:pieceRows, totalAmount:total, allocations:alloc,
       editedBy:(sess&&sess.userId)||'', editedByName:(sess&&sess.name)||'', editedTs:Date.now()};
     const idx=dailyLabour.findIndex(x=>x.id===_labEditId);
     if(idx>=0) dailyLabour[idx]=rec; else dailyLabour.push(rec);
   } else {
     rec={ id:uid(), projectId:dpr.projectId, dprId:dpr.id, gangId:_labGangId, date:dpr.date,
-      rows:rows, totalAmount:total, allocations:alloc,
+      rows:rows, pieceRows:pieceRows, totalAmount:total, allocations:alloc,
       enteredBy:(sess&&sess.userId)||'', enteredByName:(sess&&sess.name)||'', ts:Date.now() };
     dailyLabour=dailyLabour||[]; dailyLabour.push(rec);
   }
