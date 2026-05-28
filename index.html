@@ -1,4 +1,4 @@
-<!-- FuelLog PWA | Version: V83 | Date: 2026-05-27 | Chiddarwar Construction Co. Pvt. Ltd. | V83 FEATURE: Trip reports acknowledge extra materials (V82 multi-material). New tripMaterialLines(t) helper returns uniform list of primary+extra material lines; per-LINE amount (qty×rate) for multi-material trips, falls back to t.amount for old single-material trips (no double-count). Trip Register (screen+print) now lists extra materials under primary with qty & line amount. Material-wise Summary (screen+print) rolls up each material line separately — extras counted toward their own material's qty/revenue, trip-count deduped per trip. Site Dispatch Log (screen) includes extra materials in the site's material set. Both renderReports paths updated per Rule 8. PDF refinement: multi-material rows (internal) now show each material with its own qty in the Material column (packing-list style), QTY column shows dash; single-material rows unchanged. PDF multi-material packing-list done. Note: trip-level GST/misc not attributed to individual materials in Material-wise revenue (shows pre-GST material value — correct for that report). Additive read-only reporting change, no data write, no storage-wiring touch. | V82 FEATURE: Multi-material per trip + searchable material picker. Trip form material <select> replaced with type-to-search combobox (helpers _matPickerFilter/_matPickerSelect/_matPickerClose, index -1=primary, 0..n=extra lines). 'Add Material +' next to Material* adds extra material rows (new extraLines[] field on trip: {materialId,materialName,quantity,unit,rate,amount}); primary material stays in flat fields unchanged (backward compatible - old/single-material trips have no extraLines). External: each extra line has own rate -> line amount; internal: rate/amount zeroed. GST + misc stay trip-level (sum across all lines). updateTripAmount adds extraTotal into subtotal+GST base. Business rule ENFORCED: a trip is EITHER multi-trip (count>1, single material) OR multi-material (count locked to 1) - addTripMaterialLine blocks if count>1, onTripCountChange resets count to 1 if extras exist. saveTrip persists extraLines (filters blank materialId). State window._tripExtraLines reset+init like other trip arrays; carried in _currentTripEdit across re-renders. trips still in MERGE_KEYS, sv('trips') unchanged - additive field only, no new collection, no sync-core change. | V81 FEATURE: DPR Labour piece-rate work — labour entry now supports PIECE-RATE lines (BOQ item + work-done qty × rate, charged direct to item) ALONGSIDE existing daily-wage worker rows; one entry can mix both. New pieceRows[] field on dailyLabour records (same collection, no storage-wiring change — already LS_NO_CACHE+MERGE_KEYS+per-record _fbWrite). Allocation block now OPTIONAL (no forced 100%; only splits the daily-wage total). Entry saves with at least one worker row OR one piece-rate line. Purpose: per-gang ledger of item-rate + daily-wage work owed → prompt payment (capture half of queued labourPayments ledger). editLabEntry/reset/today-summary updated. Backward compatible: old entries without pieceRows treated as empty. | V80 FEATURE: Royalty (ETP) tracking on trips — new keyed-by-id `royalty` collection (LS_NO_CACHE+MERGE_KEYS+SK+FB_KEYS+dedup keysToClean, DONE_KEY v59→v60). Trip form: royalty slip rows (material murum/boulder + brass + ETP no.); destination auto-derives (internal→site, external→customer). Slips saved per-record via _fbWrite (Rule 9); edit-removed slips tombstoned via _recordDeletion. New 'Royalty (ETP) Register' option in Trips report dropdown (no Rule 8 risk — inside existing trips block) with material/destination/status filters, issued↔un-issued per-slip toggle (setRoyaltyIssued, per-record _fbWrite), summary tiles + print/PDF block. | V79 FIX (real): dailyReports added to LS_NO_CACHE so Firebase stores it keyed-by-id; was numeric array via StartupMerge full-array write so per-id DELETE no-opped and DPR resurrected; dedup keysToClean + DONE_KEY v58 to v59 repairs existing data. V78 (superseded): DPR resurrection — load-time tombstone filter on dailyReports + deleteDPR updates localStorage cache (root cause: dailyReports cached in localStorage, stale copy reloaded deleted DPR on refresh). | V77 FIX: dip/readings resurrection bug — 'readings' moved into LS_NO_CACHE keyed-object family (V57 pattern); 4 sv('readings',array) writes converted to per-record _fbWrite (Rule 9); delReading sv() removed (was re-corrupting keyed shape & defeating delete); dedup DONE_KEY v57→v58 to re-run array→keyed repair once per device -->
+<!-- FuelLog PWA | Version: V84.1 | Date: 2026-05-28 | V84.1 HOTFIX: Royalty slip navigation race — _fbWrite was fire-and-forget; show('scr-home') page transition aborted in-flight fetch on slow networks causing silent slip loss. Fix: collect writes into _royaltyWritePromises[], await Promise.all before navigation, alert on any failure. Verified: only ONE royalty write call in saveTrip. No new collections, no storage-shape change, no DONE_KEY bump. |TURE: Site Stores module — two new LS_NO_CACHE+MERGE_KEYS collections: materialInward (materials received at site: from vendor/base/site transfer; returnable flag for shuttering/props) and materialOutward (consumed/issued against BOQ item). Balance = Σ inward − Σ outward per material per site. Storage-shape rule fully applied: SK + globals + FB_KEYS + fbInit online/offline forEach + MERGE_KEYS + LS_NO_CACHE + _fbWrite merge handler + dedup keysToClean + DONE_KEY v60→v61. All writes per-record _fbWrite (Rule 9); deletes via _recordDeletion. UI accessible from Project detail (per-project view) and More menu (cross-project view, Owner/Manager). No DPR wizard step added yet (separate session). | Chiddarwar Construction Co. Pvt. Ltd. | V83 FIX: customer duplicate check now HARD-BLOCKS both duplicate name and duplicate phone (was soft "Add anyway?" confirm that allowed dupes through; that is how two customers ended up sharing a phone). Message now identifies which field clashed and which existing customer owns it. Edit-self excluded via _custFormEditId guard. | V83 FEATURE: Trip reports acknowledge extra materials (V82 multi-material). New tripMaterialLines(t) helper returns uniform list of primary+extra material lines; per-LINE amount (qty×rate) for multi-material trips, falls back to t.amount for old single-material trips (no double-count). Trip Register (screen+print) now lists extra materials under primary with qty & line amount. Material-wise Summary (screen+print) rolls up each material line separately — extras counted toward their own material's qty/revenue, trip-count deduped per trip. Site Dispatch Log (screen) includes extra materials in the site's material set. Both renderReports paths updated per Rule 8. PDF refinement: multi-material rows (internal) now show each material with its own qty in the Material column (packing-list style), QTY column shows dash; single-material rows unchanged. PDF multi-material packing-list done. Note: trip-level GST/misc not attributed to individual materials in Material-wise revenue (shows pre-GST material value — correct for that report). Additive read-only reporting change, no data write, no storage-wiring touch. | V82 FEATURE: Multi-material per trip + searchable material picker. Trip form material <select> replaced with type-to-search combobox (helpers _matPickerFilter/_matPickerSelect/_matPickerClose, index -1=primary, 0..n=extra lines). 'Add Material +' next to Material* adds extra material rows (new extraLines[] field on trip: {materialId,materialName,quantity,unit,rate,amount}); primary material stays in flat fields unchanged (backward compatible - old/single-material trips have no extraLines). External: each extra line has own rate -> line amount; internal: rate/amount zeroed. GST + misc stay trip-level (sum across all lines). updateTripAmount adds extraTotal into subtotal+GST base. Business rule ENFORCED: a trip is EITHER multi-trip (count>1, single material) OR multi-material (count locked to 1) - addTripMaterialLine blocks if count>1, onTripCountChange resets count to 1 if extras exist. saveTrip persists extraLines (filters blank materialId). State window._tripExtraLines reset+init like other trip arrays; carried in _currentTripEdit across re-renders. trips still in MERGE_KEYS, sv('trips') unchanged - additive field only, no new collection, no sync-core change. | V81 FEATURE: DPR Labour piece-rate work — labour entry now supports PIECE-RATE lines (BOQ item + work-done qty × rate, charged direct to item) ALONGSIDE existing daily-wage worker rows; one entry can mix both. New pieceRows[] field on dailyLabour records (same collection, no storage-wiring change — already LS_NO_CACHE+MERGE_KEYS+per-record _fbWrite). Allocation block now OPTIONAL (no forced 100%; only splits the daily-wage total). Entry saves with at least one worker row OR one piece-rate line. Purpose: per-gang ledger of item-rate + daily-wage work owed → prompt payment (capture half of queued labourPayments ledger). editLabEntry/reset/today-summary updated. Backward compatible: old entries without pieceRows treated as empty. | V80 FEATURE: Royalty (ETP) tracking on trips — new keyed-by-id `royalty` collection (LS_NO_CACHE+MERGE_KEYS+SK+FB_KEYS+dedup keysToClean, DONE_KEY v59→v60). Trip form: royalty slip rows (material murum/boulder + brass + ETP no.); destination auto-derives (internal→site, external→customer). Slips saved per-record via _fbWrite (Rule 9); edit-removed slips tombstoned via _recordDeletion. New 'Royalty (ETP) Register' option in Trips report dropdown (no Rule 8 risk — inside existing trips block) with material/destination/status filters, issued↔un-issued per-slip toggle (setRoyaltyIssued, per-record _fbWrite), summary tiles + print/PDF block. | V79 FIX (real): dailyReports added to LS_NO_CACHE so Firebase stores it keyed-by-id; was numeric array via StartupMerge full-array write so per-id DELETE no-opped and DPR resurrected; dedup keysToClean + DONE_KEY v58 to v59 repairs existing data. V78 (superseded): DPR resurrection — load-time tombstone filter on dailyReports + deleteDPR updates localStorage cache (root cause: dailyReports cached in localStorage, stale copy reloaded deleted DPR on refresh). | V77 FIX: dip/readings resurrection bug — 'readings' moved into LS_NO_CACHE keyed-object family (V57 pattern); 4 sv('readings',array) writes converted to per-record _fbWrite (Rule 9); delReading sv() removed (was re-corrupting keyed shape & defeating delete); dedup DONE_KEY v57→v58 to re-run array→keyed repair once per device -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1141,6 +1141,10 @@ input[type=file]{display:none}
   </div>
   <div id="proj-det-summary" style="padding:10px 12px"></div>
   <div id="proj-dpr-history" style="padding:0 12px"></div>
+  <!-- Site Stores quick access -->
+  <div style="padding:0 12px 6px">
+    <button class="big-btn bb-cancel" style="width:100%;height:42px;font-size:14px;font-weight:700" onclick="openSiteStores()">📦 SITE STORES — Materials Balance</button>
+  </div>
   <div class="sec-lbl" style="display:flex;justify-content:space-between;align-items:center">
     <span>Schedule B — BOQ</span>
     <span id="proj-boq-total" style="font-size:11px;color:var(--amber);font-weight:700"></span>
@@ -1175,6 +1179,35 @@ input[type=file]{display:none}
     </div>
   </div>
   <div class="log-list" id="proj-boq-list"></div>
+  <div class="pad-bot"></div>
+</div>
+<!-- ═══ SITE STORES — PROJECT VIEW ═══ -->
+<div class="screen" id="scr-site-stores">
+  <div class="topbar">
+    <button class="tb-back" onclick="_storesBack()">‹</button>
+    <div style="flex:1;min-width:0"><div class="tb-title" id="stores-title" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">SITE STORES</div><div class="tb-sub" id="stores-sub"></div></div>
+  </div>
+  <div style="padding:8px 12px 4px;display:flex;gap:8px">
+    <button class="big-btn bb-amber" style="flex:1;height:44px;font-size:14px" onclick="openStoresForm('inward')">+ INWARD</button>
+    <button class="big-btn bb-cancel" style="flex:1;height:44px;font-size:14px" onclick="openStoresForm('outward')">− OUTWARD</button>
+  </div>
+  <!-- Filter tabs -->
+  <div style="display:flex;gap:6px;padding:6px 12px;overflow-x:auto">
+    <span id="stores-tab-balance" onclick="_storesTab('balance')" style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:7px;cursor:pointer;white-space:nowrap">Balance</span>
+    <span id="stores-tab-inward" onclick="_storesTab('inward')" style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:7px;cursor:pointer;white-space:nowrap">Inward</span>
+    <span id="stores-tab-outward" onclick="_storesTab('outward')" style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:7px;cursor:pointer;white-space:nowrap">Outward</span>
+    <span id="stores-tab-returnable" onclick="_storesTab('returnable')" style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:7px;cursor:pointer;white-space:nowrap">To Return</span>
+  </div>
+  <div id="stores-body" style="padding:0 0 8px"></div>
+  <div class="pad-bot"></div>
+</div>
+<!-- ═══ SITE STORES — INWARD / OUTWARD FORM ═══ -->
+<div class="screen" id="scr-stores-form">
+  <div class="topbar">
+    <button class="tb-back" onclick="show('scr-site-stores')">‹</button>
+    <div><div class="tb-title" id="stores-form-title">INWARD</div><div class="tb-sub" id="stores-form-sub"></div></div>
+  </div>
+  <div class="form-body" id="stores-form-body"></div>
   <div class="pad-bot"></div>
 </div>
 <!-- ═══ DPR PICKER (Build A) ═══ -->
@@ -1718,11 +1751,11 @@ input[type=file]{display:none}
 // ════════════════════════════════════
 // STORAGE
 // ════════════════════════════════════
-const SK={users:'fl7_users',fleet:'fl7_fleet',disbs:'fl7_disbs',readings:'fl7_readings',purchases:'fl7_purchases',pumps:'fl7_pumps',pumpFills:'fl7_pumpFills',sites:'fl7_sites',drivers:'fl7_drivers',musters:'fl7_musters',checklistTemplates:'fl7_clTemplates',checklistRecords:'fl7_clRecords',trips:'fl7_trips',customers:'fl7_customers',materials:'fl7_materials',staff:'fl7_staff',staffMusters:'fl7_staffMusters',pumpPayments:'fl7_pumpPayments',projects:'fl7_projects',boqItems:'fl7_boqItems',workEntries:'fl7_workEntries',subcontractors:'fl7_subcontractors',subContracts:'fl7_subContracts',dailyReports:'fl7_dailyReports',gangs:'fl7_gangs',dailyLabour:'fl7_dailyLabour',royalty:'fl7_royalty'};
+const SK={users:'fl7_users',fleet:'fl7_fleet',disbs:'fl7_disbs',readings:'fl7_readings',purchases:'fl7_purchases',pumps:'fl7_pumps',pumpFills:'fl7_pumpFills',sites:'fl7_sites',drivers:'fl7_drivers',musters:'fl7_musters',checklistTemplates:'fl7_clTemplates',checklistRecords:'fl7_clRecords',trips:'fl7_trips',customers:'fl7_customers',materials:'fl7_materials',staff:'fl7_staff',staffMusters:'fl7_staffMusters',pumpPayments:'fl7_pumpPayments',projects:'fl7_projects',boqItems:'fl7_boqItems',workEntries:'fl7_workEntries',subcontractors:'fl7_subcontractors',subContracts:'fl7_subContracts',dailyReports:'fl7_dailyReports',gangs:'fl7_gangs',dailyLabour:'fl7_dailyLabour',royalty:'fl7_royalty',materialInward:'fl7_matInward',materialOutward:'fl7_matOutward'};
 // Keys too large to cache in localStorage (Safari 5MB limit).
 // These are loaded fresh from Firebase on every login — no need to persist locally.
 // V54 FIX: LS_NO_CACHE must be declared BEFORE ld() and sv() reference it.
-const LS_NO_CACHE = new Set(['disbs','purchases','pumpFills','musters','staffMusters','checklistRecords','pumpPayments','dailyLabour','readings','dailyReports','royalty']);
+const LS_NO_CACHE = new Set(['disbs','purchases','pumpFills','musters','staffMusters','checklistRecords','pumpPayments','dailyLabour','readings','dailyReports','royalty','materialInward','materialOutward']);
 // V54: ld() returns [] for LS_NO_CACHE keys — prevents stale localStorage data
 // (e.g. old purchases balance) from overriding Firebase on startup/deploy.
 const ld=k=>{if(LS_NO_CACHE.has(k))return[];try{return JSON.parse(localStorage.getItem(SK[k])||'[]')}catch{return[]}};
@@ -1778,7 +1811,7 @@ function _updateSyncBadge(){
 }
 
 // Keys containing transactional records — must MERGE, never overwrite with fewer entries
-const MERGE_KEYS = new Set(['disbs','pumpFills','purchases','readings','musters','trips','checklistRecords','staffMusters','pumpPayments','workEntries','dailyReports','dailyLabour','royalty']);
+const MERGE_KEYS = new Set(['disbs','pumpFills','purchases','readings','musters','trips','checklistRecords','staffMusters','pumpPayments','workEntries','dailyReports','dailyLabour','royalty','materialInward','materialOutward']);
 
 // Actual Firebase PUT with merge protection
 async function _fbWrite(key, value){
@@ -1814,6 +1847,8 @@ async function _fbWrite(key, value){
               else if(key==='staffMusters') staffMusters=writeValue;
               else if(key==='trips') trips=writeValue.map(_normalizeTrip);
               else if(key==='dailyLabour') dailyLabour=writeValue;
+              else if(key==='materialInward') materialInward=writeValue;
+              else if(key==='materialOutward') materialOutward=writeValue;
               console.log('[Merge] '+key+': preserved '+missing.length+' remote entries');
             }
             // Log any tombstoned IDs we're suppressing (helps debugging)
@@ -1980,7 +2015,7 @@ window.addEventListener('beforeunload', (e) => {
     return e.returnValue;
   }
 });
-let users=ld('users'),fleet=ld('fleet'),disbs=ld('disbs'),readings=ld('readings'),purchases=ld('purchases'),pumps=ld('pumps'),pumpFills=ld('pumpFills'),sites=ld('sites'),drivers=ld('drivers'),musters=ld('musters'),checklistTemplates=ld('checklistTemplates'),checklistRecords=ld('checklistRecords'),trips=ld('trips'),customers=ld('customers'),materials=ld('materials'),staff=ld('staff'),staffMusters=ld('staffMusters'),pumpPayments=ld('pumpPayments'),projects=ld('projects'),boqItems=ld('boqItems'),workEntries=ld('workEntries'),subcontractors=ld('subcontractors'),subContracts=ld('subContracts'),dailyReports=ld('dailyReports'),gangs=ld('gangs'),dailyLabour=ld('dailyLabour'),royalty=ld('royalty');
+let users=ld('users'),fleet=ld('fleet'),disbs=ld('disbs'),readings=ld('readings'),purchases=ld('purchases'),pumps=ld('pumps'),pumpFills=ld('pumpFills'),sites=ld('sites'),drivers=ld('drivers'),musters=ld('musters'),checklistTemplates=ld('checklistTemplates'),checklistRecords=ld('checklistRecords'),trips=ld('trips'),customers=ld('customers'),materials=ld('materials'),staff=ld('staff'),staffMusters=ld('staffMusters'),pumpPayments=ld('pumpPayments'),projects=ld('projects'),boqItems=ld('boqItems'),workEntries=ld('workEntries'),subcontractors=ld('subcontractors'),subContracts=ld('subContracts'),dailyReports=ld('dailyReports'),gangs=ld('gangs'),dailyLabour=ld('dailyLabour'),royalty=ld('royalty'),materialInward=ld('materialInward'),materialOutward=ld('materialOutward');
 
 // V77 FIX (DPR resurrection): deleteDPR removes from memory + Firebase + tombstones,
 // but dailyReports is cached in localStorage (not LS_NO_CACHE), so a hard-refresh
@@ -2059,6 +2094,7 @@ function onEnter(id){
   if(id==='scr-pumps')     renderPumpLog();
   if(id==='scr-sites')     renderSitesLog();
   if(id==='scr-projects')  renderProjectsList();
+  if(id==='scr-site-stores') renderStoresBody();
   if(id==='scr-dpr-pick')  { const t=document.getElementById('dpr-today'); if(t) t.textContent=fmtD(today()); }
   if(id==='scr-subs')      { if(!isOwner()){show('scr-home');return;} renderSubsList(); }
   if(id==='scr-project-new'){ if(!isOwner()){show('scr-home');return;} fillProjectSiteSelect(); }
@@ -2965,12 +3001,13 @@ function submitDriverChecklist(){
 // ════════════════════════════════════
 async function _fbDedupeCleanup(){
   if((!isOwner()&&!isAdmin())||!fbOnline) return;
-  const DONE_KEY='fl7_dedup_done_v60';
+  const DONE_KEY='fl7_dedup_done_v61';
   if(localStorage.getItem(DONE_KEY)==='1') return;
   console.log('[DedupV57] Starting one-time Firebase dedup + keyed-format cleanup...');
   const keysToClean=[
     'disbs','purchases','pumpFills','musters',
-    'staffMusters','checklistRecords','readings','trips','pumpPayments','dailyReports','royalty'
+    'staffMusters','checklistRecords','readings','trips','pumpPayments','dailyReports','royalty',
+    'materialInward','materialOutward'
   ];
   let totalCleaned=0;
   for(const k of keysToClean){
@@ -3017,6 +3054,8 @@ async function _fbDedupeCleanup(){
           else if(k==='readings') readings=deduped;
           else if(k==='trips') trips=_dedup(deduped.map(_normalizeTrip));
           else if(k==='pumpPayments') pumpPayments=deduped;
+          else if(k==='materialInward') materialInward=deduped;
+          else if(k==='materialOutward') materialOutward=deduped;
           console.log('[DedupV57] '+k+': write-back OK ('+deduped.length+' records kept)');
         } else {
           console.warn('[DedupV57] '+k+': write-back failed HTTP '+wr.status+' — in-memory clean, Firebase unchanged');
@@ -3047,7 +3086,7 @@ function renderHome(){
   applyTheme(); // ensure theme button icon is set
   // Update top bar
   document.getElementById('home-tag').textContent=
-    new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})+' · Chiddarwar Construction · V83';
+    new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})+' · Chiddarwar Construction · V84.1';
   document.getElementById('sess-who').textContent=sess.name;
   document.getElementById('sess-bdg').innerHTML=`<span class="bdg ${rBdg(sess.role)}">${rLbl(sess.role)}</span>`;
   // Show/hide bottom nav tabs based on role
@@ -3715,6 +3754,9 @@ function renderMoreTab(el){
     <div class="sec-lbl">Projects</div>
     <div class="act" onclick="show('scr-projects')">
       <div class="act-ico">📐</div><div class="act-txt"><div class="act-title">PROJECTS</div><div class="act-desc">BOQ · Work done · Progress · DPR history</div></div><div class="act-arr">›</div>
+    </div>
+    <div class="act" onclick="openSiteStoresAll()">
+      <div class="act-ico">📦</div><div class="act-txt"><div class="act-title">SITE STORES</div><div class="act-desc">Material inward · outward · balance · returnables</div></div><div class="act-arr">›</div>
     </div>`:''}
     ${isOwner()||isAdmin()||isManager()?`
     <div class="sec-lbl">Tracking & Review</div>
@@ -4871,6 +4913,7 @@ async function saveTrip(){
     }
   }
   // ── ROYALTY SLIPS (V80) — persist per-record to separate `royalty` collection (Rule 9) ──
+  const _royaltyWritePromises=[];
   {
     const rRows=(window._tripRoyaltyRows||[]).filter(r=>r.etpNo||r.brass);
     const tripIdForRoyalty=trip.id;
@@ -4908,10 +4951,25 @@ async function saveTrip(){
       };
       const idx=(royalty||[]).findIndex(x=>x.id===r.id);
       if(idx!==-1) royalty[idx]=rec; else royalty.push(rec);
-      _fbWrite('royalty/'+rec.id,rec);
+      _royaltyWritePromises.push(_fbWrite('royalty/'+rec.id,rec).then(ok=>({ok,etpNo:rec.etpNo})));
     });
   }
   sv('trips',trips);
+  if(_royaltyWritePromises.length){
+    try{
+      const results=await Promise.all(_royaltyWritePromises);
+      const failed=results.filter(x=>!x||!x.ok);
+      if(failed.length){
+        alert('⚠️ Trip saved, but '+failed.length+' royalty slip(s) FAILED to sync to the server'
+          +' (ETP: '+failed.map(f=>(f&&f.etpNo)||'—').join(', ')+').\n\n'
+          +'This is usually a server permission or connectivity issue. The trip is saved, '
+          +'but please re-open this trip and re-save the royalty slip(s) once you are back online.');
+      }
+    }catch(e){
+      alert('⚠️ Trip saved, but royalty slips could not be confirmed synced to the server. '
+        +'Please re-open this trip and re-save the royalty slip(s) to be safe.');
+    }
+  }
   show('scr-home');
   bnavTab('trips');
 }
@@ -5093,10 +5151,16 @@ function saveCustomer(){
   const phone=document.getElementById('cust-phone').value.trim();
   if(!name){alert('Customer name required');return;}
   if(!phone){alert('Phone number required');return;}
-  // Check duplicate
-  const dup=(customers||[]).find(c=>c.id!==_custFormEditId&&(c.name.toLowerCase()===name.toLowerCase()||c.phone===phone));
-  if(dup){
-    if(!confirm(`A customer "${dup.name}" with same name/phone already exists. Add anyway?`)) return;
+  // Hard-block duplicates: a name OR phone already used by ANOTHER customer cannot be saved.
+  const nameDup=(customers||[]).find(c=>c.id!==_custFormEditId && c.name.trim().toLowerCase()===name.toLowerCase());
+  const phoneDup=(customers||[]).find(c=>c.id!==_custFormEditId && (c.phone||'').trim()===phone);
+  if(phoneDup){
+    alert(`Phone ${phone} already belongs to customer "${phoneDup.name}".\n\nEach customer must have a unique phone number. Use a different number, or edit the existing "${phoneDup.name}" record instead.`);
+    return;
+  }
+  if(nameDup){
+    alert(`A customer named "${nameDup.name}" already exists (phone ${nameDup.phone||'—'}).\n\nCustomer names must be unique. Use a distinct name (e.g. add a location or initial), or edit the existing record instead.`);
+    return;
   }
   const data={
     id:_custFormEditId||uid(),
@@ -11795,6 +11859,340 @@ function saveWorkEntry(){
   }
 }
 
+// ════════════════════════════════════════════════════════════════
+// SITE STORES (V84) — materialInward + materialOutward collections
+// Both LS_NO_CACHE + MERGE_KEYS. All writes per-record via _fbWrite (Rule 9);
+// deletes via _recordDeletion. Balance = Σ inward − Σ outward per material.
+// _storesProjectId = null  → cross-project view (all projects, Owner/Manager)
+// _storesProjectId = '<id>' → single-project view (from project detail)
+// ════════════════════════════════════════════════════════════════
+let _storesProjectId = null;   // null = all projects (cross-project)
+let _storesFormMode = 'inward';// 'inward' | 'outward'
+let _storesActiveTab = 'balance'; // balance | inward | outward | returnable
+let _storesEditId = null;      // edit mode (null = new record)
+let _storesMatId = '';         // currently picked material id in the form
+const _STORE_SOURCES = [['vendor','Vendor / Supplier'],['base','Base / Yavatmal Plant'],['site-transfer','Transfer from another site']];
+
+// Records scoped to current view (single project, or all)
+function _storesInward(){ const a=(materialInward||[]); return _storesProjectId?a.filter(r=>r.projectId===_storesProjectId):a; }
+function _storesOutward(){ const a=(materialOutward||[]); return _storesProjectId?a.filter(r=>r.projectId===_storesProjectId):a; }
+function _storeSourceLbl(s){ const f=_STORE_SOURCES.find(x=>x[0]===s); return f?f[1]:(s||'—'); }
+function _storeProjName(pid){ const p=projects.find(x=>x.id===pid); return p?p.name:'(unknown project)'; }
+
+// Entry from project detail button
+function openSiteStores(){
+  _storesProjectId = (typeof _curProjectId!=='undefined' && _curProjectId) ? _curProjectId : null;
+  _storesActiveTab = 'balance';
+  show('scr-site-stores');
+}
+// Entry from More menu — cross-project view
+function openSiteStoresAll(){
+  if(!isManager()){ alert('Owner / Manager only'); return; }
+  _storesProjectId = null;
+  _storesActiveTab = 'balance';
+  show('scr-site-stores');
+}
+function _storesBack(){
+  if(_storesProjectId){ openProject(_storesProjectId); }
+  else { show('scr-home'); bnavTab('more'); }
+}
+function _storesTab(tab){ _storesActiveTab=tab; renderStoresBody(); }
+
+// ── Title + tabs + body ──
+function renderStoresHeader(){
+  const t=document.getElementById('stores-title');
+  const s=document.getElementById('stores-sub');
+  if(_storesProjectId){
+    const p=projects.find(x=>x.id===_storesProjectId);
+    const site=p?sites.find(x=>x.id===p.siteId):null;
+    if(t) t.textContent='📦 '+(p?p.name:'SITE STORES');
+    if(s) s.textContent=site?site.name:'Materials at site';
+  } else {
+    if(t) t.textContent='📦 SITE STORES';
+    if(s) s.textContent='All projects · materials balance';
+  }
+  // tab highlight
+  ['balance','inward','outward','returnable'].forEach(tb=>{
+    const el=document.getElementById('stores-tab-'+tb);
+    if(!el) return;
+    const on=_storesActiveTab===tb;
+    el.style.background=on?'var(--amber)':'';
+    el.style.color=on?'#1a1205':'var(--muted)';
+    el.style.border=on?'none':'1px solid var(--border)';
+  });
+}
+
+function renderStoresBody(){
+  renderStoresHeader();
+  const body=document.getElementById('stores-body');
+  if(!body) return;
+  if(_storesActiveTab==='balance')    body.innerHTML=_storesBalanceHTML();
+  else if(_storesActiveTab==='inward')  body.innerHTML=_storesLogHTML('inward');
+  else if(_storesActiveTab==='outward') body.innerHTML=_storesLogHTML('outward');
+  else if(_storesActiveTab==='returnable') body.innerHTML=_storesReturnableHTML();
+}
+
+// ── BALANCE: per material (per project when cross-project) ──
+function _storesBalanceHTML(){
+  const inw=_storesInward(), out=_storesOutward();
+  if(!inw.length && !out.length){
+    return '<div style="padding:30px 16px;text-align:center;color:var(--muted);font-size:13px">No stock movements yet.<br>Tap <b>+ INWARD</b> when material is received.</div>';
+  }
+  // key = projectId|materialId (cross-project) or materialId (single)
+  const map={};
+  const keyOf=r=> (_storesProjectId?'':(r.projectId+'|')) + (r.materialId||'?');
+  inw.forEach(r=>{ const k=keyOf(r); (map[k]=map[k]||{name:r.materialName||'(material)',unit:r.unit||'',projectId:r.projectId,inQ:0,outQ:0,ret:0})['inQ']+=Number(r.qty)||0; if(r.returnable) map[k].ret+=Number(r.qty)||0; });
+  out.forEach(r=>{ const k=keyOf(r); (map[k]=map[k]||{name:r.materialName||'(material)',unit:r.unit||'',projectId:r.projectId,inQ:0,outQ:0,ret:0})['outQ']+=Number(r.qty)||0; });
+  const rows=Object.values(map).sort((a,b)=>a.name.localeCompare(b.name));
+  return '<div style="padding:4px 12px">'+rows.map(m=>{
+    const bal=m.inQ-m.outQ;
+    const balColor=bal<-0.0001?'var(--red)':bal>0.0001?'var(--green)':'var(--muted)';
+    return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:700">${_esc(m.name)}${m.ret>0?' <span style="font-size:10px;color:var(--blue);border:1px solid var(--blue);border-radius:5px;padding:1px 6px;font-weight:700">RETURNABLE</span>':''}</div>
+          ${!_storesProjectId?`<div style="font-size:11px;color:var(--muted)">${_esc(_storeProjName(m.projectId))}</div>`:''}
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:16px;font-weight:800;color:${balColor}">${bal.toLocaleString('en-IN')} <span style="font-size:11px;color:var(--muted)">${_esc(m.unit)}</span></div>
+          <div style="font-size:10px;color:var(--muted)">balance</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:7px;border-top:1px solid var(--border);padding-top:7px;font-size:11px">
+        <span style="color:var(--green)">▲ In ${m.inQ.toLocaleString('en-IN')}</span>
+        <span style="color:var(--amber)">▼ Out ${m.outQ.toLocaleString('en-IN')}</span>
+        ${bal<-0.0001?'<span style="color:var(--red);font-weight:700;margin-left:auto">⚠ over-issued</span>':''}
+      </div>
+    </div>`;
+  }).join('')+'</div>';
+}
+
+// ── INWARD / OUTWARD log ──
+function _storesLogHTML(mode){
+  const recs=(mode==='inward'?_storesInward():_storesOutward()).slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
+  if(!recs.length){
+    return '<div style="padding:30px 16px;text-align:center;color:var(--muted);font-size:13px">No '+mode+' entries yet.</div>';
+  }
+  return '<div style="padding:4px 12px">'+recs.map(r=>{
+    const det = mode==='inward'
+      ? _storeSourceLbl(r.source)+(r.sourceNote?(' · '+_esc(r.sourceNote)):'')
+      : (r.boqDesc?('→ '+_esc(r.boqDesc)):'→ (no BOQ item)');
+    return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:700">${_esc(r.materialName||'(material)')}${mode==='inward'&&r.returnable?' <span style="font-size:9px;color:var(--blue);border:1px solid var(--blue);border-radius:5px;padding:1px 5px;font-weight:700">RETURNABLE</span>':''}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">${det}</div>
+          ${!_storesProjectId?`<div style="font-size:11px;color:var(--amber);margin-top:2px">${_esc(_storeProjName(r.projectId))}</div>`:''}
+          <div style="font-size:11px;color:var(--muted);margin-top:3px">${fmtD(r.date)} · ${_esc(r.loggedByName||'')}${r.note?(' · '+_esc(r.note)):''}</div>
+        </div>
+        <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+          <div style="font-size:16px;font-weight:800;color:${mode==='inward'?'var(--green)':'var(--amber)'}">${(Number(r.qty)||0).toLocaleString('en-IN')}<span style="font-size:11px;color:var(--muted);margin-left:3px">${_esc(r.unit||'')}</span></div>
+          <div style="display:flex;gap:4px">
+            <button onclick="openStoresForm('${mode}','${r.id}')" style="background:var(--bg3);border:1px solid var(--amber);color:var(--amber);font-size:11px;font-weight:700;padding:4px 8px;border-radius:6px;cursor:pointer">✎</button>
+            ${isOwner()?`<button onclick="delStoresRecord('${mode}','${r.id}')" style="background:var(--bg3);border:1px solid var(--red);color:var(--red);font-size:11px;font-weight:700;padding:4px 8px;border-radius:6px;cursor:pointer">🗑</button>`:''}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('')+'</div>';
+}
+
+// ── RETURNABLE outstanding: returnable inward minus outward of same material ──
+function _storesReturnableHTML(){
+  const inw=_storesInward().filter(r=>r.returnable);
+  if(!inw.length){
+    return '<div style="padding:30px 16px;text-align:center;color:var(--muted);font-size:13px">No returnable materials received.<br>Mark shuttering / props as <b>returnable</b> when logging inward.</div>';
+  }
+  const out=_storesOutward();
+  // outstanding per project|material = returnable-in − total-out (out reduces what is still held)
+  const map={};
+  const keyOf=r=> r.projectId+'|'+(r.materialId||'?');
+  inw.forEach(r=>{ const k=keyOf(r); (map[k]=map[k]||{name:r.materialName||'(material)',unit:r.unit||'',projectId:r.projectId,inQ:0,outQ:0})['inQ']+=Number(r.qty)||0; });
+  out.forEach(r=>{ const k=keyOf(r); if(map[k]) map[k].outQ+=Number(r.qty)||0; });
+  const rows=Object.values(map).map(m=>({...m,outstanding:m.inQ-m.outQ})).filter(m=>m.outstanding>0.0001).sort((a,b)=>b.outstanding-a.outstanding);
+  if(!rows.length){
+    return '<div style="padding:30px 16px;text-align:center;color:var(--green);font-size:13px">✓ All returnable materials accounted for.<br>Nothing outstanding to return.</div>';
+  }
+  const note=`<div style="margin:8px 12px;padding:9px 12px;background:rgba(33,150,243,.08);border:1px solid var(--blue);border-radius:9px;font-size:12px;color:var(--blue);font-weight:600">↩ These returnable materials are still at site and must come back to Yavatmal Plant.</div>`;
+  return note+'<div style="padding:4px 12px">'+rows.map(m=>`
+    <div style="background:var(--bg2);border:1px solid var(--blue);border-radius:9px;padding:10px 12px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:700">${_esc(m.name)}</div>
+          ${!_storesProjectId?`<div style="font-size:11px;color:var(--amber)">${_esc(_storeProjName(m.projectId))}</div>`:''}
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:16px;font-weight:800;color:var(--blue)">${m.outstanding.toLocaleString('en-IN')} <span style="font-size:11px;color:var(--muted)">${_esc(m.unit)}</span></div>
+          <div style="font-size:10px;color:var(--muted)">to return</div>
+        </div>
+      </div>
+    </div>`).join('')+'</div>';
+}
+
+// ── FORM (inward / outward) ──
+function openStoresForm(mode, editId){
+  if(!_storesProjectId && !editId){
+    // cross-project view: need a project to attach to — block new entries here
+    alert('Open a project first to add stock movements.\nUse: Projects → (a project) → SITE STORES.');
+    return;
+  }
+  _storesFormMode=mode;
+  _storesEditId=editId||null;
+  _storesMatId='';
+  renderStoresForm();
+  show('scr-stores-form');
+}
+
+function renderStoresForm(){
+  const mode=_storesFormMode;
+  const isIn=mode==='inward';
+  const coll=isIn?materialInward:materialOutward;
+  const ex=_storesEditId?(coll||[]).find(r=>r.id===_storesEditId):null;
+  const pid=ex?ex.projectId:_storesProjectId;
+  const p=projects.find(x=>x.id===pid);
+  _storesMatId=ex?(ex.materialId||''):'';
+  document.getElementById('stores-form-title').textContent=(_storesEditId?'EDIT ':'')+(isIn?'INWARD — RECEIVE':'OUTWARD — ISSUE');
+  document.getElementById('stores-form-sub').textContent=(p?p.name:'')+(isIn?' · stock in':' · stock out');
+  const matName=ex?ex.materialName:'';
+  const boq=pid?_projBoq(pid):[];
+  const body=document.getElementById('stores-form-body');
+  body.innerHTML=`
+    <div class="f-field">
+      <label class="f-lbl">Material *</label>
+      <div style="position:relative">
+        <input class="f-inp" id="store-mat-txt" placeholder="🔍 Type to search material" autocomplete="off"
+          value="${_esc(matName)}" oninput="_storeMatFilter()" onfocus="_storeMatFilter()" onblur="setTimeout(_storeMatClose,200)">
+        <input type="hidden" id="store-mat-id" value="${_esc(_storesMatId)}">
+        <div id="store-mat-list" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:50;background:var(--bg2);border:1px solid var(--amber);border-radius:8px;max-height:220px;overflow:auto;margin-top:2px"></div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">Not in list? <span style="color:var(--amber);cursor:pointer;font-weight:700" onclick="show('scr-materials');renderMaterials()">Add material first ›</span></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <div class="f-field" style="flex:1"><label class="f-lbl">Quantity *</label><input class="f-inp" id="store-qty" type="number" inputmode="decimal" value="${ex?(ex.qty||''):''}"></div>
+      <div class="f-field" style="flex:1"><label class="f-lbl">Unit</label><input class="f-inp" id="store-unit" placeholder="bag/cum/MT/nos" value="${ex?_esc(ex.unit||''):''}"></div>
+    </div>
+    ${isIn?`
+    <div class="f-field">
+      <label class="f-lbl">Source *</label>
+      <select class="f-inp" id="store-source">
+        ${_STORE_SOURCES.map(s=>`<option value="${s[0]}" ${ex&&ex.source===s[0]?'selected':''}>${s[1]}</option>`).join('')}
+      </select>
+    </div>
+    <div class="f-field"><label class="f-lbl">Source detail <span style="color:var(--muted);font-weight:600">(vendor name / which site)</span></label><input class="f-inp" id="store-srcnote" value="${ex?_esc(ex.sourceNote||''):''}"></div>
+    <div class="f-field" style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:11px 12px">
+      <input type="checkbox" id="store-returnable" ${ex&&ex.returnable?'checked':''} style="width:20px;height:20px;accent-color:var(--blue)">
+      <label for="store-returnable" style="font-size:13px;font-weight:700;cursor:pointer">↩ Returnable <span style="color:var(--muted);font-weight:600;font-size:11px">(shuttering / props — must return to Plant)</span></label>
+    </div>`:`
+    <div class="f-field">
+      <label class="f-lbl">Issued against BOQ item <span style="color:var(--muted);font-weight:600">(optional)</span></label>
+      <select class="f-inp" id="store-boq">
+        <option value="">— not linked to BOQ —</option>
+        ${boq.map(b=>`<option value="${b.id}" ${ex&&ex.boqItemId===b.id?'selected':''}>Item ${_esc(b.itemNo||'')} · ${_esc((b.description||'').slice(0,50))}</option>`).join('')}
+      </select>
+    </div>`}
+    <div class="f-field"><label class="f-lbl">Date</label><input class="f-inp" id="store-date" type="date" value="${ex?ex.date:_todayISO()}"></div>
+    <div class="f-field"><label class="f-lbl">Note <span style="color:var(--muted);font-weight:600">(optional)</span></label><input class="f-inp" id="store-note" value="${ex?_esc(ex.note||''):''}"></div>
+    <button class="big-btn ${isIn?'bb-amber':'bb-cancel'} bb-full" style="height:52px;font-size:16px" onclick="saveStoresRecord()">💾 SAVE ${isIn?'INWARD':'OUTWARD'}</button>
+    ${_storesEditId&&isOwner()?`<button class="big-btn bb-cancel bb-full" style="height:44px;font-size:14px;margin-top:8px;border-color:var(--red);color:var(--red)" onclick="delStoresRecord('${mode}','${_storesEditId}')">🗑 DELETE THIS ENTRY</button>`:''}
+  `;
+}
+
+// ── Searchable material picker for stores form ──
+function _storeMatFilter(){
+  const txt=document.getElementById('store-mat-txt');
+  const list=document.getElementById('store-mat-list');
+  if(!txt||!list) return;
+  const q=(txt.value||'').toLowerCase().trim();
+  const filtered=q?(materials||[]).filter(m=>m.name.toLowerCase().includes(q)):(materials||[]);
+  if(!filtered.length){
+    list.innerHTML='<div style="padding:10px 12px;font-size:12px;color:var(--muted)">No match</div>';
+  } else {
+    list.innerHTML=filtered.map(m=>
+      `<div onmousedown="_storeMatSelect('${m.id}')" style="padding:10px 12px;font-size:13px;color:var(--white);cursor:pointer;border-bottom:1px solid var(--border)"
+        onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+        ${_esc(m.name)}<span style="color:var(--muted);font-size:11px;margin-left:6px">${_esc(m.unit||'')}</span>
+      </div>`).join('');
+  }
+  list.style.display='block';
+}
+function _storeMatSelect(id){
+  const m=(materials||[]).find(x=>x.id===id); if(!m) return;
+  _storesMatId=id;
+  const txt=document.getElementById('store-mat-txt');
+  const hid=document.getElementById('store-mat-id');
+  const unit=document.getElementById('store-unit');
+  if(txt) txt.value=m.name;
+  if(hid) hid.value=id;
+  if(unit && !unit.value) unit.value=m.unit||'';
+  _storeMatClose();
+}
+function _storeMatClose(){ const l=document.getElementById('store-mat-list'); if(l) l.style.display='none'; }
+
+function saveStoresRecord(){
+  const mode=_storesFormMode, isIn=mode==='inward';
+  const matId=document.getElementById('store-mat-id').value;
+  const mat=(materials||[]).find(m=>m.id===matId);
+  if(!matId||!mat){ alert('Select a material from the list'); return; }
+  const qty=parseFloat(document.getElementById('store-qty').value)||0;
+  if(qty<=0){ alert('Enter a quantity greater than 0'); return; }
+  const dateVal=document.getElementById('store-date').value||_todayISO();
+  if(isFutureDate(dateVal)){ alert('Date cannot be in the future'); return; }
+  const unit=document.getElementById('store-unit').value.trim()||mat.unit||'';
+  const note=document.getElementById('store-note').value.trim();
+  const coll=isIn?materialInward:materialOutward;
+  const ex=_storesEditId?(coll||[]).find(r=>r.id===_storesEditId):null;
+  const pid=ex?ex.projectId:_storesProjectId;
+  const p=projects.find(x=>x.id===pid);
+  if(!pid||!p){ alert('No project context — open a project first'); return; }
+  const key=isIn?'materialInward':'materialOutward';
+
+  let rec;
+  if(ex){
+    rec={...ex, materialId:matId, materialName:mat.name, qty, unit, date:dateVal, note,
+      editedBy:(sess&&sess.userId)||'', editedByName:(sess&&sess.name)||'', editedTs:Date.now()};
+  } else {
+    rec={ id:uid(), projectId:pid, siteId:p.siteId||'', materialId:matId, materialName:mat.name,
+      qty, unit, date:dateVal, note,
+      loggedBy:(sess&&sess.userId)||'', loggedByName:(sess&&sess.name)||'', ts:Date.now() };
+  }
+  if(isIn){
+    rec.source=document.getElementById('store-source').value||'vendor';
+    rec.sourceNote=document.getElementById('store-srcnote').value.trim();
+    rec.returnable=!!document.getElementById('store-returnable').checked;
+  } else {
+    const bid=document.getElementById('store-boq').value;
+    rec.boqItemId=bid;
+    const b=bid?boqItems.find(x=>x.id===bid):null;
+    rec.boqDesc=b?('Item '+(b.itemNo||'')+' · '+(b.description||'').slice(0,60)):'';
+  }
+
+  // Per-record write (Rule 9) — never full-array sv()
+  const arr=isIn?materialInward:materialOutward;
+  const idx=arr.findIndex(r=>r.id===rec.id);
+  if(idx>=0) arr[idx]=rec; else arr.push(rec);
+  _fbWrite(key+'/'+rec.id, rec);
+  _storesEditId=null;
+  flash((isIn?'INWARD':'OUTWARD')+(ex?' UPDATED!':' SAVED!'), mat.name+' · '+qty.toLocaleString('en-IN')+' '+unit);
+  show('scr-site-stores');
+  renderStoresBody();
+}
+
+function delStoresRecord(mode, id){
+  if(!isOwner()){ alert('Only Owner can delete'); return; }
+  const isIn=mode==='inward';
+  const key=isIn?'materialInward':'materialOutward';
+  const arr=isIn?materialInward:materialOutward;
+  const r=(arr||[]).find(x=>x.id===id);
+  showConfirm('Delete this '+mode+' entry for "'+(r?r.materialName:'')+'"?',()=>{
+    _recordDeletion(key,id);
+    if(isIn) materialInward=materialInward.filter(x=>x.id!==id);
+    else     materialOutward=materialOutward.filter(x=>x.id!==id);
+    flash('DELETED!', mode+' entry removed');
+    show('scr-site-stores');
+    renderStoresBody();
+  });
+}
+
 // ========== SUBCONTRACTORS (master data — sv full-array, Firebase-wins) ==========
 let _subEditId=null;
 function renderSubsList(){
@@ -13606,7 +14004,7 @@ const FB_URL = 'https://fuellog-9f3c0-default-rtdb.firebaseio.com';
 const FB_KEY = 'AIzaSyB44pKu7YTc-Q_6GLC3mlaEBPJm3d3odPc';
 
 // All keys we sync to Firebase
-const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords','trips','customers','materials','staff','staffMusters','pumpPayments','projects','boqItems','workEntries','subcontractors','subContracts','dailyReports','gangs','dailyLabour','royalty'];
+const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords','trips','customers','materials','staff','staffMusters','pumpPayments','projects','boqItems','workEntries','subcontractors','subContracts','dailyReports','gangs','dailyLabour','royalty','materialInward','materialOutward'];
 
 let fbOnline = false;
 let fbSyncing = false;
@@ -13979,6 +14377,8 @@ async function fbInit(){
       else if(k==='subContracts') subContracts=_dedup(val);
       else if(k==='dailyReports') dailyReports=_dedup(val);
       else if(k==='royalty') royalty=_dedup(val);
+      else if(k==='materialInward') materialInward=_dedup(val);
+      else if(k==='materialOutward') materialOutward=_dedup(val);
 
       window._fbDiagnostics.perKey[k] = _diag;
     });
@@ -14022,6 +14422,8 @@ async function fbInit(){
         else if(k==='subContracts') subContracts=val;
         else if(k==='dailyReports') dailyReports=val;
         else if(k==='royalty') royalty=val;
+        else if(k==='materialInward') materialInward=val;
+        else if(k==='materialOutward') materialOutward=val;
       }catch(e){}
     });
     // Seed only if localStorage also had no materials
