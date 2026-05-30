@@ -1,4 +1,4 @@
-<!-- FuelLog PWA | Version: V84.1 | Date: 2026-05-28 | V84.1 HOTFIX (2 royalty bugs): (1) Royalty slip navigation race — _fbWrite was fire-and-forget; show('scr-home') page transition aborted in-flight fetch on slow networks causing silent slip loss. Fix: collect writes into _royaltyWritePromises[], await Promise.all before navigation, alert on any failure. (2) Royalty slip RESURRECTION — removing a slip on trip-edit only wrote a 7-day local-only tombstone via _recordDeletion; the record stayed in Firebase and reappeared on next sync (same class as V79 DPR bug). Fix: added a real per-record Firebase DELETE (fetch …/royalty/{id}.json {method:DELETE}) in saveTrip edit-delete loop, pushed into the same awaited promise array so it completes before navigation (Rule 9 safe — single-record delete, never full-array sv). NOTE: duplicate slips already stuck in Firebase from before this fix must be cleared once by re-opening the trip, removing the row, and re-saving under V84.1. No new collections, no storage-shape change, no DONE_KEY bump. |TURE: Site Stores module — two new LS_NO_CACHE+MERGE_KEYS collections: materialInward (materials received at site: from vendor/base/site transfer; returnable flag for shuttering/props) and materialOutward (consumed/issued against BOQ item). Balance = Σ inward − Σ outward per material per site. Storage-shape rule fully applied: SK + globals + FB_KEYS + fbInit online/offline forEach + MERGE_KEYS + LS_NO_CACHE + _fbWrite merge handler + dedup keysToClean + DONE_KEY v60→v61. All writes per-record _fbWrite (Rule 9); deletes via _recordDeletion. UI accessible from Project detail (per-project view) and More menu (cross-project view, Owner/Manager). No DPR wizard step added yet (separate session). | Chiddarwar Construction Co. Pvt. Ltd. | V83 FIX: customer duplicate check now HARD-BLOCKS both duplicate name and duplicate phone (was soft "Add anyway?" confirm that allowed dupes through; that is how two customers ended up sharing a phone). Message now identifies which field clashed and which existing customer owns it. Edit-self excluded via _custFormEditId guard. | V83 FEATURE: Trip reports acknowledge extra materials (V82 multi-material). New tripMaterialLines(t) helper returns uniform list of primary+extra material lines; per-LINE amount (qty×rate) for multi-material trips, falls back to t.amount for old single-material trips (no double-count). Trip Register (screen+print) now lists extra materials under primary with qty & line amount. Material-wise Summary (screen+print) rolls up each material line separately — extras counted toward their own material's qty/revenue, trip-count deduped per trip. Site Dispatch Log (screen) includes extra materials in the site's material set. Both renderReports paths updated per Rule 8. PDF refinement: multi-material rows (internal) now show each material with its own qty in the Material column (packing-list style), QTY column shows dash; single-material rows unchanged. PDF multi-material packing-list done. Note: trip-level GST/misc not attributed to individual materials in Material-wise revenue (shows pre-GST material value — correct for that report). Additive read-only reporting change, no data write, no storage-wiring touch. | V82 FEATURE: Multi-material per trip + searchable material picker. Trip form material <select> replaced with type-to-search combobox (helpers _matPickerFilter/_matPickerSelect/_matPickerClose, index -1=primary, 0..n=extra lines). 'Add Material +' next to Material* adds extra material rows (new extraLines[] field on trip: {materialId,materialName,quantity,unit,rate,amount}); primary material stays in flat fields unchanged (backward compatible - old/single-material trips have no extraLines). External: each extra line has own rate -> line amount; internal: rate/amount zeroed. GST + misc stay trip-level (sum across all lines). updateTripAmount adds extraTotal into subtotal+GST base. Business rule ENFORCED: a trip is EITHER multi-trip (count>1, single material) OR multi-material (count locked to 1) - addTripMaterialLine blocks if count>1, onTripCountChange resets count to 1 if extras exist. saveTrip persists extraLines (filters blank materialId). State window._tripExtraLines reset+init like other trip arrays; carried in _currentTripEdit across re-renders. trips still in MERGE_KEYS, sv('trips') unchanged - additive field only, no new collection, no sync-core change. | V81 FEATURE: DPR Labour piece-rate work — labour entry now supports PIECE-RATE lines (BOQ item + work-done qty × rate, charged direct to item) ALONGSIDE existing daily-wage worker rows; one entry can mix both. New pieceRows[] field on dailyLabour records (same collection, no storage-wiring change — already LS_NO_CACHE+MERGE_KEYS+per-record _fbWrite). Allocation block now OPTIONAL (no forced 100%; only splits the daily-wage total). Entry saves with at least one worker row OR one piece-rate line. Purpose: per-gang ledger of item-rate + daily-wage work owed → prompt payment (capture half of queued labourPayments ledger). editLabEntry/reset/today-summary updated. Backward compatible: old entries without pieceRows treated as empty. | V80 FEATURE: Royalty (ETP) tracking on trips — new keyed-by-id `royalty` collection (LS_NO_CACHE+MERGE_KEYS+SK+FB_KEYS+dedup keysToClean, DONE_KEY v59→v60). Trip form: royalty slip rows (material murum/boulder + brass + ETP no.); destination auto-derives (internal→site, external→customer). Slips saved per-record via _fbWrite (Rule 9); edit-removed slips tombstoned via _recordDeletion. New 'Royalty (ETP) Register' option in Trips report dropdown (no Rule 8 risk — inside existing trips block) with material/destination/status filters, issued↔un-issued per-slip toggle (setRoyaltyIssued, per-record _fbWrite), summary tiles + print/PDF block. | V79 FIX (real): dailyReports added to LS_NO_CACHE so Firebase stores it keyed-by-id; was numeric array via StartupMerge full-array write so per-id DELETE no-opped and DPR resurrected; dedup keysToClean + DONE_KEY v58 to v59 repairs existing data. V78 (superseded): DPR resurrection — load-time tombstone filter on dailyReports + deleteDPR updates localStorage cache (root cause: dailyReports cached in localStorage, stale copy reloaded deleted DPR on refresh). | V77 FIX: dip/readings resurrection bug — 'readings' moved into LS_NO_CACHE keyed-object family (V57 pattern); 4 sv('readings',array) writes converted to per-record _fbWrite (Rule 9); delReading sv() removed (was re-corrupting keyed shape & defeating delete); dedup DONE_KEY v57→v58 to re-run array→keyed repair once per device -->
+<!-- FuelLog PWA | Version: V84.2 | Date: 2026-05-30 | V84.2 FIX A (PRIMARY — purchase edits not saving, incl. PAID amount): editType==='purchase' save looked up the record to write via purchases.find(p=>p.id===editingId), but editingId is never declared anywhere — the lookup returned undefined (and threw on read), so _fbWrite was skipped and the edit (vendor/litres/rate/amount/paid/bill) never reached Firebase; it briefly lived in memory then reverted on next sync = "amount paid not recorded". Fix: write purchases[idx] (the record just edited; idx found via editCtx.id with early return). | V84.2 FIX B+C DATA-LOSS HARDENING (separate latent wipe risk): ROOT CAUSE was the sync queue, not the payment functions. processSyncQueue() replays a queued write by re-reading the key from localStorage; LS_NO_CACHE collections (disbs/pumpFills) are never cached there, so the replay read [] and called _fbWrite(key,[]). The merge-rescue in _fbWrite silently proceeds with [] on a failed network read (catch), PUTting {} over the whole collection = full wipe, minutes-to-hours after the original action, intermittently — surviving every per-function fix. Two queue-poisoning sv() calls (sv('disbs',disbs)/sv('pumpFills',pumpFills), added as a V64 delete-persist fix) were the trigger. FIX (1) SAFETY LOCK in _fbWrite: before any full-collection PUT that resolves to EMPTY, re-read Firebase; if live (non-tombstoned) records remain, ABORT (return false) — wipe structurally impossible for every collection; legitimate last-record delete still works (record is tombstoned, excluded from live count); unverifiable cloud state also aborts; non-empty writes unaffected. FIX (2) deleteFuelEntry now deletes per-record via new _fbDelete(key,id) helper (Rule 9) instead of sv()-ing the filtered full array; callback made async to await the cloud delete. No new collections, no storage-shape change, no DONE_KEY bump. | V84.1 HOTFIX (2 royalty bugs): (1) Royalty slip navigation race — _fbWrite was fire-and-forget; show('scr-home') page transition aborted in-flight fetch on slow networks causing silent slip loss. Fix: collect writes into _royaltyWritePromises[], await Promise.all before navigation, alert on any failure. (2) Royalty slip RESURRECTION — removing a slip on trip-edit only wrote a 7-day local-only tombstone via _recordDeletion; the record stayed in Firebase and reappeared on next sync (same class as V79 DPR bug). Fix: added a real per-record Firebase DELETE (fetch …/royalty/{id}.json {method:DELETE}) in saveTrip edit-delete loop, pushed into the same awaited promise array so it completes before navigation (Rule 9 safe — single-record delete, never full-array sv). NOTE: duplicate slips already stuck in Firebase from before this fix must be cleared once by re-opening the trip, removing the row, and re-saving under V84.1. No new collections, no storage-shape change, no DONE_KEY bump. |TURE: Site Stores module — two new LS_NO_CACHE+MERGE_KEYS collections: materialInward (materials received at site: from vendor/base/site transfer; returnable flag for shuttering/props) and materialOutward (consumed/issued against BOQ item). Balance = Σ inward − Σ outward per material per site. Storage-shape rule fully applied: SK + globals + FB_KEYS + fbInit online/offline forEach + MERGE_KEYS + LS_NO_CACHE + _fbWrite merge handler + dedup keysToClean + DONE_KEY v60→v61. All writes per-record _fbWrite (Rule 9); deletes via _recordDeletion. UI accessible from Project detail (per-project view) and More menu (cross-project view, Owner/Manager). No DPR wizard step added yet (separate session). | Chiddarwar Construction Co. Pvt. Ltd. | V83 FIX: customer duplicate check now HARD-BLOCKS both duplicate name and duplicate phone (was soft "Add anyway?" confirm that allowed dupes through; that is how two customers ended up sharing a phone). Message now identifies which field clashed and which existing customer owns it. Edit-self excluded via _custFormEditId guard. | V83 FEATURE: Trip reports acknowledge extra materials (V82 multi-material). New tripMaterialLines(t) helper returns uniform list of primary+extra material lines; per-LINE amount (qty×rate) for multi-material trips, falls back to t.amount for old single-material trips (no double-count). Trip Register (screen+print) now lists extra materials under primary with qty & line amount. Material-wise Summary (screen+print) rolls up each material line separately — extras counted toward their own material's qty/revenue, trip-count deduped per trip. Site Dispatch Log (screen) includes extra materials in the site's material set. Both renderReports paths updated per Rule 8. PDF refinement: multi-material rows (internal) now show each material with its own qty in the Material column (packing-list style), QTY column shows dash; single-material rows unchanged. PDF multi-material packing-list done. Note: trip-level GST/misc not attributed to individual materials in Material-wise revenue (shows pre-GST material value — correct for that report). Additive read-only reporting change, no data write, no storage-wiring touch. | V82 FEATURE: Multi-material per trip + searchable material picker. Trip form material <select> replaced with type-to-search combobox (helpers _matPickerFilter/_matPickerSelect/_matPickerClose, index -1=primary, 0..n=extra lines). 'Add Material +' next to Material* adds extra material rows (new extraLines[] field on trip: {materialId,materialName,quantity,unit,rate,amount}); primary material stays in flat fields unchanged (backward compatible - old/single-material trips have no extraLines). External: each extra line has own rate -> line amount; internal: rate/amount zeroed. GST + misc stay trip-level (sum across all lines). updateTripAmount adds extraTotal into subtotal+GST base. Business rule ENFORCED: a trip is EITHER multi-trip (count>1, single material) OR multi-material (count locked to 1) - addTripMaterialLine blocks if count>1, onTripCountChange resets count to 1 if extras exist. saveTrip persists extraLines (filters blank materialId). State window._tripExtraLines reset+init like other trip arrays; carried in _currentTripEdit across re-renders. trips still in MERGE_KEYS, sv('trips') unchanged - additive field only, no new collection, no sync-core change. | V81 FEATURE: DPR Labour piece-rate work — labour entry now supports PIECE-RATE lines (BOQ item + work-done qty × rate, charged direct to item) ALONGSIDE existing daily-wage worker rows; one entry can mix both. New pieceRows[] field on dailyLabour records (same collection, no storage-wiring change — already LS_NO_CACHE+MERGE_KEYS+per-record _fbWrite). Allocation block now OPTIONAL (no forced 100%; only splits the daily-wage total). Entry saves with at least one worker row OR one piece-rate line. Purpose: per-gang ledger of item-rate + daily-wage work owed → prompt payment (capture half of queued labourPayments ledger). editLabEntry/reset/today-summary updated. Backward compatible: old entries without pieceRows treated as empty. | V80 FEATURE: Royalty (ETP) tracking on trips — new keyed-by-id `royalty` collection (LS_NO_CACHE+MERGE_KEYS+SK+FB_KEYS+dedup keysToClean, DONE_KEY v59→v60). Trip form: royalty slip rows (material murum/boulder + brass + ETP no.); destination auto-derives (internal→site, external→customer). Slips saved per-record via _fbWrite (Rule 9); edit-removed slips tombstoned via _recordDeletion. New 'Royalty (ETP) Register' option in Trips report dropdown (no Rule 8 risk — inside existing trips block) with material/destination/status filters, issued↔un-issued per-slip toggle (setRoyaltyIssued, per-record _fbWrite), summary tiles + print/PDF block. | V79 FIX (real): dailyReports added to LS_NO_CACHE so Firebase stores it keyed-by-id; was numeric array via StartupMerge full-array write so per-id DELETE no-opped and DPR resurrected; dedup keysToClean + DONE_KEY v58 to v59 repairs existing data. V78 (superseded): DPR resurrection — load-time tombstone filter on dailyReports + deleteDPR updates localStorage cache (root cause: dailyReports cached in localStorage, stale copy reloaded deleted DPR on refresh). | V77 FIX: dip/readings resurrection bug — 'readings' moved into LS_NO_CACHE keyed-object family (V57 pattern); 4 sv('readings',array) writes converted to per-record _fbWrite (Rule 9); delReading sv() removed (was re-corrupting keyed shape & defeating delete); dedup DONE_KEY v57→v58 to re-run array→keyed repair once per device -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1868,6 +1868,47 @@ async function _fbWrite(key, value){
       fbWriteValue = {};
       writeValue.forEach(e => { if(e && e.id) fbWriteValue[e.id] = e; });
     }
+
+    // ── SAFETY LOCK (V84.2): never blank a whole collection in the cloud ──
+    // A full-collection write that resolves to EMPTY is almost always an
+    // accident (sync-queue replaying an un-cached LS_NO_CACHE key, or a merge
+    // read that failed on a flaky network). Before allowing such a write, we
+    // re-read Firebase. If the cloud still holds live (non-tombstoned) records,
+    // we ABORT instead of wiping. Legitimate "deleted the last record" still
+    // works, because that record is tombstoned and excluded from the live count.
+    // If we cannot verify the cloud is empty, we also abort — refusing to blank
+    // a collection we are unsure about. Non-empty writes skip this entirely, so
+    // normal operation is completely unaffected.
+    const _isFullCollectionWrite = Array.isArray(value) && key.indexOf('/') === -1;
+    const _writeIsEmpty = _isFullCollectionWrite &&
+      (Array.isArray(fbWriteValue) ? fbWriteValue.length === 0
+                                   : Object.keys(fbWriteValue || {}).length === 0);
+    if(_writeIsEmpty){
+      try {
+        const chkR = await fetch(FB_URL+'/fuellog/'+key+'.json?'+authParam);
+        if(chkR.ok){
+          const chk = await chkR.json();
+          const chkArr = chk == null ? []
+                       : (Array.isArray(chk) ? chk : Object.values(chk));
+          const tomb = _getTombstones(key);
+          const liveRemaining = chkArr.filter(e => e && e.id && !tomb.has(e.id)).length;
+          if(liveRemaining > 0){
+            console.warn('[SafetyLock] BLOCKED empty write to "'+key+'" — cloud still holds '+liveRemaining+' live record(s). Wipe prevented.');
+            clearTimeout(to);
+            return false;
+          }
+        } else {
+          console.warn('[SafetyLock] BLOCKED empty write to "'+key+'" — could not verify cloud state. Wipe prevented.');
+          clearTimeout(to);
+          return false;
+        }
+      } catch(slErr){
+        console.warn('[SafetyLock] BLOCKED empty write to "'+key+'" — verify read failed. Wipe prevented.');
+        clearTimeout(to);
+        return false;
+      }
+    }
+
     const r = await fetch(FB_URL+'/fuellog/'+key+'.json?'+authParam, {
       method: 'PUT',
       headers: {'Content-Type':'application/json'},
@@ -1934,6 +1975,24 @@ function _getTombstones(key){
     if(purged) localStorage.setItem('fl7_tombstones', JSON.stringify(all));
     return ids;
   } catch(e){ return new Set(); }
+}
+
+// ── PER-RECORD CLOUD DELETE (V84.2) ──────────────────────────────
+// Removes ONE record from Firebase at its own path. Rule 9: never delete a
+// record from an LS_NO_CACHE collection by sv()-ing the filtered full array —
+// that is exactly what re-introduced the empty-wipe risk. Always pair this
+// with _recordDeletion() (tombstone) so the entry cannot resurrect on merge.
+async function _fbDelete(key, id){
+  if(!id) return false;
+  try {
+    const token = (typeof fbGetAuth === 'function') ? await fbGetAuth() : null;
+    const authParam = token ? 'auth='+token : 'auth='+FB_KEY;
+    const r = await fetch(FB_URL+'/fuellog/'+key+'/'+id+'.json?'+authParam, {method:'DELETE'});
+    return r.ok;
+  } catch(e){
+    console.warn('[_fbDelete] Firebase delete failed for '+key+'/'+id+':', e);
+    return false;
+  }
 }
 
 // Process the sync queue — retry all pending writes
@@ -3086,7 +3145,7 @@ function renderHome(){
   applyTheme(); // ensure theme button icon is set
   // Update top bar
   document.getElementById('home-tag').textContent=
-    new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})+' · Chiddarwar Construction · V84.1';
+    new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})+' · Chiddarwar Construction · V84.2';
   document.getElementById('sess-who').textContent=sess.name;
   document.getElementById('sess-bdg').innerHTML=`<span class="bdg ${rBdg(sess.role)}">${rLbl(sess.role)}</span>`;
   // Show/hide bottom nav tabs based on role
@@ -3559,19 +3618,19 @@ function renderFuelLog(){
 
 function deleteFuelEntry(type,id){
   if(!isOwner()){alert('Owner only');return;}
-  showConfirm('Delete this entry? This cannot be undone.',function(){
+  showConfirm('Delete this entry? This cannot be undone.',async function(){
     if(type==='disb'){
       // V57: dedup first so only the intended entry is deleted,
       // even if legacy duplicates exist in memory from before V57
       disbs=_dedup(disbs);
       _recordDeletion('disbs',id);
       disbs=disbs.filter(x=>x.id!==id);
-      sv('disbs',disbs); // V64 fix: persist to Firebase — was missing, caused resurrection on refresh
+      await _fbDelete('disbs',id); // V84.2: per-record cloud delete (Rule 9) — replaces unsafe full-array sv('disbs',disbs)
     } else {
       pumpFills=_dedup(pumpFills||[]);
       _recordDeletion('pumpFills',id);
       pumpFills=(pumpFills||[]).filter(x=>x.id!==id);
-      sv('pumpFills',pumpFills); // V64 fix: persist to Firebase — was missing, caused resurrection on refresh
+      await _fbDelete('pumpFills',id); // V84.2: per-record cloud delete (Rule 9) — replaces unsafe full-array sv('pumpFills',pumpFills)
     }
     renderFuelLog();
     flash('DELETED','Entry removed');
@@ -11149,8 +11208,10 @@ async function saveEditMain(){
     purchases[idx]={...orig,vendor,litres,rate,amount,paid,bill,billPhoto:newBillPhoto,
       editedBy:sess.userId,editedByName:sess.name,editedAt:Date.now()};
     if(changes.length)saveAudit(buildAuditEntry('purchase',editCtx.id,changes));
-    // V54: write only the updated record
-    const _updP=purchases.find(p=>p.id===editingId);
+    // V84.2 FIX: write the record we just edited. Was purchases.find(p=>p.id===editingId)
+    // — editingId is undefined (never declared), so the lookup failed and the cloud
+    // write was silently skipped, making purchase edits (incl. PAID) never persist.
+    const _updP=purchases[idx];
     if(_updP)_fbWrite('purchases/'+_updP.id,_updP);
     renderPurchases();flash('UPDATED!','Purchase updated');closeEditModal();
   } else if(editType==='disb'){
