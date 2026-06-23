@@ -3163,7 +3163,7 @@ function renderHome(){
   applyTheme(); // ensure theme button icon is set
   // Update top bar
   document.getElementById('home-tag').textContent=
-    new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})+' · Chiddarwar Construction · V99.7';
+    new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})+' · Chiddarwar Construction · V99.8';
   document.getElementById('sess-who').textContent=sess.name;
   document.getElementById('sess-bdg').innerHTML=`<span class="bdg ${rBdg(sess.role)}">${rLbl(sess.role)}</span>`;
   // Show/hide bottom nav tabs based on role
@@ -6960,12 +6960,7 @@ function openDip(disbId){
   document.getElementById('dip-takenby').value=sess.name;
   document.getElementById('dip-remarks').value='';
   document.getElementById('dip-calc-box').innerHTML='';
-  ['phb','pha'].forEach(p=>{
-    document.getElementById(p+'-img').src='';
-    document.getElementById(p+'-img').classList.remove('show');
-    document.getElementById(p+'-lbl').textContent='Tap to take photo';
-    document.getElementById(p+'-btn').classList.remove('hasp');
-  });
+
   document.getElementById('dip-info').innerHTML=`
     <div class="dip-row"><span class="dip-k">Machine</span><span class="dip-v">${veh?.name||'—'}</span></div>
     <div class="dip-row"><span class="dip-k">Dispatched</span><span class="dip-v">${fmtD(e.date)}</span></div>
@@ -15115,7 +15110,7 @@ const FB_KEY = 'AIzaSyB44pKu7YTc-Q_6GLC3mlaEBPJm3d3odPc';
 // It can ONLY access this one RTDB. Never reuse this password anywhere else.
 const APP_EMAIL = 'app@fuellog.internal';
 const APP_PW = '53mO5JJ1QVT9M35bFDgiyePX';
-const APP_VERSION = 'V99.7'; // bump this on every deploy
+const APP_VERSION = 'V99.8'; // bump this on every deploy
 
 // All keys we sync to Firebase
 const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords','trips','customers','materials','staff','staffMusters','pumpPayments','projects','boqItems','workEntries','subcontractors','subContracts','dailyReports','gangs','dailyLabour','royalty','materialInward','materialOutward','vendors','vendorTxns'];
@@ -17229,7 +17224,7 @@ fbInit();
 
 <script>
 if('serviceWorker' in navigator){
-  var swCode="var CACHE='fl-v202606140015';self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/fuellog/'])).then(()=>self.skipWaiting())));self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));self.addEventListener('fetch',e=>{if(e.request.url.includes('firebaseio.com')||e.request.url.includes('googleapis.com'))return;e.respondWith(fetch(e.request).then(r=>{var c=r.clone();caches.open(CACHE).then(cache=>cache.put(e.request,c));return r;}).catch(()=>caches.match(e.request)));});";
+  var swCode="var CACHE='fl-v202606230001';self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/fuellog/'])).then(()=>self.skipWaiting())));self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));self.addEventListener('fetch',e=>{if(e.request.url.includes('firebaseio.com')||e.request.url.includes('googleapis.com'))return;e.respondWith(fetch(e.request).then(r=>{var c=r.clone();caches.open(CACHE).then(cache=>cache.put(e.request,c));return r;}).catch(()=>caches.match(e.request)));});";
   var blob=new Blob([swCode],{type:'text/javascript'});
   navigator.serviceWorker.register(URL.createObjectURL(blob)).then(function(reg){console.log('SW v202604171529');reg.update();}).catch(function(e){console.log('SW skip:',e.message);});
 }
