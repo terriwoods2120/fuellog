@@ -1,4 +1,4 @@
-<!-- FuelLog PWA | Version: V102.35 | Date: 2026-11-14 | V102.35 (includes V102.32-V102.34): (1) GST KEPT ON EDIT: editing a single purchase line recalculates GST and the vendor entry is rebuilt GST-inclusive like a new bill (was basic only). (2) CLEAN BILL DELETE: deleting the last line of a bill offers to remove that bill's 'Paid with invoice' payment and service charges. (3) RECORD PAYMENT SCREEN: date, amount, paid by, ref, for bill, note; owner can edit; delete = owner/admin only and checked against the server. (4) HEALTH CHECK (More > System, owner): bills not matching, stock below zero, ledger entries with no bill, saves that did not reach the server, bills with no total - read-only. (5) DAILY BACKUP: on the owner's laptop the first full download of the day is also saved as a backup file (no extra download). (6) SLIM FILE: version history moved to FuelLog_Version_History.txt; unused old work-entry screen and old one-time clean-up call removed. DATA SAFETY REVIEW V2: new fields on vendor payment records only (mode, ref, forBillNo, edited*); per-record saves/deletes only; no rules, sync, MERGE_KEYS or Fast Refresh change. Earlier history: see FuelLog_Version_History.txt -->
+<!-- FuelLog PWA | Version: V102.37 | Date: 2026-11-15 | V102.37 BILL PHOTO (photo store): a purchase bill (GRN, vendor source) can carry up to 4 photos or a PDF. The file is made small on the phone and sent to the separate Firebase photo store (fuellog/bills/YYYY-MM/...); the entry keeps only a short link (billPhotos on the bill's materialInward lines and service-charge vendorTxns), so sync never carries photos. Vendor page: view (downloaded only on tap), Add bill photo to a saved bill (owner/admin, field-only PATCH after checking the records are on the server), Remove photo (owner; takes the link off + billPhotoLog, the file stays in the store). A failed photo never blocks the bill. DATA SAFETY REVIEW V2: new fields only (billPhotos, billPhotoLog); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.36 Date: 2026-11-15 | V102.36 HEALTH CHECK COUNTS CORRECTED (read-only page, nothing saved): 'Ledger entries with no bill' no longer counts service-only bills (repair/labour bills with no material are valid) and a 'paid with bill' payment is fine when its bill has service charges; 'Bills with no bill total' counts only bills dated 05/11/2026 or later (when the total became compulsory). | V102.35 Date: 2026-11-14 | V102.35 (includes V102.32-V102.34): (1) GST KEPT ON EDIT: editing a single purchase line recalculates GST and the vendor entry is rebuilt GST-inclusive like a new bill (was basic only). (2) CLEAN BILL DELETE: deleting the last line of a bill offers to remove that bill's 'Paid with invoice' payment and service charges. (3) RECORD PAYMENT SCREEN: date, amount, paid by, ref, for bill, note; owner can edit; delete = owner/admin only and checked against the server. (4) HEALTH CHECK (More > System, owner): bills not matching, stock below zero, ledger entries with no bill, saves that did not reach the server, bills with no total - read-only. (5) DAILY BACKUP: on the owner's laptop the first full download of the day is also saved as a backup file (no extra download). (6) SLIM FILE: version history moved to FuelLog_Version_History.txt; unused old work-entry screen and old one-time clean-up call removed. DATA SAFETY REVIEW V2: new fields on vendor payment records only (mode, ref, forBillNo, edited*); per-record saves/deletes only; no rules, sync, MERGE_KEYS or Fast Refresh change. Earlier history: see FuelLog_Version_History.txt -->
 <!-- FuelLog PWA | Version: V99.86 | Date: 2026-08-05 | V99.86 BOQ PROGRESS SOURCE SPLIT (step 3 of 3, display only): since V99.85 the progress figure is fed by TWO sources -- standalone Work Done entries and linked DPR gang lines -- and nothing on screen said which. New _doneSplitHTML(itemId,unit) renders a muted sub-line under the progress bar, e.g. '20 sqm Work Done + 70.51 sqm (link) gang work'. PURPOSE IS DETECTION, not decoration: if the same physical work is ever entered through BOTH paths the total is silently too high and an inflated percentage just looks like good progress, whereas a visibly wrong breakdown is catchable. Returns '' when no gang work contributes, so rows fed purely by Work Done entries render EXACTLY as before -- the extra line only appears where there is something to explain. Applied at both BOQ progress render sites (project BOQ list and the DPR-side list); the work-entry form header was left alone as it is a single-item entry context, not a review view. Values rounded to 2dp (13.099219... shows as 13.1) and the unit is _esc'd. CORRECTION to the earlier plan: step 3 was described as 'add the BOQ unit to the progress row' -- on inspection the unit was ALREADY rendered there (both progress rows have shown '<qty> <unit> done' since well before this work), so that step was redundant and the source split was built instead. DATA SAFETY: display only. No write path, no schema change, no collection touched, no calculation altered -- _itemDone, _itemPct and _itemLabourDone are read and re-presented, never modified. -->
 <!-- FuelLog PWA | Version: V99.85 | Date: 2026-08-05 | V99.85 LINKED WORK NOW FEEDS BOQ PROGRESS (step 2 of 3, completes the badge's promise): _itemDone previously summed workEntries ONLY, so a DPR work line flagged '(link) linked -- feeds BOQ progress' paid the gang but contributed ZERO progress. New _itemLabourDone(boqItemId) sums linked dailyLabour pieceRows and converts labour units to BOQ units by DIVIDING by convPerBoqUnit (which means labour-units-per-one-BOQ-unit, e.g. 10.764 sqft in 1 sqm). Direction verified against live data before building: item unit sqm, labourUnit sqft, conv 10.764 -- 141 sqft = 13.10 sqm, not 1517. Multiplying would have inflated progress ~116x and looked merely like a large number. STRICT: only rows explicitly stored linked:true count; legacy rows predating V99.84 carry no flag and are deliberately NOT re-derived from the current engagement, since a later rate edit would then silently move historical progress -- re-saving such an entry backfills the flag and it counts from then on. GUARDS: conv<=0/missing/non-numeric skips the row (never divides by zero, never yields Infinity/NaN), MISC and blank item ids excluded, malformed records tolerated. Pending (unapproved backdated) entries excluded via _appr, consistent with V99.58. DOUBLE-COUNT PRE-CHECKED on live data: zero item+date pairs appear in both workEntries and a labour line, so nothing is counted twice; the overlap check should be re-run before any bulk backfill. AFFECTS: _itemPct and the executed-value total (execVal = done x rate), both of which will legitimately RISE for linked items -- they were understated before. DATA SAFETY: read/compute path only. No write path, no schema change, no collection touched, no record created/edited/deleted/migrated; only which numbers are DERIVED at render time. Worst case of a wrong factor is a visibly wrong percentage, never data loss. Step 3 (unit-label display on progress rows) still open. -->
 <!-- FuelLog PWA | Version: V99.84 | Date: 2026-08-05 | V99.84 LINKED-WORK PERSISTENCE (step 1 of 3): saveLabEntry now stores linked + convPerBoqUnit on every saved pieceRow instead of discarding them (previously computed live via _labLineRate but never written to Firebase). editLabEntry trusts the stored linked flag for entries saved under this fix, and only falls back to a fresh gang-rate lookup for legacy rows that predate it -- and that fallback never touches the historical rate/unit that was actually paid. This does NOT yet change BOQ progress calculation (_itemDone still reads workEntries only) -- that is step 2, pending an overlap check on live data. -->
@@ -16507,7 +16507,7 @@ function openStoresForm(mode, editId){
   _storesFormMode=mode;
   _storesEditId=editId||null;
   _storesMatId='';
-  if(mode==='inward' && !editId){ window._grnLines=[]; window._grnCharges=[]; _grnLastGst=0; }   // V99.21/22 + V100.1: fresh multi-line GRN
+  if(mode==='inward' && !editId){ window._grnLines=[]; window._grnCharges=[]; window._grnPhotos=[]; _grnLastGst=0; }   // V99.21/22 + V100.1: fresh multi-line GRN
   if(mode==='outward' && !editId){ window._minLines=[]; }                          // V99.23: fresh multi-line MIN
   if(mode==='opening'){                                                            // V99.31: owner-only opening stock
     if(!isOwner()){ alert('Opening Stock entry is owner-only.'); return; }
@@ -17087,9 +17087,11 @@ function _vlBills(vid){
     const invId=(src&&src.invoiceId)||t.invoiceId||'';
     const date=t.date||(src&&src.date)||'';
     const key=_vlBillKey(vid,invNo,date,invId,t.id);
-    const b=bills[key]||(bills[key]={key,invNo,date,lines:[],srcIds:[],sum:0,counted:0,pending:0,billTotal:null,totalTs:0,firstTs:Infinity,projectId:t.projectId||''});
+    const b=bills[key]||(bills[key]={key,invNo,date,lines:[],srcIds:[],sum:0,counted:0,pending:0,billTotal:null,totalTs:0,firstTs:Infinity,projectId:t.projectId||'',photos:[],svcIds:[]});
     const amt=Number(t.amount)||0, pend=_txnPending(t);
     b.lines.push({t,src,pend});
+    if(t.kind==='service') b.svcIds.push(t.id);
+    ((src&&src.billPhotos)||[]).concat(t.billPhotos||[]).forEach(ph=>{ if(ph&&ph.p&&!b.photos.some(x=>x.p===ph.p)) b.photos.push(ph); });   // V102.37
     b.sum+=amt; if(pend) b.pending+=amt; else b.counted+=amt;
     if(src){ b.srcIds.push(src.id);
       if(Number(src.billTotal)>0 && (src.billTotalTs||0)>=b.totalTs){ b.billTotal=_vlR2(src.billTotal); b.totalTs=src.billTotalTs||0; } }
@@ -17203,7 +17205,9 @@ function _vlRenderList(){
     if(canEditTotal && b.srcIds.length) btns.push(`<button type="button" onclick="_vlSetTotal('${_esc(b.key)}')" style="min-height:42px;padding:0 14px;border-radius:9px;border:1px solid var(--amber);background:var(--bg2);color:var(--amber);font-size:12px;font-weight:700;cursor:pointer">${b.billTotal!=null?'✏️ Change bill total':'➕ Set bill total'}</button>`);
     if(canEditTotal && b.srcIds.length) btns.push(`<button type="button" onclick="_vlSetBillNo('${_esc(b.key)}')" style="min-height:42px;padding:0 14px;border-radius:9px;border:1px solid var(--amber);background:var(--bg2);color:var(--amber);font-size:12px;font-weight:700;cursor:pointer">${b.invNo?'✏️ Change bill no.':'✏️ Set bill no.'}</button>`);   // V102.30
     if(b.invNo && b.srcIds.length) btns.push(`<button type="button" onclick="_vlAddLines('${_esc(b.key)}')" style="min-height:42px;padding:0 14px;border-radius:9px;border:none;background:var(--amber);color:#1a1205;font-size:12px;font-weight:800;cursor:pointer">➕ Add missing lines to this bill</button>`);
-    return head+`<div style="padding:10px 14px 14px;border-bottom:1px solid var(--border);background:var(--bg2)">${cmp}${lines}
+    if(canEditTotal && (b.srcIds.length||b.svcIds.length) && b.photos.length<4) btns.push(`<button type="button" onclick="_bpAddToBill('${_esc(b.key)}')" style="min-height:42px;padding:0 14px;border-radius:9px;border:1px solid var(--amber);background:var(--bg2);color:var(--amber);font-size:12px;font-weight:700;cursor:pointer">📷 Add bill photo</button>`);   // V102.37
+    const phs=b.photos.length?`<div style="margin-top:10px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">📎 Bill photo · ${b.photos.length}</div><div style="display:flex;flex-wrap:wrap;gap:8px">${b.photos.map((ph,i)=>`<button type="button" onclick="_bpView('${_esc(b.key)}',${i})" style="width:84px;height:64px;border-radius:8px;border:1px solid var(--border2);background:var(--bg3);color:var(--muted);font-size:11px;cursor:pointer">${/pdf/i.test(ph.ct||'')?'PDF':'Page '+(i+1)}<br>Tap to open</button>`).join('')}</div></div>`:'';
+    return head+`<div style="padding:10px 14px 14px;border-bottom:1px solid var(--border);background:var(--bg2)">${cmp}${lines}${phs}
       ${btns.length?`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">${btns.join('')}</div>`:''}</div>`;
   }).join('');
 }
@@ -17296,6 +17300,140 @@ function _grnBillTotalFill(){
   if(hint) hint.innerHTML=prev?('Already entered for this bill: <b>'+prev.lines.length+' line'+(prev.lines.length===1?'':'s')+' · '+_vlINR(prev.sum)+'</b>'+(tot!=null?' · bill total '+_vlINR(tot):'')):'';
 }
 // ===================== end V102.29 =====================
+// ===================== V102.37 PHOTO STORE (Firebase Storage) + BILL PHOTO =====================
+// Photos live in the separate photo store; entries keep only {p:path, ct, sz, by, ts}. Sync never
+// carries a photo. Store rules: signed-in devices may read + create; nothing can be overwritten or
+// deleted from the app. "Remove" = take the link off the bill (file stays as a hidden safety copy).
+const FB_BUCKET='fuellog-9f3c0.firebasestorage.app';
+const _PH_API='https://firebasestorage.googleapis.com/v0/b/'+FB_BUCKET+'/o';
+async function _phCompress(file){
+  const ct=file.type||'';
+  if(/pdf/i.test(ct)){ if(file.size>2.9*1024*1024) throw new Error('PDF is bigger than 3 MB'); return {blob:file, ct:'application/pdf', ext:'pdf'}; }
+  if(!/^image\//i.test(ct)) throw new Error('Only a photo or a PDF can be attached');
+  const img=await new Promise((res,rej)=>{ const u=URL.createObjectURL(file); const im=new Image(); im.onload=()=>{ URL.revokeObjectURL(u); res(im); }; im.onerror=()=>{ URL.revokeObjectURL(u); rej(new Error('This photo could not be read')); }; im.src=u; });
+  let max=1600, q=0.72, blob=null;
+  for(let i=0;i<4;i++){
+    const k=Math.min(1, max/Math.max(img.naturalWidth||img.width, img.naturalHeight||img.height));
+    const c=document.createElement('canvas'); c.width=Math.max(1,Math.round((img.naturalWidth||img.width)*k)); c.height=Math.max(1,Math.round((img.naturalHeight||img.height)*k));
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    blob=await new Promise(r=>c.toBlob(r,'image/jpeg',q));
+    if(blob && blob.size<=600*1024) break;
+    max=Math.round(max*0.8); q=Math.max(0.5,q-0.08);
+  }
+  if(!blob) throw new Error('This photo could not be prepared');
+  return {blob, ct:'image/jpeg', ext:'jpg'};
+}
+async function _phUpload(blob, path, ct){
+  const token=await fbGetAuth(); if(!token) throw new Error('Not signed in');
+  const ctrl=new AbortController(); const tm=setTimeout(()=>ctrl.abort(),45000);
+  try{
+    const r=await fetch(_PH_API+'?name='+encodeURIComponent(path),{method:'POST',headers:{'Authorization':'Firebase '+token,'Content-Type':ct},body:blob,signal:ctrl.signal});
+    if(!r.ok) throw new Error('Photo store said '+r.status);
+    return await r.json();
+  } finally { clearTimeout(tm); }
+}
+async function _phUrl(path){
+  const token=await fbGetAuth(); if(!token) throw new Error('Not signed in');
+  const base=_PH_API+'/'+encodeURIComponent(path);
+  const r=await fetch(base,{headers:{'Authorization':'Firebase '+token}});
+  if(!r.ok) throw new Error(r.status===404?'This photo is no longer in the photo store':('Photo store said '+r.status));
+  const j=await r.json(); const tok=String(j.downloadTokens||'').split(',')[0];
+  if(tok) return base+'?alt=media&token='+tok;
+  const r2=await fetch(base+'?alt=media',{headers:{'Authorization':'Firebase '+token}});
+  if(!r2.ok) throw new Error('Photo store said '+r2.status);
+  return URL.createObjectURL(await r2.blob());
+}
+function _phNewPath(ext){ return 'fuellog/bills/'+_todayISO().slice(0,7)+'/'+uid()+'_'+Date.now().toString(36)+'.'+ext; }
+// one hidden file input, reused; cb gets the chosen File
+function _bpChoose(camera, cb){
+  let inp=document.getElementById('bp-file'); if(inp) inp.remove();
+  inp=document.createElement('input'); inp.type='file'; inp.id='bp-file'; inp.accept='image/*,application/pdf'; inp.style.display='none';
+  if(camera){ inp.accept='image/*'; inp.setAttribute('capture','environment'); }
+  inp.onchange=()=>{ const f=inp.files&&inp.files[0]; inp.remove(); if(f) cb(f); };
+  document.body.appendChild(inp); inp.click();
+}
+// ---- on the new purchase bill (GRN) ----
+function _bpPick(where, camera){
+  const list=window._grnPhotos=window._grnPhotos||[];
+  if(list.filter(p=>p.status!=='fail').length>=4){ alert('A bill can carry up to 4 photos.'); return; }
+  _bpChoose(camera, f=>_bpGrnAdd(f));
+}
+async function _bpGrnAdd(file){
+  const list=window._grnPhotos=window._grnPhotos||[];
+  const item={id:uid(), status:'up', name:file.name||'photo', p:'', ct:'', sz:0, ts:Date.now(), file};
+  list.push(item); _bpRenderGrn();
+  await _bpSend(item); _bpRenderGrn();
+}
+async function _bpSend(item){
+  try{
+    item.status='up'; item.err='';
+    const c=await _phCompress(item.file);
+    const path=_phNewPath(c.ext);
+    await _phUpload(c.blob, path, c.ct);
+    item.p=path; item.ct=c.ct; item.sz=c.blob.size; item.status='ok'; item.file=null;
+  }catch(e){ item.status='fail'; item.err=(e&&e.name==='AbortError')?'took too long (weak signal)':String((e&&e.message)||e); }
+  return item;
+}
+function _bpGrnRemove(id){ window._grnPhotos=(window._grnPhotos||[]).filter(p=>p.id!==id); _bpRenderGrn(); }
+async function _bpGrnRetry(id){ const it=(window._grnPhotos||[]).find(p=>p.id===id); if(!it||!it.file) return; _bpRenderGrn(); const pr=_bpSend(it); _bpRenderGrn(); await pr; _bpRenderGrn(); }
+function _bpRenderGrn(){
+  const el=document.getElementById('grn-photo-list'); if(!el) return;
+  const list=window._grnPhotos||[];
+  el.innerHTML=list.map((p,i)=>{
+    const st=p.status==='ok'?`<span style="color:var(--green)">Uploaded · ${Math.max(1,Math.round(p.sz/1024))} KB</span>`:p.status==='up'?'<span style="color:var(--amber)">Sending…</span>':`<span style="color:var(--red)">Not sent: ${_esc(p.err||'')}</span>`;
+    return `<div style="flex:1 1 150px;border:1px solid var(--border2);border-radius:8px;padding:8px;font-size:11px">
+      <div style="font-weight:700">${/pdf/i.test(p.ct||p.name||'')?'PDF':'Photo '+(i+1)}</div><div>${st}</div>
+      <div style="margin-top:4px;display:flex;gap:12px">${p.status==='fail'&&p.file?`<span onclick="_bpGrnRetry('${p.id}')" style="color:var(--amber);cursor:pointer;font-weight:700">Try again</span>`:''}${p.status!=='up'?`<span onclick="_bpGrnRemove('${p.id}')" style="color:var(--red);cursor:pointer">Remove</span>`:''}</div></div>`; }).join('');
+}
+// ---- on a saved bill (vendor page) ----
+function _bpTargets(b){ return [...b.srcIds.map(id=>({path:'materialInward/'+id, rec:(materialInward||[]).find(x=>x.id===id)})), ...b.svcIds.map(id=>({path:'vendorTxns/'+id, rec:(vendorTxns||[]).find(x=>x.id===id)}))].filter(t=>t.rec); }
+function _bpAddToBill(key){
+  if(!(isOwner()||isAdmin())){ alert('Only the owner or admin can add a bill photo.'); return; }
+  _bpChoose(false, f=>_bpAddFile(key,f));
+}
+async function _bpAddFile(key, file){
+  const vid=_vendDetailId; let b=_vlBills(vid).bills.find(x=>x.key===key); if(!b) return;
+  if(b.photos.length>=4){ alert('A bill can carry up to 4 photos.'); return; }
+  const tg=_bpTargets(b); if(!tg.length) return;
+  flash('SENDING PHOTO…','Please wait');
+  // the bill's records must really be on the server before a field-only save (never create half records)
+  const chk=await Promise.all(tg.map(t=>_vlOnServer(t.path)));
+  if(chk.some(c=>c!==true)){ alert('Photo not added.\n\nSome lines of this bill are not on the server yet, or the internet could not be checked. Tap ⟳ Refresh and try again.'); return; }
+  const it=await _bpSend({file, status:'up'});
+  if(it.status!=='ok'){ alert('⚠️ PHOTO NOT ADDED\n\nIt could not be sent: '+(it.err||'')+'\n\nThe bill is unchanged. Try again.'); return; }
+  const ph={p:it.p, ct:it.ct, sz:it.sz, by:(sess&&sess.name)||'', ts:Date.now()};
+  const res=await Promise.all(tg.map(t=>{ const next=(t.rec.billPhotos||[]).filter(x=>x&&x.p!==ph.p).concat([ph]); return _fbMerge(t.path,{billPhotos:next}).then(ok=>{ if(ok!==false) t.rec.billPhotos=next; return ok; }); }));
+  if(_saveOK(res,'bill photo')) flash('BILL PHOTO ADDED','');
+  _vlState.open[key]=true; _vlRender();
+}
+function _bpView(key, i){
+  const b=_vlBills(_vendDetailId).bills.find(x=>x.key===key); const ph=b&&b.photos[i]; if(!ph) return;
+  const old=document.getElementById('bp-ov'); if(old) old.remove();
+  const o=document.createElement('div'); o.id='bp-ov';
+  o.style.cssText='position:fixed;inset:0;z-index:9100;background:rgba(0,0,0,.94);display:flex;flex-direction:column;color:#fff;font-family:var(--fb)';
+  o.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;gap:10px">
+      <div style="font-size:12px;min-width:0">${b.invNo?('Bill '+_esc(b.invNo)+' · '):''}${fmtD(b.date)} · ${/pdf/i.test(ph.ct||'')?'PDF':'page '+(i+1)}${ph.by?' · added by '+_esc(ph.by):''}</div>
+      <div style="display:flex;gap:8px">${isOwner()?`<button type="button" onclick="_bpRemove('${_esc(key)}',${i})" style="min-height:40px;padding:0 12px;border-radius:8px;border:1px solid var(--red);background:transparent;color:var(--red);font-size:12px;font-weight:700;cursor:pointer">Remove photo</button>`:''}
+      <button type="button" onclick="document.getElementById('bp-ov').remove()" style="min-height:40px;padding:0 14px;border-radius:8px;border:none;background:var(--amber);color:#1a1205;font-size:13px;font-weight:800;cursor:pointer">Close</button></div></div>
+    <div id="bp-body" style="flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;padding:8px;font-size:13px">Opening photo…</div>`;
+  document.body.appendChild(o);
+  _phUrl(ph.p).then(url=>{ const body=document.getElementById('bp-body'); if(!body) return;
+    if(/pdf/i.test(ph.ct||'')) body.innerHTML=`<a href="${url}" target="_blank" rel="noopener" style="color:var(--amber);font-size:15px;font-weight:700">Open the PDF ›</a>`;
+    else { body.innerHTML=''; const im=document.createElement('img'); im.alt='Bill photo'; im.style.cssText='max-width:100%;max-height:100%;object-fit:contain'; im.src=url; body.appendChild(im); }
+  }).catch(e=>{ const body=document.getElementById('bp-body'); if(body) body.textContent='Could not open the photo: '+String((e&&e.message)||e); });
+}
+async function _bpRemove(key, i){
+  if(!isOwner()){ alert('Only the owner can remove a bill photo.'); return; }
+  const b=_vlBills(_vendDetailId).bills.find(x=>x.key===key); const ph=b&&b.photos[i]; if(!ph) return;
+  if(!confirm('Remove this photo from the bill?\n\nIt will no longer show in FuelLog. The file itself stays in the photo store as a safety copy.')) return;
+  const tg=_bpTargets(b).filter(t=>(t.rec.billPhotos||[]).some(x=>x&&x.p===ph.p));
+  const log={p:ph.p, act:'removed', by:(sess&&sess.name)||'', ts:Date.now()};
+  const res=await Promise.all(tg.map(t=>{ const next=(t.rec.billPhotos||[]).filter(x=>x&&x.p!==ph.p); const lg=(t.rec.billPhotoLog||[]).concat([log]);
+    return _fbMerge(t.path,{billPhotos:next, billPhotoLog:lg}).then(ok=>{ if(ok!==false){ t.rec.billPhotos=next; t.rec.billPhotoLog=lg; } return ok; }); }));
+  const o=document.getElementById('bp-ov'); if(o) o.remove();
+  if(_saveOK(res,'removing the photo')) flash('PHOTO REMOVED','');
+  _vlState.open[key]=true; _vlRender();
+}
 // ===================== V102.35 RECORD PAYMENT SCREEN =====================
 // One screen instead of two pop-ups. Saves ONE vendorTxns record (per-record _fbWrite). New fields on
 // payment records only: mode, ref, forBillNo, editedBy/Name/Ts. Balance maths unchanged (amount only).
@@ -17381,13 +17519,14 @@ function _hcCompute(){
   const bad=[], noTot=[], orphan=[], neg=[];
   (vendors||[]).forEach(v=>{ let bb=[]; try{ bb=_vlBills(v.id).bills; }catch(e){}
     bb.forEach(b=>{ if(b.status==='short'||b.status==='over') bad.push({vid:v.id,key:b.key,txt:v.name+' · '+(b.invNo?('Bill '+b.invNo):'No bill no.')+' · '+fmtD(b.date)+' · '+(b.status==='short'?'SHORT ':'OVER ')+_vlINR(Math.abs(b.diff))});
-      else if(b.status==='nototal') noTot.push({vid:v.id,key:b.key,txt:v.name+' · Bill '+b.invNo+' · '+fmtD(b.date)+' · '+_vlINR(b.sum)}); }); });
+      else if(b.status==='nototal' && (b.date||'')>='2026-11-05') noTot.push({vid:v.id,key:b.key,txt:v.name+' · Bill '+b.invNo+' · '+fmtD(b.date)+' · '+_vlINR(b.sum)}); }); });
   const inIds=new Set(), invIds=new Set(); (materialInward||[]).forEach(r=>{ if(!r) return; inIds.add(r.id); if(r.invoiceId) invIds.add(r.invoiceId); });
+  // V102.36: a bill may be service charges only (repair/labour) - that is valid, never flagged.
+  const svcInv=new Set(); (vendorTxns||[]).forEach(t=>{ if(t&&t.kind==='service'&&t.invoiceId) svcInv.add(t.invoiceId); });
   (vendorTxns||[]).forEach(t=>{ if(!t||!t.id) return; const vn=((vendors||[]).find(v=>v.id===t.vendorId)||{}).name||'?';
     const id=String(t.id); let why='';
     if(id.indexOf('pur_')===0 && !inIds.has(t.srcId||id.slice(4))) why='purchase entry whose store line is gone';
-    else if(t.kind==='service' && t.invoiceId && !invIds.has(t.invoiceId)) why='service charge whose bill is gone';
-    else if(id.indexOf('pay_')===0 && !inIds.has(id.slice(4)) && !invIds.has(id.slice(4))) why='"paid with bill" payment whose bill is gone';
+    else if(t.type==='payment' && id.indexOf('pay_')===0 && !inIds.has(id.slice(4)) && !invIds.has(id.slice(4)) && !svcInv.has(id.slice(4))) why='"paid with bill" payment whose bill is gone';
     if(why) orphan.push({vid:t.vendorId,txt:vn+' · '+fmtD(t.date)+' · '+_vlINR(t.amount)+' · '+why}); });
   const balMap={};
   (materialInward||[]).forEach(r=>{ if(!r||!r.materialId) return; const k=r.projectId+'|'+r.materialId; balMap[k]=(balMap[k]||0)+(Number(r.qty)||0); });
@@ -17416,9 +17555,9 @@ function renderHealth(){
   el.innerHTML=`<div style="font-size:12px;color:var(--muted);margin-bottom:10px">Checked just now from the data on this device · read-only, changes nothing. Tap ⟳ Refresh first for the latest figures.</div>`
     +card('bad','Bills not matching','Lines entered differ from the printed bill total',r.bad,'var(--red)')
     +card('neg','Stock below zero','More issued than received at a location',r.neg,'var(--red)')
-    +card('orphan','Ledger entries with no bill','Vendor entry whose bill or store line was deleted',r.orphan,'var(--amber)')
+    +card('orphan','Ledger entries with no bill','Purchase or bill payment whose bill was deleted',r.orphan,'var(--amber)')
     +card('fails','Not reached the server','Saves refused today on this device',r.fails,'var(--red)')
-    +card('noTot','Bills with no bill total','Cannot be checked until the total is set',r.noTot,'var(--amber)')
+    +card('noTot','Bills with no bill total','Bills from 05/11/26 onward · cannot be checked until the total is set',r.noTot,'var(--amber)')
     +`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px">
         <div><div style="font-size:14px;font-weight:700">Daily backup</div><div style="font-size:12px;color:var(--muted)">${last?('Last backup on this device: '+_esc(new Date(Number(last)).toLocaleString('en-IN'))):'No backup saved from this device yet'}</div>
         <div style="font-size:12px;color:var(--muted)">On the owner's laptop, one file a day is saved to Downloads by itself.</div></div>
@@ -17663,6 +17802,15 @@ function _grnFormHTML(pid){
       <input class="f-inp" id="grn-billtotal" type="number" inputmode="decimal" placeholder="e.g. 38011" oninput="this.dataset.auto=''">
       <div id="grn-billtotal-hint" style="font-size:11px;color:var(--muted);margin-top:4px"></div>
     </div>
+    <div class="f-field" id="grn-photo-wrap" style="background:var(--bg2);border:1px solid var(--border);border-radius:11px;padding:12px;margin:6px 0 10px">
+      <div style="font-size:13px;font-weight:700">📎 Bill photo <span style="color:var(--muted);font-weight:600">(optional · up to 4 photos or one PDF)</span></div>
+      <div id="grn-photo-list" style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0"></div>
+      <div style="display:flex;gap:8px">
+        <button type="button" onclick="_bpPick('grn',true)" style="flex:1;min-height:44px;border-radius:9px;border:1px solid var(--amber);background:var(--bg2);color:var(--amber);font-size:13px;font-weight:700;cursor:pointer">📷 Take photo</button>
+        <button type="button" onclick="_bpPick('grn',false)" style="flex:1;min-height:44px;border-radius:9px;border:1px solid var(--amber);background:var(--bg2);color:var(--amber);font-size:13px;font-weight:700;cursor:pointer">Choose file</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">The photo is made smaller on the phone, then sent. If it cannot be sent, the bill still saves and the photo can be added later from the vendor page.</div>
+    </div>
     <div id="grn-lines-list"></div>
     <div style="background:var(--bg2);border:1px solid var(--amber);border-radius:11px;padding:12px;margin:6px 0 10px">
       <div style="font-family:var(--fh);font-size:12px;color:var(--amber);letter-spacing:.5px;margin-bottom:8px">➕ ADD A MATERIAL</div>
@@ -17873,6 +18021,8 @@ function _grnRenderLines(){
   }
   const paidWrap=document.getElementById('grn-paid-wrap'); if(paidWrap) paidWrap.style.display=(srcType==='external')?'':'none';
   const btWrap=document.getElementById('grn-billtotal-wrap'); if(btWrap) btWrap.style.display=(srcType==='external')?'':'none';   // V102.29
+  const bpWrap=document.getElementById('grn-photo-wrap'); if(bpWrap) bpWrap.style.display=(srcType==='external')?'':'none';   // V102.37
+  if(typeof _bpRenderGrn==='function') _bpRenderGrn();
   const nc=(srcType==='external')?(window._grnCharges||[]).length:0;
   const btn=document.getElementById('grn-save-btn');
   const _ab=document.getElementById('grn-add-btn'); if(_ab) _ab.textContent=(srcType==='external')?'➕ ADD TO INVOICE':'➕ ADD TO RECEIPT';   // V101.3
@@ -18006,6 +18156,11 @@ async function saveGRN(){
   }
   const extCharges=(srcType==='external')?(window._grnCharges||[]).filter(c=>Number(c.amount)>0):[];
   if(!lines.length && !extCharges.length){ alert('Add at least one material'+(srcType==='external'?' or service charge':'')+' to the invoice.'); return; }
+  // V102.37 bill photos: never save while one is still on its way; a failed one never blocks the bill.
+  const _gp=(srcType==='external')?(window._grnPhotos||[]):[];
+  if(_gp.some(p=>p.status==='up')){ alert('A bill photo is still being sent. Wait a few seconds, then tap Save again.'); return; }
+  const _bp=_gp.filter(p=>p.status==='ok').map(p=>({p:p.p, ct:p.ct, sz:p.sz, by:(sess&&sess.name)||'', ts:p.ts}));
+  const _bpFail=_gp.filter(p=>p.status==='fail').length;
   const invId=uid();
   const _badU=_storeBadUnits(lines); // V99.56: refuse unconvertible units instead of storing them wrong
   if(_badU){ alert(_badU); return; }
@@ -18040,6 +18195,7 @@ async function saveGRN(){
       rec.gstAmount=Math.round(rec.amount*rec.gstPct)/100;
       rec.invoiceAmount=Math.round((rec.amount+rec.gstAmount)*100)/100;   // what is actually payable
       if(billTotal>0){ rec.billTotal=billTotal; rec.billTotalBy=(sess&&sess.name)||''; rec.billTotalTs=Date.now(); }   // V102.29
+      if(_bp.length) rec.billPhotos=_bp;   // V102.37
     }
     if(Array.isArray(L.serials) && L.serials.length){ rec.serials=L.serials.slice(); if(Number(L.warrantyMonths)>0) rec.warrantyMonths=Number(L.warrantyMonths); }   // V102.27
     materialInward.push(rec);
@@ -18074,6 +18230,7 @@ async function saveGRN(){
         desc:C.desc, category:C.category||'', machineId:C.machineId||'', machineName:C.machineName||'',
         note:'Service: '+C.desc+(_cGstP>0?(' · GST '+_cGstP+'%'):'')+(C.machineName?(' · '+C.machineName):'')+(invNo?(' · Inv '+invNo):''),
         ts:Date.now(), enteredBy:(sess&&sess.userId)||'', enteredByName:(sess&&sess.name)||'' };
+      if(_bp.length) txn.billPhotos=_bp;   // V102.37
       vendorTxns=vendorTxns||[]; vendorTxns.push(txn); _w.push(_fbWrite('vendorTxns/'+chgId, txn));
     });
   }
@@ -18088,7 +18245,8 @@ async function saveGRN(){
     }
   }
   const _allOK=_saveOK(await Promise.all(_w),'purchase bill'+(invNo?(' '+invNo):''));
-  window._grnLines=[]; window._grnCharges=[];
+  window._grnLines=[]; window._grnCharges=[]; window._grnPhotos=[];
+  if(_bpFail) setTimeout(()=>alert('The bill is saved, but '+_bpFail+' photo'+(_bpFail===1?' was':'s were')+' NOT attached (could not be sent).\n\nAdd '+(_bpFail===1?'it':'them')+' later: Vendors → this vendor → the bill → Add bill photo.'),600);
   // V102.29: tell the person straight away when the bill is not fully entered.
   let _billMsg='';
   if(srcType==='external' && vendorId && invNo && billTotal>0 && typeof _vlBills==='function'){
@@ -23350,7 +23508,7 @@ const FB_KEY = 'AIzaSyB44pKu7YTc-Q_6GLC3mlaEBPJm3d3odPc';
 // V102.18 SECURITY STEP 4: the shared master account (and its password) was REMOVED from the app.
 // Each device signs in with its own account (see 'Set up this device'). Old master sign-in passes are wiped below.
 try{ localStorage.removeItem('fb_auth'); localStorage.removeItem('fb_refresh'); }catch(e){}
-const APP_VERSION = 'V102.35'; // bump this on every deploy
+const APP_VERSION = 'V102.37'; // bump this on every deploy
 
 // All keys we sync to Firebase
 const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords','trips','customers','materials','staff','staffMusters','pumpPayments','projects','boqItems','workEntries','subcontractors','subContracts','dailyReports','gangs','dailyLabour','royalty','materialInward','materialOutward','vendors','vendorTxns','paverLabour','gangLedger','rmcProd','siteWatch'];
@@ -26040,7 +26198,7 @@ fbInit();
 
 <script>
 if('serviceWorker' in navigator){
-  var swCode="var CACHE='fl-v202611140900';self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/fuellog/'])).then(()=>self.skipWaiting())));self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));self.addEventListener('fetch',e=>{if(e.request.url.includes('firebaseio.com')||e.request.url.includes('googleapis.com'))return;e.respondWith(fetch(e.request).then(r=>{var c=r.clone();caches.open(CACHE).then(cache=>cache.put(e.request,c));return r;}).catch(()=>caches.match(e.request)));});";
+  var swCode="var CACHE='fl-v202611151000';self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/fuellog/'])).then(()=>self.skipWaiting())));self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));self.addEventListener('fetch',e=>{if(e.request.url.includes('firebaseio.com')||e.request.url.includes('googleapis.com'))return;e.respondWith(fetch(e.request).then(r=>{var c=r.clone();caches.open(CACHE).then(cache=>cache.put(e.request,c));return r;}).catch(()=>caches.match(e.request)));});";
   var blob=new Blob([swCode],{type:'text/javascript'});
   navigator.serviceWorker.register(URL.createObjectURL(blob)).then(function(reg){console.log('SW v202604171529');reg.update();}).catch(function(e){console.log('SW skip:',e.message);});
 }
