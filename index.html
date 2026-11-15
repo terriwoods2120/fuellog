@@ -1,4 +1,4 @@
-<!-- FuelLog PWA | Version: V102.38 | Date: 2026-11-15 | V102.38 PHOTOS IN MORE PLACES (same photo store as V102.37; entries keep only a short link in a new field `att`): store ISSUE / TRANSFER (one set per issue, lines tied by new field minId), TRIPS (slip photo), VENDOR PAYMENT (proof), FUEL PURCHASE and DIRECT PUMP FILL (bill). Each has a photo box on the entry form (optional, up to 4 photos or a PDF; a failed photo never blocks the entry), tiles on the list (downloaded only on tap), add-later (owner/admin; trips also manager; field-only PATCH after checking the record is on the server) and Remove (owner; link taken off + attLog, file stays). DATA SAFETY REVIEW V2: new fields only (att, attLog, minId); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.37 Date: 2026-11-15 | V102.37 BILL PHOTO (photo store): a purchase bill (GRN, vendor source) can carry up to 4 photos or a PDF. The file is made small on the phone and sent to the separate Firebase photo store (fuellog/bills/YYYY-MM/...); the entry keeps only a short link (billPhotos on the bill's materialInward lines and service-charge vendorTxns), so sync never carries photos. Vendor page: view (downloaded only on tap), Add bill photo to a saved bill (owner/admin, field-only PATCH after checking the records are on the server), Remove photo (owner; takes the link off + billPhotoLog, the file stays in the store). A failed photo never blocks the bill. DATA SAFETY REVIEW V2: new fields only (billPhotos, billPhotoLog); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.36 Date: 2026-11-15 | V102.36 HEALTH CHECK COUNTS CORRECTED (read-only page, nothing saved): 'Ledger entries with no bill' no longer counts service-only bills (repair/labour bills with no material are valid) and a 'paid with bill' payment is fine when its bill has service charges; 'Bills with no bill total' counts only bills dated 05/11/2026 or later (when the total became compulsory). | V102.35 Date: 2026-11-14 | V102.35 (includes V102.32-V102.34): (1) GST KEPT ON EDIT: editing a single purchase line recalculates GST and the vendor entry is rebuilt GST-inclusive like a new bill (was basic only). (2) CLEAN BILL DELETE: deleting the last line of a bill offers to remove that bill's 'Paid with invoice' payment and service charges. (3) RECORD PAYMENT SCREEN: date, amount, paid by, ref, for bill, note; owner can edit; delete = owner/admin only and checked against the server. (4) HEALTH CHECK (More > System, owner): bills not matching, stock below zero, ledger entries with no bill, saves that did not reach the server, bills with no total - read-only. (5) DAILY BACKUP: on the owner's laptop the first full download of the day is also saved as a backup file (no extra download). (6) SLIM FILE: version history moved to FuelLog_Version_History.txt; unused old work-entry screen and old one-time clean-up call removed. DATA SAFETY REVIEW V2: new fields on vendor payment records only (mode, ref, forBillNo, edited*); per-record saves/deletes only; no rules, sync, MERGE_KEYS or Fast Refresh change. Earlier history: see FuelLog_Version_History.txt -->
+<!-- FuelLog PWA | Version: V102.39 | Date: 2026-11-15 | V102.39 USERS SAVED ONE PERSON AT A TIME: every users save first reads the server shape (keys only). Old shape (positions 0..n) = saves work exactly as before (whole list). After the owner presses Health check > Convert users list (checks + backup file + read-back), each save writes ONLY that person (add = one record, edit/PIN = only the changed fields, remove = one record). A whole-list send of users is refused in _fbWrite; old queued users saves are handled safely; Restore writes the users list keyed by id. Health check shows the users-list shape. | V102.38 PHOTOS IN MORE PLACES (same photo store as V102.37; entries keep only a short link in a new field `att`): store ISSUE / TRANSFER (one set per issue, lines tied by new field minId), TRIPS (slip photo), VENDOR PAYMENT (proof), FUEL PURCHASE and DIRECT PUMP FILL (bill). Each has a photo box on the entry form (optional, up to 4 photos or a PDF; a failed photo never blocks the entry), tiles on the list (downloaded only on tap), add-later (owner/admin; trips also manager; field-only PATCH after checking the record is on the server) and Remove (owner; link taken off + attLog, file stays). DATA SAFETY REVIEW V2: new fields only (att, attLog, minId); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.37 Date: 2026-11-15 | V102.37 BILL PHOTO (photo store): a purchase bill (GRN, vendor source) can carry up to 4 photos or a PDF. The file is made small on the phone and sent to the separate Firebase photo store (fuellog/bills/YYYY-MM/...); the entry keeps only a short link (billPhotos on the bill's materialInward lines and service-charge vendorTxns), so sync never carries photos. Vendor page: view (downloaded only on tap), Add bill photo to a saved bill (owner/admin, field-only PATCH after checking the records are on the server), Remove photo (owner; takes the link off + billPhotoLog, the file stays in the store). A failed photo never blocks the bill. DATA SAFETY REVIEW V2: new fields only (billPhotos, billPhotoLog); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.36 Date: 2026-11-15 | V102.36 HEALTH CHECK COUNTS CORRECTED (read-only page, nothing saved): 'Ledger entries with no bill' no longer counts service-only bills (repair/labour bills with no material are valid) and a 'paid with bill' payment is fine when its bill has service charges; 'Bills with no bill total' counts only bills dated 05/11/2026 or later (when the total became compulsory). | V102.35 Date: 2026-11-14 | V102.35 (includes V102.32-V102.34): (1) GST KEPT ON EDIT: editing a single purchase line recalculates GST and the vendor entry is rebuilt GST-inclusive like a new bill (was basic only). (2) CLEAN BILL DELETE: deleting the last line of a bill offers to remove that bill's 'Paid with invoice' payment and service charges. (3) RECORD PAYMENT SCREEN: date, amount, paid by, ref, for bill, note; owner can edit; delete = owner/admin only and checked against the server. (4) HEALTH CHECK (More > System, owner): bills not matching, stock below zero, ledger entries with no bill, saves that did not reach the server, bills with no total - read-only. (5) DAILY BACKUP: on the owner's laptop the first full download of the day is also saved as a backup file (no extra download). (6) SLIM FILE: version history moved to FuelLog_Version_History.txt; unused old work-entry screen and old one-time clean-up call removed. DATA SAFETY REVIEW V2: new fields on vendor payment records only (mode, ref, forBillNo, edited*); per-record saves/deletes only; no rules, sync, MERGE_KEYS or Fast Refresh change. Earlier history: see FuelLog_Version_History.txt -->
 <!-- FuelLog PWA | Version: V99.86 | Date: 2026-08-05 | V99.86 BOQ PROGRESS SOURCE SPLIT (step 3 of 3, display only): since V99.85 the progress figure is fed by TWO sources -- standalone Work Done entries and linked DPR gang lines -- and nothing on screen said which. New _doneSplitHTML(itemId,unit) renders a muted sub-line under the progress bar, e.g. '20 sqm Work Done + 70.51 sqm (link) gang work'. PURPOSE IS DETECTION, not decoration: if the same physical work is ever entered through BOTH paths the total is silently too high and an inflated percentage just looks like good progress, whereas a visibly wrong breakdown is catchable. Returns '' when no gang work contributes, so rows fed purely by Work Done entries render EXACTLY as before -- the extra line only appears where there is something to explain. Applied at both BOQ progress render sites (project BOQ list and the DPR-side list); the work-entry form header was left alone as it is a single-item entry context, not a review view. Values rounded to 2dp (13.099219... shows as 13.1) and the unit is _esc'd. CORRECTION to the earlier plan: step 3 was described as 'add the BOQ unit to the progress row' -- on inspection the unit was ALREADY rendered there (both progress rows have shown '<qty> <unit> done' since well before this work), so that step was redundant and the source split was built instead. DATA SAFETY: display only. No write path, no schema change, no collection touched, no calculation altered -- _itemDone, _itemPct and _itemLabourDone are read and re-presented, never modified. -->
 <!-- FuelLog PWA | Version: V99.85 | Date: 2026-08-05 | V99.85 LINKED WORK NOW FEEDS BOQ PROGRESS (step 2 of 3, completes the badge's promise): _itemDone previously summed workEntries ONLY, so a DPR work line flagged '(link) linked -- feeds BOQ progress' paid the gang but contributed ZERO progress. New _itemLabourDone(boqItemId) sums linked dailyLabour pieceRows and converts labour units to BOQ units by DIVIDING by convPerBoqUnit (which means labour-units-per-one-BOQ-unit, e.g. 10.764 sqft in 1 sqm). Direction verified against live data before building: item unit sqm, labourUnit sqft, conv 10.764 -- 141 sqft = 13.10 sqm, not 1517. Multiplying would have inflated progress ~116x and looked merely like a large number. STRICT: only rows explicitly stored linked:true count; legacy rows predating V99.84 carry no flag and are deliberately NOT re-derived from the current engagement, since a later rate edit would then silently move historical progress -- re-saving such an entry backfills the flag and it counts from then on. GUARDS: conv<=0/missing/non-numeric skips the row (never divides by zero, never yields Infinity/NaN), MISC and blank item ids excluded, malformed records tolerated. Pending (unapproved backdated) entries excluded via _appr, consistent with V99.58. DOUBLE-COUNT PRE-CHECKED on live data: zero item+date pairs appear in both workEntries and a labour line, so nothing is counted twice; the overlap check should be re-run before any bulk backfill. AFFECTS: _itemPct and the executed-value total (execVal = done x rate), both of which will legitimately RISE for linked items -- they were understated before. DATA SAFETY: read/compute path only. No write path, no schema change, no collection touched, no record created/edited/deleted/migrated; only which numbers are DERIVED at render time. Worst case of a wrong factor is a visibly wrong percentage, never data loss. Step 3 (unit-label display on progress rows) still open. -->
 <!-- FuelLog PWA | Version: V99.84 | Date: 2026-08-05 | V99.84 LINKED-WORK PERSISTENCE (step 1 of 3): saveLabEntry now stores linked + convPerBoqUnit on every saved pieceRow instead of discarding them (previously computed live via _labLineRate but never written to Firebase). editLabEntry trusts the stored linked flag for entries saved under this fix, and only falls back to a fresh gang-rate lookup for legacy rows that predate it -- and that fallback never touches the historical rate/unit that was actually paid. This does NOT yet change BOQ progress calculation (_itemDone still reads workEntries only) -- that is step 2, pending an overlap check on live data. -->
@@ -2075,6 +2075,8 @@ async function _fbLogDeletion(coll, id){
 }
 async function _fbWrite(key, value){
   if(typeof FB_URL === 'undefined' || typeof FB_KEY === 'undefined') return false;
+  // V102.39: the users list is never sent whole from here (one person at a time - see _userSave)
+  if(key==='users' && value && typeof value==='object'){ _fbWriteFailed('users/list','whole users list not sent (V102.39)'); return false; }
   try {
     const token = (typeof fbGetAuth === 'function') ? await fbGetAuth() : null;
     const authParam = token ? 'auth='+token : 'auth='+FB_KEY;
@@ -2464,7 +2466,14 @@ async function processSyncQueue(){
     if(latestByKey[item.key] !== i){ continue; } // skip stale
     try {
       const fresh = JSON.parse(localStorage.getItem(SK[item.key]) || '[]');
-      const success = await _fbWrite(item.key, fresh);
+      let success;
+      if(item.key==='users'){
+        // V102.39: an old queued users save (made before this version) - old shape: send as before; new shape: never whole
+        const _sh=await _usersShape();
+        if(_sh===null) success=false;
+        else if(_sh==='old'||_sh==='empty') success=await _usersPutWhole(fresh);
+        else { _fbWriteFailed('users/list','an old waiting users save was not sent (users are now saved one at a time) - check the users list'); success=true; }
+      } else success = await _fbWrite(item.key, fresh);
       if(success){ ok++; }
       else { remaining.push(item); fail++; }
     } catch(e){ remaining.push(item); fail++; }
@@ -3234,15 +3243,26 @@ function confirmPinChange(){
   // Regular user PIN change
   const userIdx = users.findIndex(u => u.id === _forcePinChangeUser.id);
   if(userIdx !== -1){
-    users[userIdx].pin = _newPinBuf;
-    users[userIdx].pinChangedAt = Date.now();
-    sv('users', users);
-    flash('PIN UPDATED!', 'Your PIN has been changed');
-    setTimeout(() => {
-      _newPinBuf = ''; _confirmPinBuf = ''; _pinChangeStep = 'new';
-      _forcePinChangeUser = null;
-      show('scr-home');
-    }, 1200);
+    // V102.39: only this person's PIN is saved; nothing else in the users list is sent
+    const _u=users[userIdx], _oldPin=_u.pin, _oldAt=_u.pinChangedAt, _np=_newPinBuf, _at=Date.now();
+    _u.pin=_np; _u.pinChangedAt=_at;
+    _userSave('patch', _u.id, {pin:_np, pinChangedAt:_at}).then(ok=>{
+      if(!ok){
+        _u.pin=_oldPin; _u.pinChangedAt=_oldAt; _usersLocal();
+        errEl.textContent = 'PIN NOT SAVED - check internet and try again';
+        _newPinBuf = ''; _confirmPinBuf = ''; _pinChangeStep = 'new';
+        document.getElementById('cp-step-label').textContent = 'NEW PIN';
+        document.getElementById('cp-step-sub').textContent = 'Choose a 4-digit PIN';
+        updCpDots();
+        return;
+      }
+      flash('PIN UPDATED!', 'Your PIN has been changed');
+      setTimeout(() => {
+        _newPinBuf = ''; _confirmPinBuf = ''; _pinChangeStep = 'new';
+        _forcePinChangeUser = null;
+        show('scr-home');
+      }, 1200);
+    });
   }
 }
 async function logout(){
@@ -9343,10 +9363,14 @@ function saveUser(){
   if(pin.length!==4||isNaN(Number(pin))){alert('PIN must be 4 digits');return;}
   if(users.find(u=>u.name.toLowerCase()===name.toLowerCase())){alert('Name already exists');return;}
   if(umR==='owner'&&!isOwner()){alert('Only Owner can create another Owner');return;}
-  users.push({id:uid(),name,role:umR,pin,addedBy:sess.userId,addedByName:sess.name});
-  sv('users',users);
-  document.getElementById('um-name').value='';document.getElementById('um-pin').value='';
-  renderUserList();flash('USER ADDED!',name+' ('+rLbl(umR)+')');
+  const _rec={id:uid(),name,role:umR,pin,addedBy:sess.userId,addedByName:sess.name,addedAt:Date.now()};
+  users.push(_rec);
+  _userSave('put', _rec.id, _rec).then(ok=>{
+    if(!ok){ users=users.filter(u=>u.id!==_rec.id); _usersLocal(); renderUserList();
+      alert('⚠️ USER NOT ADDED\n\n'+name+' was not saved on the server (internet?). Nothing was added. Try again.'); return; }
+    document.getElementById('um-name').value='';document.getElementById('um-pin').value='';
+    renderUserList();flash('USER ADDED!',name+' ('+rLbl(umR)+')');
+  });
 }
 function delUser(id){
   if(!isOwner())return;
@@ -9354,8 +9378,13 @@ function delUser(id){
   if(u?.role==='owner'&&u.id!==sess?.userId){alert('Cannot delete another Owner account');return;}
   if(u?.id===sess?.userId){alert('Cannot delete your own account');return;}
   showConfirm('Remove user "'+u?.name+'"?',()=>{
-    users=users.filter(u=>u.id!==id);sv('users',users);renderUserList();
-    flash('REMOVED!',u?.name+' removed');
+    const _keep=users.slice();
+    users=users.filter(u=>u.id!==id);
+    _userSave('del', id).then(ok=>{
+      if(!ok){ users=_keep; _usersLocal(); renderUserList();
+        alert('⚠️ NOT REMOVED\n\n'+(u?.name||'User')+' is still on the server (internet?). Try again.'); return; }
+      renderUserList(); flash('REMOVED!',u?.name+' removed');
+    });
   });
 }
 function renderUserList(){
@@ -9430,12 +9459,17 @@ function saveUserEdit(){
   if(role==='sitesup'){
     assignedProjects=[...document.querySelectorAll('.eu-proj-cb:checked')].map(c=>c.value);
   }
-  users[idx]={...users[idx],name,role,assignedProjects,
-    pin:pin||users[idx].pin,
-    editedBy:sess.userId,editedByName:sess.name,editedAt:Date.now()};
-  sv('users',users);
-  renderUserList();
-  flash('USER UPDATED!',name);
+  // V102.39: only the fields on this form are sent (a PIN changed on another phone is not overwritten)
+  const _before=users[idx];
+  const _chg={name,role,assignedProjects,editedBy:sess.userId,editedByName:sess.name,editedAt:Date.now()};
+  if(pin) _chg.pin=pin;
+  users[idx]={..._before,..._chg};
+  _userSave('patch', id, _chg).then(ok=>{
+    if(!ok){ const j=users.findIndex(u=>u.id===id); if(j!==-1) users[j]=_before; _usersLocal(); renderUserList();
+      alert('⚠️ NOT SAVED\n\nThe change to '+name+' did not reach the server (internet?). Nothing was changed. Try again.'); return; }
+    renderUserList();
+    flash('USER UPDATED!',name);
+  });
   closeEditModal();
 }
 
@@ -17663,6 +17697,107 @@ async function delVendorPayment(txnId){
   flash('PAYMENT DELETED','');
   openVendor(_vendDetailId);
 }
+// ===================== V102.39 USERS SAVED ONE PERSON AT A TIME =====================
+// fuellog/users on the server is either 'old' (positions 0..n = one whole list) or 'new' (one record per user id).
+// Every users save first reads the live shape (keys only, tiny). Old shape -> the save works exactly as before
+// (whole list from this device). New shape -> only that one person is written. The owner converts once from
+// Health check (checks + backup file + read-back). _fbWrite refuses any whole users list.
+async function _usersAuth(){ const t=(typeof fbGetAuth==='function')?await fbGetAuth():null; return 'auth='+(t||FB_KEY); }
+function _usersLocal(){ try{ localStorage.setItem(SK.users||'fl7_users', JSON.stringify(users)); }catch(e){} }
+function _usersKeyed(arr){ const o={}; (arr||[]).forEach(u=>{ if(u&&u.id) o[String(u.id)]=u; }); return o; }
+function _usersBadId(id){ const x=String(id==null?'':id); return !x || /^\d+$/.test(x) || /[.#$\[\]\/]/.test(x); }
+async function _usersShape(){            // 'old' | 'new' | 'mixed' | 'empty' | null (could not check)
+  if(typeof FB_URL==='undefined') return null;
+  try{
+    const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(),10000);
+    const r=await fetch(FB_URL+'/fuellog/users.json?shallow=true&'+await _usersAuth(),{signal:ctrl.signal});
+    clearTimeout(to);
+    if(!r.ok) return null;
+    const j=await r.json();
+    const k=(j&&typeof j==='object')?Object.keys(j):[];
+    if(!k.length) return 'empty';
+    const num=k.filter(x=>/^\d+$/.test(x)).length;
+    return num===k.length?'old':(num===0?'new':'mixed');
+  }catch(e){ return null; }
+}
+async function _usersPutWhole(body){      // only: old-shape saves, Convert, Restore
+  try{
+    const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(),15000);
+    const r=await fetch(FB_URL+'/fuellog/users.json?'+await _usersAuth(),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:ctrl.signal});
+    clearTimeout(to);
+    if(!r.ok) _fbWriteFailed('users/list','HTTP '+r.status);
+    return r.ok;
+  }catch(e){ _fbWriteFailed('users/list','no connection'); return false; }
+}
+// op 'put' = one whole new record, 'patch' = only the given fields, 'del' = remove one person
+async function _userSave(op, id, data){
+  _usersLocal();
+  const sh=await _usersShape();
+  if(sh===null){ _fbWriteFailed('users/'+id,'could not check the server (internet?)'); return false; }
+  if(sh==='mixed'){ _fbWriteFailed('users/'+id,'users list on the server is half converted - owner: Health check'); return false; }
+  if(sh==='old'||sh==='empty') return await _usersPutWhole(sh==='empty'?_usersKeyed(users):users);   // as before V102.39
+  if(_usersBadId(id)){ _fbWriteFailed('users/'+id,'this person has no usable id'); return false; }
+  if(op==='del') return await _fbDelete('users', id);
+  if(op==='patch'){
+    const on=await _vlOnServer('users/'+id);
+    if(on!==true){ _fbWriteFailed('users/'+id, on===false?'person not found on the server':'could not check the server'); return false; }
+    return await _fbMerge('users/'+id, data);
+  }
+  return await _fbWrite('users/'+id, data);
+}
+async function _usersRestore(val){        // Restore from a backup file (deliberate overwrite)
+  _usersLocal();
+  const sh=await _usersShape();
+  if(sh===null) return false;
+  return await _usersPutWhole(sh==='old'?val:_usersKeyed(val));
+}
+async function usersConvert(){
+  if(!isOwner()){ alert('Owner only'); return; }
+  const no=(why)=>{ alert('NOT CONVERTED - nothing changed.\n\n'+why); _hcUsersFill(); };
+  const sh=await _usersShape();
+  if(sh===null) return no('Could not reach the server. Check internet.');
+  if(sh==='new'){ alert('Already converted. Nothing to do.'); return _hcUsersFill(); }
+  if(sh==='empty') return no('The server has no users list.');
+  let srv;
+  try{ const r=await fetch(FB_URL+'/fuellog/users.json?'+await _usersAuth()); if(!r.ok) throw 0; srv=await r.json(); }
+  catch(e){ return no('Could not read the users list from the server.'); }
+  const arr=(Array.isArray(srv)?srv:Object.values(srv||{})).filter(Boolean);
+  const ids=arr.map(u=>u&&u.id);
+  if(!arr.length) return no('The users list on the server is empty.');
+  if(ids.some(_usersBadId)) return no('A person on the server has no usable id. Tell Claude.');
+  if(new Set(ids.map(String)).size!==ids.length) return no('The same person appears twice on the server. Tell Claude.');
+  const locIds=(users||[]).map(u=>String(u&&u.id)).sort().join('|');
+  if(locIds!==ids.map(String).sort().join('|')) return no('This device shows a different list from the server ('+(users||[]).length+' here, '+arr.length+' on the server). Tap Refresh, then try again.');
+  if(!confirm('CONVERT USERS LIST\n\n'+arr.length+' people. Names, roles and PINs stay the same.\n\nA backup file of the users list is saved to Downloads first.\n\nContinue?')) return;
+  try{
+    const json=JSON.stringify({exportDate:new Date().toISOString(),exportedBy:(sess&&sess.name)||'Owner',note:'users list before V102.39 convert',data:{users:srv}});
+    const url=URL.createObjectURL(new Blob([json],{type:'application/json'}));
+    const a=document.createElement('a'); a.href=url; a.download='FuelLog_Users_before_convert_'+_todayISO()+'.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(url),5000);
+  }catch(e){ return no('Could not save the backup file.'); }
+  const ok=await _usersPutWhole(_usersKeyed(arr));
+  let back=null; try{ const r=await fetch(FB_URL+'/fuellog/users.json?'+await _usersAuth()); if(r.ok) back=await r.json(); }catch(e){}
+  const bk=(back&&typeof back==='object'&&!Array.isArray(back))?Object.keys(back):[];
+  const good=ok && bk.length===arr.length && ids.every(i=>bk.indexOf(String(i))!==-1) && bk.every(k=>back[k]&&String(back[k].id)===k);
+  if(!good){
+    alert('⚠️ CONVERT NOT CONFIRMED\n\nThe server did not read back as expected. Do not change users today. The backup file is in Downloads. Tell Claude.');
+    return _hcUsersFill();
+  }
+  users=_dedup(arr); _usersLocal();
+  alert('✅ CONVERTED\n\n'+arr.length+' people. From now on each person is saved on their own.');
+  _hcUsersFill();
+}
+async function _hcUsersFill(){
+  const el=document.getElementById('hc-users'); if(!el) return;
+  el.innerHTML='<div style="font-size:12px;color:var(--muted)">Users list · checking the server…</div>';
+  const sh=await _usersShape();
+  const box=(col,title,sub,btn)=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div style="font-size:14px;font-weight:700">Users list</div><div style="font-size:12px;color:${col};font-weight:700">${title}</div><div style="font-size:12px;color:var(--muted)">${sub}</div></div>${btn?`<button type="button" onclick="usersConvert()" style="min-height:44px;padding:0 12px;border-radius:8px;border:none;background:var(--amber);color:#1a1205;font-size:12px;font-weight:800;cursor:pointer">Convert users list</button>`:''}</div>`;
+  if(sh==='new') el.innerHTML=box('var(--green)','Saved one person at a time','A change to one person can never undo another.',false);
+  else if(sh==='old') el.innerHTML=box('var(--amber)','Old shape (one whole list)','Saves still work. Press Convert once, on this laptop.',true);
+  else if(sh==='mixed') el.innerHTML=box('var(--red)','Half converted','Do not change users. Tell Claude.',false);
+  else if(sh==='empty') el.innerHTML=box('var(--red)','No users list on the server','Tell Claude.',false);
+  else el.innerHTML=box('var(--muted)','Could not check','No internet? Open Health check again.',false);
+}
 // ===================== V102.35 HEALTH CHECK + DAILY BACKUP (owner) =====================
 // Read-only: computed from the lists already in memory. Nothing is written to Firebase.
 let _hcOpen={};
@@ -17712,7 +17847,9 @@ function renderHealth(){
     +`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px">
         <div><div style="font-size:14px;font-weight:700">Daily backup</div><div style="font-size:12px;color:var(--muted)">${last?('Last backup on this device: '+_esc(new Date(Number(last)).toLocaleString('en-IN'))):'No backup saved from this device yet'}</div>
         <div style="font-size:12px;color:var(--muted)">On the owner's laptop, one file a day is saved to Downloads by itself.</div></div>
-        <button type="button" onclick="backupData()" style="min-height:44px;padding:0 12px;border-radius:8px;border:none;background:var(--amber);color:#1a1205;font-size:12px;font-weight:800;cursor:pointer">Backup now</button></div>`;
+        <button type="button" onclick="backupData()" style="min-height:44px;padding:0 12px;border-radius:8px;border:none;background:var(--amber);color:#1a1205;font-size:12px;font-weight:800;cursor:pointer">Backup now</button></div>`
+    +`<div id="hc-users" style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-top:10px"></div>`;
+  _hcUsersFill();
 }
 // DAILY BACKUP: when this device has just done a FULL download anyway (first start of the day /
 // self-check / Refresh), the owner's laptop also saves that same data as the day's backup file.
@@ -23663,7 +23800,7 @@ const FB_KEY = 'AIzaSyB44pKu7YTc-Q_6GLC3mlaEBPJm3d3odPc';
 // V102.18 SECURITY STEP 4: the shared master account (and its password) was REMOVED from the app.
 // Each device signs in with its own account (see 'Set up this device'). Old master sign-in passes are wiped below.
 try{ localStorage.removeItem('fb_auth'); localStorage.removeItem('fb_refresh'); }catch(e){}
-const APP_VERSION = 'V102.38'; // bump this on every deploy
+const APP_VERSION = 'V102.39'; // bump this on every deploy
 
 // All keys we sync to Firebase
 const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords','trips','customers','materials','staff','staffMusters','pumpPayments','projects','boqItems','workEntries','subcontractors','subContracts','dailyReports','gangs','dailyLabour','royalty','materialInward','materialOutward','vendors','vendorTxns','paverLabour','gangLedger','rmcProd','siteWatch'];
@@ -24893,6 +25030,7 @@ function restoreBackup(){
           var keys=Object.keys(data);
           keys.forEach(function(k){
             var val=Array.isArray(data[k])?data[k]:(data[k]?Object.values(data[k]):[]);
+            if(k==='users'){ users=val; _usersRestore(val); return; }   // V102.39
             sv(k,val);
             if(k==='users')users=val;
             else if(k==='fleet')fleet=val;
@@ -25147,21 +25285,16 @@ function doOwnerReset(){
   const owner = users.find(u=>u.role==='owner'&&u.name.toLowerCase()===name.toLowerCase());
   if(!owner){alert('No owner found with that name. Check spelling.');return;}
   const idx = users.findIndex(u=>u.id===owner.id);
+  const _before=users[idx];
   users[idx]={...users[idx],pin:pin1};
-  sv('users',users);
-  // V59: replaced fbPushAll() with direct per-record write — awaits Firebase
-  // confirmation before reload so the new PIN is guaranteed to be saved.
-  _fbWrite('users', users).then(ok=>{
-    if(ok){
-      alert('✅ PIN reset successful! You can now log in with your new PIN.');
-    } else {
-      alert('✅ PIN reset saved locally. Sync when online.');
-    }
+  // V102.39: only the owner's PIN is sent; a failed reset is said plainly and undone on this device
+  const _fail=()=>{ const j=users.findIndex(u=>u.id===owner.id); if(j!==-1) users[j]=_before; _usersLocal();
+    alert('⚠️ PIN NOT RESET\n\nThe server did not accept the new PIN (internet?). Your old PIN still works. Try again.'); };
+  _userSave('patch', owner.id, {pin:pin1}).then(ok=>{
+    if(!ok){ _fail(); return; }
+    alert('✅ PIN reset successful! You can now log in with your new PIN.');
     location.reload();
-  }).catch(()=>{
-    alert('✅ PIN reset saved locally. Sync when online.');
-    location.reload();
-  });
+  }).catch(_fail);
 }
 
 // fbInit() called from index.html
@@ -26353,7 +26486,7 @@ fbInit();
 
 <script>
 if('serviceWorker' in navigator){
-  var swCode="var CACHE='fl-v202611151200';self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/fuellog/'])).then(()=>self.skipWaiting())));self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));self.addEventListener('fetch',e=>{if(e.request.url.includes('firebaseio.com')||e.request.url.includes('googleapis.com'))return;e.respondWith(fetch(e.request).then(r=>{var c=r.clone();caches.open(CACHE).then(cache=>cache.put(e.request,c));return r;}).catch(()=>caches.match(e.request)));});";
+  var swCode="var CACHE='fl-v202611151400';self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/fuellog/'])).then(()=>self.skipWaiting())));self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));self.addEventListener('fetch',e=>{if(e.request.url.includes('firebaseio.com')||e.request.url.includes('googleapis.com'))return;e.respondWith(fetch(e.request).then(r=>{var c=r.clone();caches.open(CACHE).then(cache=>cache.put(e.request,c));return r;}).catch(()=>caches.match(e.request)));});";
   var blob=new Blob([swCode],{type:'text/javascript'});
   navigator.serviceWorker.register(URL.createObjectURL(blob)).then(function(reg){console.log('SW v202604171529');reg.update();}).catch(function(e){console.log('SW skip:',e.message);});
 }
