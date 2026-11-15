@@ -1,4 +1,4 @@
-<!-- FuelLog PWA | Version: V102.37 | Date: 2026-11-15 | V102.37 BILL PHOTO (photo store): a purchase bill (GRN, vendor source) can carry up to 4 photos or a PDF. The file is made small on the phone and sent to the separate Firebase photo store (fuellog/bills/YYYY-MM/...); the entry keeps only a short link (billPhotos on the bill's materialInward lines and service-charge vendorTxns), so sync never carries photos. Vendor page: view (downloaded only on tap), Add bill photo to a saved bill (owner/admin, field-only PATCH after checking the records are on the server), Remove photo (owner; takes the link off + billPhotoLog, the file stays in the store). A failed photo never blocks the bill. DATA SAFETY REVIEW V2: new fields only (billPhotos, billPhotoLog); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.36 Date: 2026-11-15 | V102.36 HEALTH CHECK COUNTS CORRECTED (read-only page, nothing saved): 'Ledger entries with no bill' no longer counts service-only bills (repair/labour bills with no material are valid) and a 'paid with bill' payment is fine when its bill has service charges; 'Bills with no bill total' counts only bills dated 05/11/2026 or later (when the total became compulsory). | V102.35 Date: 2026-11-14 | V102.35 (includes V102.32-V102.34): (1) GST KEPT ON EDIT: editing a single purchase line recalculates GST and the vendor entry is rebuilt GST-inclusive like a new bill (was basic only). (2) CLEAN BILL DELETE: deleting the last line of a bill offers to remove that bill's 'Paid with invoice' payment and service charges. (3) RECORD PAYMENT SCREEN: date, amount, paid by, ref, for bill, note; owner can edit; delete = owner/admin only and checked against the server. (4) HEALTH CHECK (More > System, owner): bills not matching, stock below zero, ledger entries with no bill, saves that did not reach the server, bills with no total - read-only. (5) DAILY BACKUP: on the owner's laptop the first full download of the day is also saved as a backup file (no extra download). (6) SLIM FILE: version history moved to FuelLog_Version_History.txt; unused old work-entry screen and old one-time clean-up call removed. DATA SAFETY REVIEW V2: new fields on vendor payment records only (mode, ref, forBillNo, edited*); per-record saves/deletes only; no rules, sync, MERGE_KEYS or Fast Refresh change. Earlier history: see FuelLog_Version_History.txt -->
+<!-- FuelLog PWA | Version: V102.38 | Date: 2026-11-15 | V102.38 PHOTOS IN MORE PLACES (same photo store as V102.37; entries keep only a short link in a new field `att`): store ISSUE / TRANSFER (one set per issue, lines tied by new field minId), TRIPS (slip photo), VENDOR PAYMENT (proof), FUEL PURCHASE and DIRECT PUMP FILL (bill). Each has a photo box on the entry form (optional, up to 4 photos or a PDF; a failed photo never blocks the entry), tiles on the list (downloaded only on tap), add-later (owner/admin; trips also manager; field-only PATCH after checking the record is on the server) and Remove (owner; link taken off + attLog, file stays). DATA SAFETY REVIEW V2: new fields only (att, attLog, minId); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.37 Date: 2026-11-15 | V102.37 BILL PHOTO (photo store): a purchase bill (GRN, vendor source) can carry up to 4 photos or a PDF. The file is made small on the phone and sent to the separate Firebase photo store (fuellog/bills/YYYY-MM/...); the entry keeps only a short link (billPhotos on the bill's materialInward lines and service-charge vendorTxns), so sync never carries photos. Vendor page: view (downloaded only on tap), Add bill photo to a saved bill (owner/admin, field-only PATCH after checking the records are on the server), Remove photo (owner; takes the link off + billPhotoLog, the file stays in the store). A failed photo never blocks the bill. DATA SAFETY REVIEW V2: new fields only (billPhotos, billPhotoLog); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.36 Date: 2026-11-15 | V102.36 HEALTH CHECK COUNTS CORRECTED (read-only page, nothing saved): 'Ledger entries with no bill' no longer counts service-only bills (repair/labour bills with no material are valid) and a 'paid with bill' payment is fine when its bill has service charges; 'Bills with no bill total' counts only bills dated 05/11/2026 or later (when the total became compulsory). | V102.35 Date: 2026-11-14 | V102.35 (includes V102.32-V102.34): (1) GST KEPT ON EDIT: editing a single purchase line recalculates GST and the vendor entry is rebuilt GST-inclusive like a new bill (was basic only). (2) CLEAN BILL DELETE: deleting the last line of a bill offers to remove that bill's 'Paid with invoice' payment and service charges. (3) RECORD PAYMENT SCREEN: date, amount, paid by, ref, for bill, note; owner can edit; delete = owner/admin only and checked against the server. (4) HEALTH CHECK (More > System, owner): bills not matching, stock below zero, ledger entries with no bill, saves that did not reach the server, bills with no total - read-only. (5) DAILY BACKUP: on the owner's laptop the first full download of the day is also saved as a backup file (no extra download). (6) SLIM FILE: version history moved to FuelLog_Version_History.txt; unused old work-entry screen and old one-time clean-up call removed. DATA SAFETY REVIEW V2: new fields on vendor payment records only (mode, ref, forBillNo, edited*); per-record saves/deletes only; no rules, sync, MERGE_KEYS or Fast Refresh change. Earlier history: see FuelLog_Version_History.txt -->
 <!-- FuelLog PWA | Version: V99.86 | Date: 2026-08-05 | V99.86 BOQ PROGRESS SOURCE SPLIT (step 3 of 3, display only): since V99.85 the progress figure is fed by TWO sources -- standalone Work Done entries and linked DPR gang lines -- and nothing on screen said which. New _doneSplitHTML(itemId,unit) renders a muted sub-line under the progress bar, e.g. '20 sqm Work Done + 70.51 sqm (link) gang work'. PURPOSE IS DETECTION, not decoration: if the same physical work is ever entered through BOTH paths the total is silently too high and an inflated percentage just looks like good progress, whereas a visibly wrong breakdown is catchable. Returns '' when no gang work contributes, so rows fed purely by Work Done entries render EXACTLY as before -- the extra line only appears where there is something to explain. Applied at both BOQ progress render sites (project BOQ list and the DPR-side list); the work-entry form header was left alone as it is a single-item entry context, not a review view. Values rounded to 2dp (13.099219... shows as 13.1) and the unit is _esc'd. CORRECTION to the earlier plan: step 3 was described as 'add the BOQ unit to the progress row' -- on inspection the unit was ALREADY rendered there (both progress rows have shown '<qty> <unit> done' since well before this work), so that step was redundant and the source split was built instead. DATA SAFETY: display only. No write path, no schema change, no collection touched, no calculation altered -- _itemDone, _itemPct and _itemLabourDone are read and re-presented, never modified. -->
 <!-- FuelLog PWA | Version: V99.85 | Date: 2026-08-05 | V99.85 LINKED WORK NOW FEEDS BOQ PROGRESS (step 2 of 3, completes the badge's promise): _itemDone previously summed workEntries ONLY, so a DPR work line flagged '(link) linked -- feeds BOQ progress' paid the gang but contributed ZERO progress. New _itemLabourDone(boqItemId) sums linked dailyLabour pieceRows and converts labour units to BOQ units by DIVIDING by convPerBoqUnit (which means labour-units-per-one-BOQ-unit, e.g. 10.764 sqft in 1 sqm). Direction verified against live data before building: item unit sqm, labourUnit sqft, conv 10.764 -- 141 sqft = 13.10 sqm, not 1517. Multiplying would have inflated progress ~116x and looked merely like a large number. STRICT: only rows explicitly stored linked:true count; legacy rows predating V99.84 carry no flag and are deliberately NOT re-derived from the current engagement, since a later rate edit would then silently move historical progress -- re-saving such an entry backfills the flag and it counts from then on. GUARDS: conv<=0/missing/non-numeric skips the row (never divides by zero, never yields Infinity/NaN), MISC and blank item ids excluded, malformed records tolerated. Pending (unapproved backdated) entries excluded via _appr, consistent with V99.58. DOUBLE-COUNT PRE-CHECKED on live data: zero item+date pairs appear in both workEntries and a labour line, so nothing is counted twice; the overlap check should be re-run before any bulk backfill. AFFECTS: _itemPct and the executed-value total (execVal = done x rate), both of which will legitimately RISE for linked items -- they were understated before. DATA SAFETY: read/compute path only. No write path, no schema change, no collection touched, no record created/edited/deleted/migrated; only which numbers are DERIVED at render time. Worst case of a wrong factor is a visibly wrong percentage, never data loss. Step 3 (unit-label display on progress rows) still open. -->
 <!-- FuelLog PWA | Version: V99.84 | Date: 2026-08-05 | V99.84 LINKED-WORK PERSISTENCE (step 1 of 3): saveLabEntry now stores linked + convPerBoqUnit on every saved pieceRow instead of discarding them (previously computed live via _labLineRate but never written to Firebase). editLabEntry trusts the stored linked flag for entries saved under this fix, and only falls back to a fresh gang-rate lookup for legacy rows that predate it -- and that fallback never touches the historical rate/unit that was actually paid. This does NOT yet change BOQ progress calculation (_itemDone still reads workEntries only) -- that is step 2, pending an overlap check on live data. -->
@@ -823,6 +823,7 @@ input[type=file]{display:none}
       <div class="f-field"><label class="f-lbl">Amount Paid ₹</label><input class="f-inp" id="pur-paid" placeholder="0" type="number" inputmode="decimal"></div>
     </div>
     <div class="f-field"><label class="f-lbl">Bill / Invoice No.</label><input class="f-inp" id="pur-bill" placeholder="Bill number" type="text"></div>
+    <div id="att-box-pur"></div>
     <div class="f-field"><label class="f-lbl">Purchase Date</label><input class="f-inp" id="pur-date" type="date"></div>
     <div class="f-field"><label class="f-lbl">Purchased By</label><input class="f-inp ro" id="pur-by" type="text" readonly></div>
     <button class="big-btn bb-amber bb-full" style="height:56px;font-size:18px" onclick="savePurchase()">+ ADD PURCHASE</button>
@@ -875,6 +876,7 @@ input[type=file]{display:none}
       <div class="f-field"><label class="f-lbl">Amount Paid ₹</label><input class="f-inp" id="pf-paid" placeholder="0" type="number" inputmode="decimal"></div>
     </div>
     <div class="f-field"><label class="f-lbl">Bill / Invoice No.</label><input class="f-inp" id="pf-bill" placeholder="Bill number" type="text"></div>
+    <div id="att-box-pf"></div>
     <div class="f-field"><label class="f-lbl">Driver / Operator Name</label><input class="f-inp" id="pf-operator" placeholder="Name" type="text"></div>
     <div class="f-field"><label class="f-lbl">Logged By</label><input class="f-inp ro" id="pf-loggedby" type="text" readonly></div>
     <button class="big-btn bb-go bb-full" style="height:60px;font-size:19px" onclick="savePumpFill()">✓ SAVE PUMP FILL</button>
@@ -2721,6 +2723,7 @@ function show(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('show'));
   const el=document.getElementById(id);
   if(el){el.classList.add('show');el.scrollTop=0;}
+  try{ if(id==='scr-purchases') _attMount('pur'); else if(id==='scr-pump-fill'){ window._att.pf=[]; _attMount('pf'); } }catch(e){}   // V102.38
   onEnter(id);
   try{ _staleCheck(); }catch(e){}   // V102.28
 }
@@ -4979,6 +4982,10 @@ function renderTripEntryForm(editing){
       <button type="button" onclick="addRoyaltyRow()" style="margin-top:6px;width:100%;background:var(--bg3);border:1.5px solid var(--amber);color:var(--amber);font-family:var(--fb);font-weight:700;font-size:12px;padding:9px;border-radius:8px;cursor:pointer">+ Add Royalty Slip</button>
     </div>
   `;
+  // V102.38 slip photo box (new photos for this save; photos already on the trip are kept)
+  { const _b=document.getElementById('trip-entry-body'); if(_b){ const d=document.createElement('div'); d.id='att-box-trip'; _b.appendChild(d);
+      if(editing && Array.isArray(editing.att) && editing.att.length){ const n=document.createElement('div'); n.style.cssText='font-size:11px;color:var(--muted);margin:-4px 0 10px'; n.textContent='This trip already has '+editing.att.length+' photo'+(editing.att.length===1?'':'s')+'. View them from the Trip Log.'; _b.appendChild(n); } }
+    window._att.trip=[]; _attMount('trip'); }
   // Render initial slip chips
   renderSlipChips();
   // Render royalty rows (V80)
@@ -5735,6 +5742,10 @@ async function saveTrip(){
     trip.approvedAt = null;
   }
 
+  // V102.38 slip photos: keep what the trip already has, add the new ones (max 4)
+  const _at=_attTake('trip'); if(!_at) return;
+  { const _old=(editId&&orig&&Array.isArray(orig.att))?orig.att:[]; const _all=_old.concat(_at.att).slice(0,4);
+    if(_all.length) trip.att=_all; if(editId&&orig&&orig.attLog) trip.attLog=orig.attLog; }
   // External: payment defaults
   if(movementType==='external'){
     if(trip.paymentStatus==='paid') trip.amountPaid=trip.amount;
@@ -5842,6 +5853,7 @@ async function saveTrip(){
   }
   _clearTombstone('trips', trip.id);
   _fbWrite('trips/'+trip.id, trip); // V99.54: per-record (~1KB) — was full 2.3MB collection PUT
+  window._att.trip=[]; _attFailMsg(_at.fail,'Trips → Trip Log (＋📷 on the trip)');
   if(_storeSyncPromises && _storeSyncPromises.length){
     try{ await Promise.all(_storeSyncPromises); }
     catch(e){ console.warn('[saveTrip] store sync failed',e); alert('⚠️ Trip saved, but its automatic store-stock update could not fully sync. Re-open and re-save the trip when back online.'); }
@@ -5978,6 +5990,7 @@ function renderTripLog(){
         ${fmtD(t.date)} · by ${t.loggedByName||'?'} ${editedBadge}
         ${(()=>{const s=_fmtSlips(t);return s?' · '+s:'';})()}${_rmcTripBadge(t)}
         ${delBtn}
+        ${_attTiles('trips',t)}
       </div>
     </div>`;
   }).join('')+'<div class="pad-bot"></div>';
@@ -8831,6 +8844,7 @@ function savePurchase(){
   const amtField=parseFloat(document.getElementById('pur-amount').value)||0;
   const amount = amtField>0 ? amtField : (litres&&rate ? parseFloat((litres*rate).toFixed(2)) : 0);
   const paid=Math.max(0,parseFloat(document.getElementById('pur-paid').value)||0);
+  const _at=_attTake('pur'); if(!_at) return;   // V102.38
   purchases.push({
     id:uid(),date:purchaseDate,ts:Date.now(),vendor,pumpId:pumpId||null,litres,
     rate,amount,paid,
@@ -8839,8 +8853,10 @@ function savePurchase(){
     loggedBy:sess.userId,loggedByName:sess.name,
   });
   // V54: write only the new record, not the full array
+  if(_at.att.length) purchases[purchases.length-1].att=_at.att;   // V102.38
   _bdStamp(purchases[purchases.length-1]); // V99.57
   _fbWrite('purchases/'+purchases[purchases.length-1].id, purchases[purchases.length-1]);
+  _attReset('pur'); _attFailMsg(_at.fail,'the Purchases list (＋📷 on the entry)');
   purPhotoData=null;
   ['pur-litres','pur-rate','pur-amount','pur-paid','pur-bill'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('pur-date').value=today(); // reset to today
@@ -9071,6 +9087,7 @@ function renderPurchases(){
       <div class="li-main">
         <div class="li-name">${p.vendor} <span style="font-size:9px;background:rgba(255,179,0,.15);color:var(--amber);padding:1px 6px;border-radius:4px;font-weight:700;margin-left:4px">→ BOWSER</span></div>
         <div class="li-det">${fmt(p.litres,1)} L · ₹${fmt(p.amount,0)} · ${p.bill||'No bill'}${p.billPhoto?` <span onclick="event.stopPropagation();viewPhoto('${p.id}','purchase')" style="cursor:pointer;color:var(--blue);font-weight:700">📷 View</span>`:''}</div>
+        ${_attTiles('purchases',p)}
         <div class="li-by">by ${p.loggedByName}${p.editedByName?` · edited by ${p.editedByName}${p.editedAt?' on '+new Date(p.editedAt).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''}`:''}</div>
         <span class="bdg ${b>0?'bg-red':'bg-grn'}">${b>0?'DUE ₹'+fmt(b,0):'PAID'}</span>
       </div>
@@ -9091,6 +9108,7 @@ function renderPurchases(){
       <div class="li-main">
         <div class="li-name">${p.pumpName||'?'} <span style="font-size:9px;background:rgba(41,121,255,.15);color:var(--blue);padding:1px 6px;border-radius:4px;font-weight:700;margin-left:4px">→ ${veh?.name||'?'}</span></div>
         <div class="li-det">${fmt(p.litres,1)} L · ₹${fmt(p.amount||0,0)} · ${p.bill||'No bill'}</div>
+        ${_attTiles('pumpFills',p)}
         <div class="li-by">by ${p.loggedByName||'?'}${p.editedByName?` · edited by ${p.editedByName}${p.editedAt?' on '+new Date(p.editedAt).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''}`:''}</div>
         <span class="bdg ${b>0?'bg-red':'bg-grn'}">${b>0?'DUE ₹'+fmt(b,0):'PAID'}</span>
       </div>
@@ -9484,6 +9502,7 @@ function savePumpFill(){
   const amtField=parseFloat(document.getElementById('pf-amount').value)||0;
   const amount = amtField>0 ? amtField : (litres&&rate ? parseFloat((litres*rate).toFixed(2)) : 0);
   const paid=Math.max(0,parseFloat(document.getElementById('pf-paid').value)||0);
+  const _at=_attTake('pf'); if(!_at) return;   // V102.38
   pumpFills.push({
     id:uid(),date:today(),ts:Date.now(),
     vehicleId:gf.vehicleId,pumpId,pumpName:pump?.name||'',
@@ -9496,8 +9515,10 @@ function savePumpFill(){
     loggedBy:sess.userId,loggedByName:sess.name,
   });
   // V54: write only the new record
+  if(_at.att.length) pumpFills[pumpFills.length-1].att=_at.att;   // V102.38
   _bdStamp(pumpFills[pumpFills.length-1]); // V99.57
   _fbWrite('pumpFills/'+pumpFills[pumpFills.length-1].id, pumpFills[pumpFills.length-1]);
+  _attReset('pf'); _attFailMsg(_at.fail,'the Purchases list (＋📷 on the entry)');
   resetPFPhotos();
   flash('PUMP FILL SAVED!',fmt(litres,1)+' L → '+(veh?.name||'—')+' at '+(pump?.name||''));
   show('scr-home');
@@ -16323,6 +16344,7 @@ function _storesLogHTML(mode){
           <div style="font-size:14px;font-weight:700">${_esc(_storeDispName(r))}${mode==='inward'&&r.returnable?' <span style="font-size:9px;color:var(--blue);border:1px solid var(--blue);border-radius:5px;padding:1px 5px;font-weight:700">RETURNABLE</span>':''}</div>
           <div style="font-size:12px;color:var(--muted);margin-top:2px">${det}</div>
           ${_snLogLine(mode,r)}
+          ${(mode==='outward'&&!r.autoTrip)?_attTiles('materialOutward',r):''}
           ${(mode==='inward'&&_retLossText(r))?`<div style="font-size:11px;color:var(--red);margin-top:2px">${_esc(_retLossText(r))}</div>`:''}
           ${!(_storesProjectId||_storesProjFilter)?`<div style="font-size:11px;color:var(--amber);margin-top:2px">${_esc(_storeProjName(r.projectId))}</div>`:''}
           <div style="font-size:11px;color:var(--muted);margin-top:3px">${fmtD(r.date)} · ${_esc(r.loggedByName||'')}${r.note?(' · '+_esc(r.note)):''}</div>
@@ -16507,7 +16529,8 @@ function openStoresForm(mode, editId){
   _storesFormMode=mode;
   _storesEditId=editId||null;
   _storesMatId='';
-  if(mode==='inward' && !editId){ window._grnLines=[]; window._grnCharges=[]; window._grnPhotos=[]; _grnLastGst=0; }   // V99.21/22 + V100.1: fresh multi-line GRN
+  if(mode==='inward' && !editId){ window._grnLines=[]; window._grnCharges=[]; window._grnPhotos=[]; _grnLastGst=0; }
+  if(mode==='outward' && !editId){ window._att.min=[]; }   // V99.21/22 + V100.1: fresh multi-line GRN
   if(mode==='outward' && !editId){ window._minLines=[]; }                          // V99.23: fresh multi-line MIN
   if(mode==='opening'){                                                            // V99.31: owner-only opening stock
     if(!isOwner()){ alert('Opening Stock entry is owner-only.'); return; }
@@ -17174,7 +17197,7 @@ function _vlRenderList(){
   el.innerHTML=shown.map(r=>{
     if(r.kind==='pay'){ const t=r.t;
       return `<div style="display:flex;justify-content:space-between;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border)">
-        <div style="min-width:0;flex:1"><div style="font-size:13px;font-weight:700;color:var(--green)">💵 Payment${t.mode?' · '+_esc(t.mode):''}${t.ref?' '+_esc(t.ref):''}${t.forBillNo?' · Bill '+_esc(t.forBillNo):''}${t.note?' · '+_esc(t.note):''}</div>
+        <div style="min-width:0;flex:1"><div style="font-size:13px;font-weight:700;color:var(--green)">💵 Payment${t.mode?' · '+_esc(t.mode):''}${t.ref?' '+_esc(t.ref):''}${t.forBillNo?' · Bill '+_esc(t.forBillNo):''}${t.note?' · '+_esc(t.note):''}</div>${_attTiles('vendorTxns',t)}
           <div style="font-size:11px;color:var(--muted)">${t.date?fmtD(t.date):''}${t.enteredByName?' · '+_esc(t.enteredByName):''}</div></div>
         <div style="text-align:right"><div style="font-weight:800;font-size:13px;color:var(--green)">−${_vlINR(t.amount)}</div>
           <div style="font-size:11px;color:var(--muted)">bal ${_vlINR(r.bal)}</div>
@@ -17343,7 +17366,7 @@ async function _phUrl(path){
   if(!r2.ok) throw new Error('Photo store said '+r2.status);
   return URL.createObjectURL(await r2.blob());
 }
-function _phNewPath(ext){ return 'fuellog/bills/'+_todayISO().slice(0,7)+'/'+uid()+'_'+Date.now().toString(36)+'.'+ext; }
+function _phNewPath(ext,kind){ return 'fuellog/'+(kind||'bills')+'/'+_todayISO().slice(0,7)+'/'+uid()+'_'+Date.now().toString(36)+'.'+ext; }
 // one hidden file input, reused; cb gets the chosen File
 function _bpChoose(camera, cb){
   let inp=document.getElementById('bp-file'); if(inp) inp.remove();
@@ -17434,6 +17457,130 @@ async function _bpRemove(key, i){
   if(_saveOK(res,'removing the photo')) flash('PHOTO REMOVED','');
   _vlState.open[key]=true; _vlRender();
 }
+// ===================== V102.38 PHOTOS ON OTHER ENTRIES (generic box, same photo store) =====================
+// ctx = one form's box: 'min' issue, 'trip', 'vp' vendor payment, 'pur' fuel purchase, 'pf' pump fill.
+// Records keep `att`: [{p,ct,sz,by,ts}]. Nothing here touches the bill-photo code of V102.37.
+const _ATT_CTX={ min:{label:'Issue photo',kind:'issues'}, trip:{label:'Slip photo',kind:'trips'}, vp:{label:'Payment proof',kind:'payments'}, pur:{label:'Bill photo',kind:'fuelbills'}, pf:{label:'Bill photo',kind:'fuelbills'} };
+const _ATT_COLL={ materialOutward:{get:()=>materialOutward, kind:'issues', name:'issue'}, trips:{get:()=>trips, kind:'trips', name:'trip'}, vendorTxns:{get:()=>vendorTxns, kind:'payments', name:'payment'}, purchases:{get:()=>purchases, kind:'fuelbills', name:'fuel purchase'}, pumpFills:{get:()=>pumpFills, kind:'fuelbills', name:'pump fill'} };
+window._att={};
+function _attBoxHTML(ctx){
+  const c=_ATT_CTX[ctx];
+  return `<div class="f-field" style="background:var(--bg2);border:1px solid var(--border);border-radius:11px;padding:12px;margin:6px 0 10px">
+      <div style="font-size:13px;font-weight:700">📎 ${c.label} <span style="color:var(--muted);font-weight:600">(optional · up to 4 photos or one PDF)</span></div>
+      <div id="att-list-${ctx}" style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0"></div>
+      <div style="display:flex;gap:8px">
+        <button type="button" onclick="_attPick('${ctx}',true)" style="flex:1;min-height:44px;border-radius:9px;border:1px solid var(--amber);background:var(--bg2);color:var(--amber);font-size:13px;font-weight:700;cursor:pointer">📷 Take photo</button>
+        <button type="button" onclick="_attPick('${ctx}',false)" style="flex:1;min-height:44px;border-radius:9px;border:1px solid var(--amber);background:var(--bg2);color:var(--amber);font-size:13px;font-weight:700;cursor:pointer">Choose file</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">If a photo cannot be sent, the entry still saves and the photo can be added later.</div>
+    </div>`;
+}
+function _attMount(ctx){ const el=document.getElementById('att-box-'+ctx); if(el && !el.firstChild) el.innerHTML=_attBoxHTML(ctx); _attRender(ctx); }
+function _attReset(ctx){ window._att[ctx]=[]; _attRender(ctx); }
+function _attPick(ctx,camera){
+  const list=window._att[ctx]=window._att[ctx]||[];
+  if(list.filter(p=>p.status!=='fail').length>=4){ alert('Up to 4 photos can be attached.'); return; }
+  _bpChoose(camera, f=>_attAdd(ctx,f));
+}
+async function _attSend(item,kind){
+  try{ item.status='up'; item.err='';
+    const c=await _phCompress(item.file); const path=_phNewPath(c.ext,kind);
+    await _phUpload(c.blob,path,c.ct);
+    item.p=path; item.ct=c.ct; item.sz=c.blob.size; item.status='ok'; item.file=null;
+  }catch(e){ item.status='fail'; item.err=(e&&e.name==='AbortError')?'took too long (weak signal)':String((e&&e.message)||e); }
+  return item;
+}
+async function _attAdd(ctx,file){
+  const list=window._att[ctx]=window._att[ctx]||[];
+  const item={id:uid(),status:'up',name:file.name||'photo',p:'',ct:'',sz:0,ts:Date.now(),file};
+  list.push(item); _attRender(ctx); await _attSend(item,_ATT_CTX[ctx].kind); _attRender(ctx);
+}
+function _attDrop(ctx,id){ window._att[ctx]=(window._att[ctx]||[]).filter(p=>p.id!==id); _attRender(ctx); }
+async function _attRetry(ctx,id){ const it=(window._att[ctx]||[]).find(p=>p.id===id); if(!it||!it.file) return; const pr=_attSend(it,_ATT_CTX[ctx].kind); _attRender(ctx); await pr; _attRender(ctx); }
+function _attRender(ctx){
+  const el=document.getElementById('att-list-'+ctx); if(!el) return;
+  el.innerHTML=(window._att[ctx]||[]).map((p,i)=>{
+    const st=p.status==='ok'?`<span style="color:var(--green)">Uploaded · ${Math.max(1,Math.round(p.sz/1024))} KB</span>`:p.status==='up'?'<span style="color:var(--amber)">Sending…</span>':`<span style="color:var(--red)">Not sent: ${_esc(p.err||'')}</span>`;
+    return `<div style="flex:1 1 150px;border:1px solid var(--border2);border-radius:8px;padding:8px;font-size:11px">
+      <div style="font-weight:700">${/pdf/i.test(p.ct||p.name||'')?'PDF':'Photo '+(i+1)}</div><div>${st}</div>
+      <div style="margin-top:4px;display:flex;gap:12px">${p.status==='fail'&&p.file?`<span onclick="_attRetry('${ctx}','${p.id}')" style="color:var(--amber);cursor:pointer;font-weight:700">Try again</span>`:''}${p.status!=='up'?`<span onclick="_attDrop('${ctx}','${p.id}')" style="color:var(--red);cursor:pointer">Remove</span>`:''}</div></div>`; }).join('');
+}
+// At Save: null = a photo is still being sent (Save must stop). Otherwise the links to store + how many failed.
+function _attTake(ctx){
+  const list=window._att[ctx]||[];
+  if(list.some(p=>p.status==='up')){ alert('A photo is still being sent. Wait a few seconds, then tap Save again.'); return null; }
+  return { att:list.filter(p=>p.status==='ok').map(p=>({p:p.p,ct:p.ct,sz:p.sz,by:(sess&&sess.name)||'',ts:p.ts})), fail:list.filter(p=>p.status==='fail').length };
+}
+function _attFailMsg(n,where){ if(n) setTimeout(()=>alert('The entry is saved, but '+n+' photo'+(n===1?' was':'s were')+' NOT attached (could not be sent).\n\nAdd '+(n===1?'it':'them')+' later from '+where+'.'),600); }
+// ---- on saved records ----
+function _attCanAdd(coll){ return isOwner()||isAdmin()||(coll==='trips'&&typeof canTripEnter==='function'&&canTripEnter()); }
+function _attTargets(coll,id){
+  const arr=_ATT_COLL[coll].get()||[]; const r=arr.find(x=>x&&x.id===id); if(!r) return [];
+  if(coll==='materialOutward' && r.minId) return arr.filter(x=>x&&x.minId===r.minId);   // one photo set per issue
+  return [r];
+}
+// small tiles for a list row: "📎1 📎2" + "+📷" when allowed
+function _attTiles(coll,r){
+  if(!r) return '';
+  const a=Array.isArray(r.att)?r.att:[];
+  const can=_attCanAdd(coll) && a.length<4;
+  if(!a.length && !can) return '';
+  const bs='display:inline-block;min-width:34px;padding:5px 8px;margin:4px 6px 0 0;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;';
+  return `<div>${a.map((ph,i)=>`<span onclick="event.stopPropagation();_attView('${coll}','${r.id}',${i})" style="${bs}border:1px solid var(--border2);background:var(--bg3);color:var(--white)">📎 ${/pdf/i.test(ph.ct||'')?'PDF':(i+1)}</span>`).join('')}${can?`<span onclick="event.stopPropagation();_attAddTo('${coll}','${r.id}')" style="${bs}border:1px solid var(--amber);color:var(--amber)">＋📷</span>`:''}</div>`;
+}
+function _attRefresh(coll){
+  try{
+    if(coll==='materialOutward' && typeof renderStoresBody==='function') renderStoresBody();
+    else if(coll==='trips' && typeof renderTripLog==='function' && document.getElementById('scr-trip-log') && document.getElementById('scr-trip-log').classList.contains('show')) renderTripLog();
+    else if(coll==='vendorTxns' && typeof _vlRender==='function') _vlRender();
+    else if((coll==='purchases'||coll==='pumpFills') && typeof renderPurchases==='function') renderPurchases();
+  }catch(e){}
+}
+function _attAddTo(coll,id){
+  if(!_attCanAdd(coll)){ alert('You are not allowed to add a photo here.'); return; }
+  _bpChoose(false, f=>_attAddFile(coll,id,f));
+}
+async function _attAddFile(coll,id,file){
+  const tg=_attTargets(coll,id); if(!tg.length) return;
+  if((tg[0].att||[]).length>=4){ alert('Up to 4 photos can be attached.'); return; }
+  flash('SENDING PHOTO…','Please wait');
+  const chk=await Promise.all(tg.map(r=>_vlOnServer(coll+'/'+r.id)));
+  if(chk.some(c=>c!==true)){ alert('Photo not added.\n\nThis entry is not on the server yet, or the internet could not be checked. Tap ⟳ Refresh and try again.'); return; }
+  const it=await _attSend({file,status:'up'},_ATT_COLL[coll].kind);
+  if(it.status!=='ok'){ alert('⚠️ PHOTO NOT ADDED\n\nIt could not be sent: '+(it.err||'')+'\n\nThe entry is unchanged. Try again.'); return; }
+  const ph={p:it.p,ct:it.ct,sz:it.sz,by:(sess&&sess.name)||'',ts:Date.now()};
+  const res=await Promise.all(tg.map(r=>{ const next=(r.att||[]).filter(x=>x&&x.p!==ph.p).concat([ph]); return _fbMerge(coll+'/'+r.id,{att:next}).then(ok=>{ if(ok!==false) r.att=next; return ok; }); }));
+  if(_saveOK(res,'photo')) flash('PHOTO ADDED','');
+  _attRefresh(coll);
+}
+function _attView(coll,id,i){
+  const r=(_ATT_COLL[coll].get()||[]).find(x=>x&&x.id===id); const ph=r&&r.att&&r.att[i]; if(!ph) return;
+  const old=document.getElementById('bp-ov'); if(old) old.remove();
+  const o=document.createElement('div'); o.id='bp-ov';
+  o.style.cssText='position:fixed;inset:0;z-index:9100;background:rgba(0,0,0,.94);display:flex;flex-direction:column;color:#fff;font-family:var(--fb)';
+  o.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;gap:10px">
+      <div style="font-size:12px;min-width:0">${_esc(_ATT_COLL[coll].name)} · ${fmtD(r.date)} · ${/pdf/i.test(ph.ct||'')?'PDF':'photo '+(i+1)}${ph.by?' · added by '+_esc(ph.by):''}</div>
+      <div style="display:flex;gap:8px">${isOwner()?`<button type="button" onclick="_attRemoveFrom('${coll}','${id}',${i})" style="min-height:40px;padding:0 12px;border-radius:8px;border:1px solid var(--red);background:transparent;color:var(--red);font-size:12px;font-weight:700;cursor:pointer">Remove photo</button>`:''}
+      <button type="button" onclick="document.getElementById('bp-ov').remove()" style="min-height:40px;padding:0 14px;border-radius:8px;border:none;background:var(--amber);color:#1a1205;font-size:13px;font-weight:800;cursor:pointer">Close</button></div></div>
+    <div id="bp-body" style="flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;padding:8px;font-size:13px">Opening photo…</div>`;
+  document.body.appendChild(o);
+  _phUrl(ph.p).then(url=>{ const body=document.getElementById('bp-body'); if(!body) return;
+    if(/pdf/i.test(ph.ct||'')) body.innerHTML=`<a href="${url}" target="_blank" rel="noopener" style="color:var(--amber);font-size:15px;font-weight:700">Open the PDF ›</a>`;
+    else { body.innerHTML=''; const im=document.createElement('img'); im.alt='Photo'; im.style.cssText='max-width:100%;max-height:100%;object-fit:contain'; im.src=url; body.appendChild(im); }
+  }).catch(e=>{ const body=document.getElementById('bp-body'); if(body) body.textContent='Could not open the photo: '+String((e&&e.message)||e); });
+}
+async function _attRemoveFrom(coll,id,i){
+  if(!isOwner()){ alert('Only the owner can remove a photo.'); return; }
+  const r=(_ATT_COLL[coll].get()||[]).find(x=>x&&x.id===id); const ph=r&&r.att&&r.att[i]; if(!ph) return;
+  if(!confirm('Remove this photo from the entry?\n\nIt will no longer show in FuelLog. The file itself stays in the photo store as a safety copy.')) return;
+  const tg=_attTargets(coll,id).filter(x=>(x.att||[]).some(a=>a&&a.p===ph.p));
+  const log={p:ph.p,act:'removed',by:(sess&&sess.name)||'',ts:Date.now()};
+  const res=await Promise.all(tg.map(x=>{ const next=(x.att||[]).filter(a=>a&&a.p!==ph.p); const lg=(x.attLog||[]).concat([log]);
+    return _fbMerge(coll+'/'+x.id,{att:next,attLog:lg}).then(ok=>{ if(ok!==false){ x.att=next; x.attLog=lg; } return ok; }); }));
+  const o=document.getElementById('bp-ov'); if(o) o.remove();
+  if(_saveOK(res,'removing the photo')) flash('PHOTO REMOVED','');
+  _attRefresh(coll);
+}
 // ===================== V102.35 RECORD PAYMENT SCREEN =====================
 // One screen instead of two pop-ups. Saves ONE vendorTxns record (per-record _fbWrite). New fields on
 // payment records only: mode, ref, forBillNo, editedBy/Name/Ts. Balance maths unchanged (amount only).
@@ -17466,11 +17613,13 @@ function _vpOpen(editId){
       <div class="f-field"><label class="f-lbl" for="vp-ref">Cheque no. / UPI ref. (optional)</label><input class="f-inp" id="vp-ref" type="text" maxlength="60" value="${_esc((t&&t.ref)||'')}"></div>
       <div class="f-field"><label class="f-lbl" for="vp-bill">For bill no. (optional)</label><select class="f-inp" id="vp-bill"><option value="">— not for one bill —</option>${billNos.map(n=>`<option value="${_esc(n)}"${t&&t.forBillNo===n?' selected':''}>Bill ${_esc(n)}</option>`).join('')}</select></div>
       <div class="f-field"><label class="f-lbl" for="vp-note">Note (optional)</label><input class="f-inp" id="vp-note" type="text" maxlength="120" value="${_esc((t&&t.note)||'')}"></div>
+      ${_attBoxHTML('vp')}
+      ${(t&&Array.isArray(t.att)&&t.att.length)?`<div style="font-size:11px;color:var(--muted);margin-top:-4px">This payment already has ${t.att.length} photo${t.att.length===1?'':'s'}.</div>`:''}
       <div id="vp-after" style="font-size:13px;color:var(--muted)"></div>
       <div style="display:flex;gap:10px"><button type="button" onclick="_vpClose()" style="flex:1;min-height:48px;border-radius:8px;border:1px solid var(--border2);background:var(--bg2);color:var(--white);font-size:15px;cursor:pointer">Cancel</button>
         <button type="button" id="vp-save" onclick="_vpSave()" style="flex:2;min-height:48px;border-radius:8px;border:none;background:var(--amber);color:#1a1205;font-size:15px;font-weight:800;cursor:pointer">${t?'Save changes':'Save payment'}</button></div>
     </div></div>`;
-  document.body.appendChild(o); _vpAfter(bal);
+  document.body.appendChild(o); window._att.vp=[]; _attRender('vp'); _vpAfter(bal);
 }
 function _vpMode(m){ const h=document.getElementById('vp-mode'); if(h) h.value=m;
   document.querySelectorAll('#vp-ov [data-vpm]').forEach(b=>{ const on=b.getAttribute('data-vpm')===m; b.style.background=on?'var(--amber)':'var(--bg2)'; b.style.color=on?'#1a1205':'var(--amber)'; }); }
@@ -17488,16 +17637,18 @@ async function _vpSave(){
   const ref=((document.getElementById('vp-ref')||{}).value||'').trim();
   const forBillNo=(document.getElementById('vp-bill')||{}).value||'';
   const note=((document.getElementById('vp-note')||{}).value||'').trim();
+  const _at=_attTake('vp'); if(!_at) return;   // V102.38
   const btn=document.getElementById('vp-save'); if(btn){ if(btn.disabled) return; btn.disabled=true; btn.textContent='Saving…'; }
   const ex=_vpEditId?(vendorTxns||[]).find(x=>x.id===_vpEditId):null;
   if(_vpEditId && (!ex || !isOwner())){ _vpClose(); return; }
   const txn=ex?{...ex, amount:amt, date, mode, ref, forBillNo, note, editedBy:(sess&&sess.userId)||'', editedByName:(sess&&sess.name)||'', editedTs:Date.now()}
     :{ id:uid(), vendorId:vid, type:'payment', amount:amt, date, mode, ref, forBillNo, note, ts:Date.now(), enteredBy:(sess&&sess.userId)||'', enteredByName:(sess&&sess.name)||'' };
+  { const _all=((ex&&Array.isArray(ex.att))?ex.att:[]).concat(_at.att).slice(0,4); if(_all.length) txn.att=_all; }   // V102.38
   const ok=await _fbWrite('vendorTxns/'+txn.id, txn);
   if(ok===false){ if(btn){ btn.disabled=false; btn.textContent=ex?'Save changes':'Save payment'; } alert('⚠️ NOT SAVED\n\nThe server did not accept the payment (internet?). Nothing was recorded. Try again.'); return; }
   vendorTxns=vendorTxns||[];
   const i=vendorTxns.findIndex(x=>x.id===txn.id); if(i>=0) vendorTxns[i]=txn; else vendorTxns.push(txn);
-  _vpClose();
+  _vpClose(); window._att.vp=[]; _attFailMsg(_at.fail,'the vendor page (＋📷 on the payment)');
   flash(ex?'PAYMENT UPDATED':'PAYMENT RECORDED',_vlINR(amt)+' · '+v.name);
   openVendor(vid);
 }
@@ -18309,6 +18460,7 @@ function _minFormHTML(pid){
       <label for="min-returnable" style="font-size:13px;font-weight:700;cursor:pointer">↩ Returnable <span id="min-ret-sub" style="color:var(--muted);font-weight:600;font-size:11px;display:block;margin-top:1px">must come back</span></label>
     </div>
     <div class="f-field"><label class="f-lbl">Date</label><input class="f-inp" id="store-date" type="date" value="${_storesDefaultDate()}"></div>
+    ${_attBoxHTML('min')}
     <div id="min-lines-list"></div>
     <div style="background:var(--bg2);border:1px solid var(--amber);border-radius:11px;padding:12px;margin:6px 0 10px">
       <div style="font-family:var(--fh);font-size:12px;color:var(--amber);letter-spacing:.5px;margin-bottom:8px">➕ ADD A MATERIAL</div>
@@ -18521,6 +18673,8 @@ async function saveMIN(){
       if(!confirm('⚠️ This issue takes stock NEGATIVE:\n\n'+body+'\n\nThat usually means a GRN or Opening Stock has not been entered yet.\n\nSave anyway?')) return;
     }
   }
+  const _at=_attTake('min'); if(!_at) return;   // V102.38
+  const _minId=uid();
   const _w=[];
   lines.forEach(L=>{
     const mat=(materials||[]).find(m=>m.id===L.matId); if(!mat) return;
@@ -18528,7 +18682,7 @@ async function saveMIN(){
     const recId=uid();
     const rec={ id:recId, projectId:pid, siteId:locSiteId, materialId:L.matId, materialName:mat.name,
       qty:conv.qty, unit:conv.unit, entryQty:L.entryQty, entryUnit:L.entryUnit, baseUnit:conv.baseUnit,
-      date:dateVal, note:'', outReason:mode,
+      date:dateVal, note:'', outReason:mode, minId:_minId,
       loggedBy:(sess&&sess.userId)||'', loggedByName:(sess&&sess.name)||'', ts:Date.now() };
     if(mode==='transfer'){ rec.toSiteId=toSiteId; rec.boqItemId=''; rec.boqDesc=''; }
     else if(mode==='machine'){ rec.toSiteId=''; rec.boqItemId=''; rec.boqDesc=''; rec.machineId=machineId; rec.machineName=machineName; }
@@ -18536,6 +18690,7 @@ async function saveMIN(){
     else { rec.toSiteId=''; rec.boqItemId=boqItemId; rec.boqDesc=boqDesc; }
     if(isRet) rec.returnable=true;   // V101: additive, only when ticked
     if(Array.isArray(L.serials) && L.serials.length) rec.serials=L.serials.slice();   // V102.27
+    if(_at.att.length) rec.att=_at.att;   // V102.38
     materialOutward.push(rec);
     _bdStamp(rec); // V99.57
     _w.push(_fbWrite('materialOutward/'+recId, rec));
@@ -18560,7 +18715,7 @@ async function saveMIN(){
     }
   });
   const _allOK=_saveOK(await Promise.all(_w),'issue');
-  window._minLines=[];
+  window._minLines=[]; window._att.min=[]; _attFailMsg(_at.fail,'Store → Outward list (＋📷 on the entry)');
   const modeLbl=mode==='transfer'?'TRANSFERRED':(mode==='machine'?'ISSUED TO MACHINE':(mode==='customer'?'SENT TO CUSTOMER':'ISSUED'));
   const sub=(mode==='transfer'?('→ '+(_isPlantLoc(toSiteId)?'Plant':(((sites||[]).find(s=>s.id===toSiteId)||{}).name||'site')))
             :(mode==='machine'?('🔧 '+machineName)
@@ -23508,7 +23663,7 @@ const FB_KEY = 'AIzaSyB44pKu7YTc-Q_6GLC3mlaEBPJm3d3odPc';
 // V102.18 SECURITY STEP 4: the shared master account (and its password) was REMOVED from the app.
 // Each device signs in with its own account (see 'Set up this device'). Old master sign-in passes are wiped below.
 try{ localStorage.removeItem('fb_auth'); localStorage.removeItem('fb_refresh'); }catch(e){}
-const APP_VERSION = 'V102.37'; // bump this on every deploy
+const APP_VERSION = 'V102.38'; // bump this on every deploy
 
 // All keys we sync to Firebase
 const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords','trips','customers','materials','staff','staffMusters','pumpPayments','projects','boqItems','workEntries','subcontractors','subContracts','dailyReports','gangs','dailyLabour','royalty','materialInward','materialOutward','vendors','vendorTxns','paverLabour','gangLedger','rmcProd','siteWatch'];
@@ -26198,7 +26353,7 @@ fbInit();
 
 <script>
 if('serviceWorker' in navigator){
-  var swCode="var CACHE='fl-v202611151000';self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/fuellog/'])).then(()=>self.skipWaiting())));self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));self.addEventListener('fetch',e=>{if(e.request.url.includes('firebaseio.com')||e.request.url.includes('googleapis.com'))return;e.respondWith(fetch(e.request).then(r=>{var c=r.clone();caches.open(CACHE).then(cache=>cache.put(e.request,c));return r;}).catch(()=>caches.match(e.request)));});";
+  var swCode="var CACHE='fl-v202611151200';self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/fuellog/'])).then(()=>self.skipWaiting())));self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));self.addEventListener('fetch',e=>{if(e.request.url.includes('firebaseio.com')||e.request.url.includes('googleapis.com'))return;e.respondWith(fetch(e.request).then(r=>{var c=r.clone();caches.open(CACHE).then(cache=>cache.put(e.request,c));return r;}).catch(()=>caches.match(e.request)));});";
   var blob=new Blob([swCode],{type:'text/javascript'});
   navigator.serviceWorker.register(URL.createObjectURL(blob)).then(function(reg){console.log('SW v202604171529');reg.update();}).catch(function(e){console.log('SW skip:',e.message);});
 }
