@@ -1,4 +1,4 @@
-<!-- FuelLog PWA | Version: V102.39 | Date: 2026-11-15 | V102.39 USERS SAVED ONE PERSON AT A TIME: every users save first reads the server shape (keys only). Old shape (positions 0..n) = saves work exactly as before (whole list). After the owner presses Health check > Convert users list (checks + backup file + read-back), each save writes ONLY that person (add = one record, edit/PIN = only the changed fields, remove = one record). A whole-list send of users is refused in _fbWrite; old queued users saves are handled safely; Restore writes the users list keyed by id. Health check shows the users-list shape. | V102.38 PHOTOS IN MORE PLACES (same photo store as V102.37; entries keep only a short link in a new field `att`): store ISSUE / TRANSFER (one set per issue, lines tied by new field minId), TRIPS (slip photo), VENDOR PAYMENT (proof), FUEL PURCHASE and DIRECT PUMP FILL (bill). Each has a photo box on the entry form (optional, up to 4 photos or a PDF; a failed photo never blocks the entry), tiles on the list (downloaded only on tap), add-later (owner/admin; trips also manager; field-only PATCH after checking the record is on the server) and Remove (owner; link taken off + attLog, file stays). DATA SAFETY REVIEW V2: new fields only (att, attLog, minId); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.37 Date: 2026-11-15 | V102.37 BILL PHOTO (photo store): a purchase bill (GRN, vendor source) can carry up to 4 photos or a PDF. The file is made small on the phone and sent to the separate Firebase photo store (fuellog/bills/YYYY-MM/...); the entry keeps only a short link (billPhotos on the bill's materialInward lines and service-charge vendorTxns), so sync never carries photos. Vendor page: view (downloaded only on tap), Add bill photo to a saved bill (owner/admin, field-only PATCH after checking the records are on the server), Remove photo (owner; takes the link off + billPhotoLog, the file stays in the store). A failed photo never blocks the bill. DATA SAFETY REVIEW V2: new fields only (billPhotos, billPhotoLog); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.36 Date: 2026-11-15 | V102.36 HEALTH CHECK COUNTS CORRECTED (read-only page, nothing saved): 'Ledger entries with no bill' no longer counts service-only bills (repair/labour bills with no material are valid) and a 'paid with bill' payment is fine when its bill has service charges; 'Bills with no bill total' counts only bills dated 05/11/2026 or later (when the total became compulsory). | V102.35 Date: 2026-11-14 | V102.35 (includes V102.32-V102.34): (1) GST KEPT ON EDIT: editing a single purchase line recalculates GST and the vendor entry is rebuilt GST-inclusive like a new bill (was basic only). (2) CLEAN BILL DELETE: deleting the last line of a bill offers to remove that bill's 'Paid with invoice' payment and service charges. (3) RECORD PAYMENT SCREEN: date, amount, paid by, ref, for bill, note; owner can edit; delete = owner/admin only and checked against the server. (4) HEALTH CHECK (More > System, owner): bills not matching, stock below zero, ledger entries with no bill, saves that did not reach the server, bills with no total - read-only. (5) DAILY BACKUP: on the owner's laptop the first full download of the day is also saved as a backup file (no extra download). (6) SLIM FILE: version history moved to FuelLog_Version_History.txt; unused old work-entry screen and old one-time clean-up call removed. DATA SAFETY REVIEW V2: new fields on vendor payment records only (mode, ref, forBillNo, edited*); per-record saves/deletes only; no rules, sync, MERGE_KEYS or Fast Refresh change. Earlier history: see FuelLog_Version_History.txt -->
+<!-- FuelLog PWA | Version: V102.40 | Date: 2026-11-16 | V102.40 QUICK LOCK: Reports → Financial and Project hidden and refused (screen, PDF/print, WhatsApp) for managers, site supervisors and drivers; owners + admins keep Financial; Project P&L stays owner-only. Record vendor payment = owner/admin only (button hidden, _vpOpen/_vpSave refuse). "Amount paid" boxes on bill/inward entry unchanged. Projects module closed to managers (and drivers): More menu hides FILE TODAY'S DPR, PROJECTS, LABOUR CONTRACTORS; show() refuses the 7 project/DPR/work/labour screens; openDPRPicker/startDPR/openProject/openDPRForEdit/openWorkEntry/openGangLedger refuse; store Back no longer opens the project page for them. Store, Paver, RMC unchanged. No sync/storage change. | PREVIOUS: V102.39 | V102.39 USERS SAVED ONE PERSON AT A TIME: every users save first reads the server shape (keys only). Old shape (positions 0..n) = saves work exactly as before (whole list). After the owner presses Health check > Convert users list (checks + backup file + read-back), each save writes ONLY that person (add = one record, edit/PIN = only the changed fields, remove = one record). A whole-list send of users is refused in _fbWrite; old queued users saves are handled safely; Restore writes the users list keyed by id. Health check shows the users-list shape. | V102.38 PHOTOS IN MORE PLACES (same photo store as V102.37; entries keep only a short link in a new field `att`): store ISSUE / TRANSFER (one set per issue, lines tied by new field minId), TRIPS (slip photo), VENDOR PAYMENT (proof), FUEL PURCHASE and DIRECT PUMP FILL (bill). Each has a photo box on the entry form (optional, up to 4 photos or a PDF; a failed photo never blocks the entry), tiles on the list (downloaded only on tap), add-later (owner/admin; trips also manager; field-only PATCH after checking the record is on the server) and Remove (owner; link taken off + attLog, file stays). DATA SAFETY REVIEW V2: new fields only (att, attLog, minId); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.37 Date: 2026-11-15 | V102.37 BILL PHOTO (photo store): a purchase bill (GRN, vendor source) can carry up to 4 photos or a PDF. The file is made small on the phone and sent to the separate Firebase photo store (fuellog/bills/YYYY-MM/...); the entry keeps only a short link (billPhotos on the bill's materialInward lines and service-charge vendorTxns), so sync never carries photos. Vendor page: view (downloaded only on tap), Add bill photo to a saved bill (owner/admin, field-only PATCH after checking the records are on the server), Remove photo (owner; takes the link off + billPhotoLog, the file stays in the store). A failed photo never blocks the bill. DATA SAFETY REVIEW V2: new fields only (billPhotos, billPhotoLog); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.36 Date: 2026-11-15 | V102.36 HEALTH CHECK COUNTS CORRECTED (read-only page, nothing saved): 'Ledger entries with no bill' no longer counts service-only bills (repair/labour bills with no material are valid) and a 'paid with bill' payment is fine when its bill has service charges; 'Bills with no bill total' counts only bills dated 05/11/2026 or later (when the total became compulsory). | V102.35 Date: 2026-11-14 | V102.35 (includes V102.32-V102.34): (1) GST KEPT ON EDIT: editing a single purchase line recalculates GST and the vendor entry is rebuilt GST-inclusive like a new bill (was basic only). (2) CLEAN BILL DELETE: deleting the last line of a bill offers to remove that bill's 'Paid with invoice' payment and service charges. (3) RECORD PAYMENT SCREEN: date, amount, paid by, ref, for bill, note; owner can edit; delete = owner/admin only and checked against the server. (4) HEALTH CHECK (More > System, owner): bills not matching, stock below zero, ledger entries with no bill, saves that did not reach the server, bills with no total - read-only. (5) DAILY BACKUP: on the owner's laptop the first full download of the day is also saved as a backup file (no extra download). (6) SLIM FILE: version history moved to FuelLog_Version_History.txt; unused old work-entry screen and old one-time clean-up call removed. DATA SAFETY REVIEW V2: new fields on vendor payment records only (mode, ref, forBillNo, edited*); per-record saves/deletes only; no rules, sync, MERGE_KEYS or Fast Refresh change. Earlier history: see FuelLog_Version_History.txt -->
 <!-- FuelLog PWA | Version: V99.86 | Date: 2026-08-05 | V99.86 BOQ PROGRESS SOURCE SPLIT (step 3 of 3, display only): since V99.85 the progress figure is fed by TWO sources -- standalone Work Done entries and linked DPR gang lines -- and nothing on screen said which. New _doneSplitHTML(itemId,unit) renders a muted sub-line under the progress bar, e.g. '20 sqm Work Done + 70.51 sqm (link) gang work'. PURPOSE IS DETECTION, not decoration: if the same physical work is ever entered through BOTH paths the total is silently too high and an inflated percentage just looks like good progress, whereas a visibly wrong breakdown is catchable. Returns '' when no gang work contributes, so rows fed purely by Work Done entries render EXACTLY as before -- the extra line only appears where there is something to explain. Applied at both BOQ progress render sites (project BOQ list and the DPR-side list); the work-entry form header was left alone as it is a single-item entry context, not a review view. Values rounded to 2dp (13.099219... shows as 13.1) and the unit is _esc'd. CORRECTION to the earlier plan: step 3 was described as 'add the BOQ unit to the progress row' -- on inspection the unit was ALREADY rendered there (both progress rows have shown '<qty> <unit> done' since well before this work), so that step was redundant and the source split was built instead. DATA SAFETY: display only. No write path, no schema change, no collection touched, no calculation altered -- _itemDone, _itemPct and _itemLabourDone are read and re-presented, never modified. -->
 <!-- FuelLog PWA | Version: V99.85 | Date: 2026-08-05 | V99.85 LINKED WORK NOW FEEDS BOQ PROGRESS (step 2 of 3, completes the badge's promise): _itemDone previously summed workEntries ONLY, so a DPR work line flagged '(link) linked -- feeds BOQ progress' paid the gang but contributed ZERO progress. New _itemLabourDone(boqItemId) sums linked dailyLabour pieceRows and converts labour units to BOQ units by DIVIDING by convPerBoqUnit (which means labour-units-per-one-BOQ-unit, e.g. 10.764 sqft in 1 sqm). Direction verified against live data before building: item unit sqm, labourUnit sqft, conv 10.764 -- 141 sqft = 13.10 sqm, not 1517. Multiplying would have inflated progress ~116x and looked merely like a large number. STRICT: only rows explicitly stored linked:true count; legacy rows predating V99.84 carry no flag and are deliberately NOT re-derived from the current engagement, since a later rate edit would then silently move historical progress -- re-saving such an entry backfills the flag and it counts from then on. GUARDS: conv<=0/missing/non-numeric skips the row (never divides by zero, never yields Infinity/NaN), MISC and blank item ids excluded, malformed records tolerated. Pending (unapproved backdated) entries excluded via _appr, consistent with V99.58. DOUBLE-COUNT PRE-CHECKED on live data: zero item+date pairs appear in both workEntries and a labour line, so nothing is counted twice; the overlap check should be re-run before any bulk backfill. AFFECTS: _itemPct and the executed-value total (execVal = done x rate), both of which will legitimately RISE for linked items -- they were understated before. DATA SAFETY: read/compute path only. No write path, no schema change, no collection touched, no record created/edited/deleted/migrated; only which numbers are DERIVED at render time. Worst case of a wrong factor is a visibly wrong percentage, never data loss. Step 3 (unit-label display on progress rows) still open. -->
 <!-- FuelLog PWA | Version: V99.84 | Date: 2026-08-05 | V99.84 LINKED-WORK PERSISTENCE (step 1 of 3): saveLabEntry now stores linked + convPerBoqUnit on every saved pieceRow instead of discarding them (previously computed live via _labLineRate but never written to Firebase). editLabEntry trusts the stored linked flag for entries saved under this fix, and only falls back to a fresh gang-rate lookup for legacy rows that predate it -- and that fallback never touches the historical rate/unit that was actually paid. This does NOT yet change BOQ progress calculation (_itemDone still reads workEntries only) -- that is step 2, pending an overlap check on live data. -->
@@ -2590,6 +2590,20 @@ const isOwner=  ()=>sess?.role==='owner';
 const isAdmin=  ()=>sess?.role==='admin'||isOwner();
 const isManager=()=>sess?.role==='supervisor'||isAdmin();
 const isSiteSup=()=>sess?.role==='sitesup';
+// V102.40 QUICK LOCK: money reports + vendor payments are owner/admin only
+const _canFin=()=>isOwner()||isAdmin();
+const _REP_LOCKED=['financial','project'];
+function _repLocked(t){ return _REP_LOCKED.indexOf(t)>=0 && !_canFin(); }
+function _repLockTabs(){
+  _REP_LOCKED.forEach(k=>{ const b=document.getElementById('rtab-'+k); if(b) b.style.display=_canFin()?'':'none'; });
+  if(_repLocked(repActiveTab)){ repActiveTab='daily';
+    ['daily','vehicle','financial','trips','muster','project'].forEach(k=>{ const b=document.getElementById('rtab-'+k); if(b) b.classList.toggle('active',k==='daily'); }); }
+}
+// V102.40b: Projects module (projects, DPR, work entry, labour contractors) closed to managers and drivers
+const _canProj=()=>!!sess && sess.role!=='supervisor' && sess.role!=='driver';
+const _PROJ_SCR=['scr-projects','scr-project-new','scr-project-detail','scr-dpr-pick','scr-dpr-wizard','scr-work-entry','scr-gang-ledger'];
+const _NOT_ALLOWED_PROJ='Not allowed \u2014 Projects, DPR and Labour contractors are not open to managers.';
+const _NOT_ALLOWED_FIN='Not allowed — this report is for the owner and admins only.';
 const isDriver= ()=>sess?.role==='driver';
 const isSup=    ()=>isManager();
 const canAdd=   ()=>isManager()||isSiteSup();
@@ -2729,6 +2743,7 @@ const rLbl=r=>({owner:'👑 OWNER',admin:'🛡 ADMIN',supervisor:'🔧 MANAGER',
 // NAVIGATION — simple show/hide
 // ════════════════════════════════════
 function show(id){
+  if(_PROJ_SCR.indexOf(id)>=0 && !_canProj()){ alert(_NOT_ALLOWED_PROJ); return; }   // V102.40
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('show'));
   const el=document.getElementById(id);
   if(el){el.classList.add('show');el.scrollTop=0;}
@@ -4325,7 +4340,7 @@ function renderReportsTab(el){
   el.innerHTML=`
     <div class="sec-lbl">Reports & Analytics</div>
     <div class="act prim" onclick="show('scr-reports')">
-      <div class="act-ico">📊</div><div class="act-txt"><div class="act-title">OPEN REPORTS</div><div class="act-desc">Daily Ops · Vehicle · Financial · Trips · Muster</div></div><div class="act-arr">›</div>
+      <div class="act-ico">📊</div><div class="act-txt"><div class="act-title">OPEN REPORTS</div><div class="act-desc">${_canFin()?'Daily Ops · Vehicle · Financial · Trips · Muster':'Daily Ops · Vehicle · Trips · Muster'}</div></div><div class="act-arr">›</div>
     </div>
     <div style="margin:12px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px">
       <div style="font-family:var(--fh);font-size:12px;color:var(--amber);letter-spacing:1px;margin-bottom:8px">📋 DAILY OPS</div>
@@ -4335,10 +4350,10 @@ function renderReportsTab(el){
       <div style="font-family:var(--fh);font-size:12px;color:var(--green);letter-spacing:1px;margin-bottom:8px">🚚 VEHICLE</div>
       <div style="font-size:12px;color:var(--muted);font-weight:600;line-height:1.5">Per-vehicle summary · Fleet km/L ranking · Top 10 consumers · Machine L/hr efficiency</div>
     </div>
-    <div style="margin:8px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px">
+    ${_canFin()?`    <div style="margin:8px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px">
       <div style="font-family:var(--fh);font-size:12px;color:var(--blue);letter-spacing:1px;margin-bottom:8px">💰 FINANCIAL</div>
       <div style="font-size:12px;color:var(--muted);font-weight:600;line-height:1.5">Purchased vs consumed · Pump-wise dues · Site cost allocation · Reconciliation</div>
-    </div>
+    </div>`:''}
     <div style="margin:8px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px">
       <div style="font-family:var(--fh);font-size:12px;color:var(--purple);letter-spacing:1px;margin-bottom:8px">📦 TRIPS</div>
       <div style="font-size:12px;color:var(--muted);font-weight:600;line-height:1.5">Trip register · Customer revenue & dues · Material analytics · Driver incentives · Site dispatch · Outstanding</div>
@@ -4471,14 +4486,14 @@ function showFbDiagnostics(){
 function renderMoreTab(el){
   el.innerHTML=`
     <div class="sec-lbl">Daily Report</div>
-    <div class="act prim" onclick="openDPRPicker()" style="border:2px solid var(--amber)">
+    ${_canProj()?`<div class="act prim" onclick="openDPRPicker()" style="border:2px solid var(--amber)">
       <div class="act-ico">📋</div><div class="act-txt"><div class="act-title">FILE TODAY'S DPR</div><div class="act-desc">Machinery · Labour · Work done — for ${today()?fmtD(today()):'today'}</div></div><div class="act-arr">›</div>
-    </div>
+    </div>`:''}
     ${isOwner()||isAdmin()||isManager()?`
-    <div class="sec-lbl">Projects</div>
-    <div class="act" onclick="show('scr-projects')">
+    <div class="sec-lbl">${_canProj()?'Projects':'Store & Plants'}</div>
+    ${_canProj()?`<div class="act" onclick="show('scr-projects')">
       <div class="act-ico">📐</div><div class="act-txt"><div class="act-title">PROJECTS</div><div class="act-desc">BOQ · Work done · Progress · DPR history</div></div><div class="act-arr">›</div>
-    </div>
+    </div>`:''}
     <div class="act" onclick="openStoreHub()">
       <div class="act-ico">🗄️</div><div class="act-txt"><div class="act-title">STORE</div><div class="act-desc">Stock · inward · outward · vendors · balances — all locations</div></div><div class="act-arr">›</div>
     </div>
@@ -4491,9 +4506,9 @@ function renderMoreTab(el){
     ${isOwner()?`<div class="act" onclick="openSiteWatch('more')">
       <div class="act-ico">👁</div><div class="act-txt"><div class="act-title">SITE WATCH</div><div class="act-desc">Money spent at a site with no BOQ progress to show for it</div></div><div class="act-arr">›</div>
     </div>`:''}
-    <div class="act" onclick="openGangLedger()">
+    ${_canProj()?`<div class="act" onclick="openGangLedger()">
       <div class="act-ico">👷</div><div class="act-txt"><div class="act-title">LABOUR CONTRACTORS</div><div class="act-desc">Work done vs payments · rates · site-wise balance</div></div><div class="act-arr">›</div>
-    </div>`:''}
+    </div>`:''}`:''}
     ${isOwner()||isAdmin()||isManager()?`
     <div class="sec-lbl">Tracking & Review</div>
     <div class="act" onclick="showAuditLog()">
@@ -10323,6 +10338,7 @@ function repQuick(q){
 }
 
 function repTab(t){
+  if(_repLocked(t)){ alert(_NOT_ALLOWED_FIN); _repLockTabs(); return; }   // V102.40
   repActiveTab=t;
   ['daily','vehicle','financial','trips','muster','project'].forEach(k=>{
     const b=document.getElementById('rtab-'+k);
@@ -10570,6 +10586,8 @@ function _storeReportHTML(range){
 function renderReports(){
   const el=document.getElementById('rep-content');
   if(!el)return;
+  _repLockTabs();   // V102.40: hide Financial/Project for non owner/admin; never render them
+  if(_repLocked(repActiveTab)){ el.innerHTML='<div style="padding:40px 16px;text-align:center;color:var(--muted);font-size:13px">'+_NOT_ALLOWED_FIN+'</div>'; return; }
   // V100.3: Project P&L is handled before the fleet guard — a project can carry real
   // material and labour cost with no vehicle assigned, so "Add fleet first" is wrong here.
   if(repActiveTab==='project'){ el.innerHTML=_plReportHTML(repGetRange())+'<div class="pad-bot"></div>'; return; }
@@ -12948,6 +12966,7 @@ function deleteEntry(type,id){
 
 // ── WhatsApp Export ──
 function exportReportWhatsApp(){
+  if(_repLocked(repActiveTab)){ alert(_NOT_ALLOWED_FIN); return; }   // V102.40
   const td=today();
   const fuelRate=getFuelRate();
   const fmtINR=n=>'₹'+Number(Math.round(n)).toLocaleString('en-IN');
@@ -13062,6 +13081,7 @@ function exportReportWhatsApp(){
 
 // ── PDF Export ──
 function exportRepPDF(){
+  if(_repLocked(repActiveTab)){ alert(_NOT_ALLOWED_FIN); return; }   // V102.40
   // V99.14: if on Daily Ops → Store Log, the topbar 📄 exports the Store PDF.
   if(repActiveTab==='daily' && _dailyReportType==='store'){ exportStoreReportPDF(); return; }
   if(repActiveTab==='daily' && _dailyReportType==='paver'){ exportPaverReportPDF(); return; }
@@ -15143,6 +15163,7 @@ function saveProject(){
 
 // ---------- DETAIL ----------
 function openProject(id){
+  if(!_canProj()){ alert(_NOT_ALLOWED_PROJ); return; }   // V102.40
   const p=projects.find(x=>x.id===id); if(!p){alert('Project not found');return;}
   if(id!==_curProjectId){ _itemEntriesOpen=null; _dprShowAll=false; }   // V102.21
   _curProjectId=id;
@@ -15332,6 +15353,7 @@ function deleteDPR(id){
 
 // Open an existing DPR into the wizard for editing (Manager+ view/edit; Owner can edit even verified).
 function openDPRForEdit(dprId){
+  if(!_canProj()){ alert(_NOT_ALLOWED_PROJ); return; }   // V102.40
   if(!isManager()){ alert('Manager or Owner only'); return; }
   const dpr=dailyReports.find(d=>d.id===dprId); if(!dpr){ alert('DPR not found'); return; }
   // Owner-only override for verified DPRs
@@ -15521,6 +15543,7 @@ function _workMode(){ const b=boqItems.find(x=>x.id===_curWorkBoqId); return _un
 function _todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 
 function openWorkEntry(boqItemId){
+  if(!_canProj()){ alert(_NOT_ALLOWED_PROJ); return; }   // V102.40
   const b=boqItems.find(x=>x.id===boqItemId); if(!b){alert('Item not found');return;}
   _curWorkBoqId=boqItemId;
   _editWorkId=null;
@@ -16034,7 +16057,7 @@ function _storesBack(){
   if(_storesFromSiteSup){ _storesFromSiteSup=false; _storeHubMode=false; show('scr-home'); return; }
   if(_storeHubMode){ _storeHubMode=false; show('scr-home'); bnavTab('more'); return; }
   // S2.5a: Plant is a location, not a project — back goes to the More menu, not openProject.
-  if(_storesProjectId && !_isPlantLoc(_storesProjectId)){ openProject(_storesProjectId); }
+  if(_storesProjectId && !_isPlantLoc(_storesProjectId) && _canProj()){ openProject(_storesProjectId); }   // V102.40: managers go back to More
   else { show('scr-home'); bnavTab('more'); }
 }
 // V84.10: form back returns to the store screen WITHOUT clearing site-sup context,
@@ -17181,7 +17204,7 @@ function _vlRender(){
   const nNo=bills.filter(x=>x.status==='nototal').length;
   const badAmt=_vlR2(bills.filter(x=>x.status==='short'||x.status==='over').reduce((s,x)=>s+Math.abs(x.diff||0),0));
   const balCol=b.bal>0?'var(--red)':b.bal<0?'var(--amber)':'var(--green)';
-  const canPay=isOwner()||isAdmin()||isManager()||isSiteSup();
+  const canPay=_canFin();   // V102.40: was owner/admin/manager/sitesup
   const chip=(f,lbl,col)=>{ const on=_vlState.f===f;
     return `<button type="button" onclick="_vlFilter('${f}')" style="min-height:40px;padding:0 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid ${col||'var(--border)'};background:${on?(col||'var(--amber)'):'var(--bg2)'};color:${on?'#1a1205':(col||'var(--txt)')}">${lbl}</button>`; };
   const box=(lbl,val,sub,col,bg)=>`<div style="flex:1 1 140px;min-width:0;background:${bg||'var(--bg2)'};border:1px solid ${col||'var(--border)'};border-radius:11px;padding:11px 12px">
@@ -17622,6 +17645,7 @@ let _vpEditId=null;
 function recordVendorPayment(){ _vpOpen(null); }
 function _vpClose(){ const o=document.getElementById('vp-ov'); if(o) o.remove(); _vpEditId=null; }
 function _vpOpen(editId){
+  if(!_canFin()){ alert('Not allowed — only the owner or an admin can record a vendor payment.'); return; }   // V102.40
   if(!_vendDetailId) return;
   const v=(vendors||[]).find(x=>x.id===_vendDetailId); if(!v) return;
   const t=editId?(vendorTxns||[]).find(x=>x.id===editId&&x.type==='payment'):null;
@@ -17660,6 +17684,7 @@ function _vpMode(m){ const h=document.getElementById('vp-mode'); if(h) h.value=m
 function _vpAfter(bal){ const e=document.getElementById('vp-after'); if(!e) return; const a=_numIN((document.getElementById('vp-amt')||{}).value);
   e.textContent=(a>0)?('Balance after this payment: '+_vlINR(bal-a)):''; }
 async function _vpSave(){
+  if(!_canFin()){ alert('Not allowed — only the owner or an admin can record a vendor payment.'); return; }   // V102.40
   const vid=_vendDetailId, v=(vendors||[]).find(x=>x.id===vid); if(!v) return;
   const date=(document.getElementById('vp-date')||{}).value||'';
   if(!date){ alert('Pick the payment date.'); return; }
@@ -21020,6 +21045,7 @@ function delSub(id){
 // ========== DPR WIZARD ==========
 // Entry: home button → project picker screen
 function openDPRPicker(){
+  if(!_canProj()){ alert(_NOT_ALLOWED_PROJ); return; }   // V102.40
   const list=_myProjects();
   const el=document.getElementById('dpr-pick-list');
   document.getElementById('dpr-pick-sub').textContent=list.length+' project'+(list.length===1?'':'s')+' assigned';
@@ -21044,6 +21070,7 @@ function openDPRPicker(){
 }
 // Create or resume today's DPR for a project (today only — no backdate)
 async function startDPR(projectId){
+  if(!_canProj()){ alert(_NOT_ALLOWED_PROJ); return; }   // V102.40: refuse before any DPR is created
   const p=projects.find(x=>x.id===projectId); if(!p){alert('Project not found');return;}
   const td=today();
   let dpr=_findDPR(projectId,td);
@@ -21581,6 +21608,7 @@ function _glBalance(gangId,projectId){
 // ── SCREEN: Labour Contractors ──
 let _glProj='';
 function openGangLedger(){
+  if(!_canProj()){ alert(_NOT_ALLOWED_PROJ); return; }   // V102.40
   if(!(isOwner()||isAdmin()||isManager())){ alert('Owner / Admin / Manager only'); return; }
   const ps=(projects||[]).filter(p=>p&&p.name);
   if(!_glProj && ps.length) _glProj=ps[0].id;
@@ -23800,7 +23828,7 @@ const FB_KEY = 'AIzaSyB44pKu7YTc-Q_6GLC3mlaEBPJm3d3odPc';
 // V102.18 SECURITY STEP 4: the shared master account (and its password) was REMOVED from the app.
 // Each device signs in with its own account (see 'Set up this device'). Old master sign-in passes are wiped below.
 try{ localStorage.removeItem('fb_auth'); localStorage.removeItem('fb_refresh'); }catch(e){}
-const APP_VERSION = 'V102.39'; // bump this on every deploy
+const APP_VERSION = 'V102.40'; // bump this on every deploy
 
 // All keys we sync to Firebase
 const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords','trips','customers','materials','staff','staffMusters','pumpPayments','projects','boqItems','workEntries','subcontractors','subContracts','dailyReports','gangs','dailyLabour','royalty','materialInward','materialOutward','vendors','vendorTxns','paverLabour','gangLedger','rmcProd','siteWatch'];
@@ -26486,7 +26514,7 @@ fbInit();
 
 <script>
 if('serviceWorker' in navigator){
-  var swCode="var CACHE='fl-v202611151400';self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/fuellog/'])).then(()=>self.skipWaiting())));self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));self.addEventListener('fetch',e=>{if(e.request.url.includes('firebaseio.com')||e.request.url.includes('googleapis.com'))return;e.respondWith(fetch(e.request).then(r=>{var c=r.clone();caches.open(CACHE).then(cache=>cache.put(e.request,c));return r;}).catch(()=>caches.match(e.request)));});";
+  var swCode="var CACHE='fl-v202611161415';self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/fuellog/'])).then(()=>self.skipWaiting())));self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));self.addEventListener('fetch',e=>{if(e.request.url.includes('firebaseio.com')||e.request.url.includes('googleapis.com'))return;e.respondWith(fetch(e.request).then(r=>{var c=r.clone();caches.open(CACHE).then(cache=>cache.put(e.request,c));return r;}).catch(()=>caches.match(e.request)));});";
   var blob=new Blob([swCode],{type:'text/javascript'});
   navigator.serviceWorker.register(URL.createObjectURL(blob)).then(function(reg){console.log('SW v202604171529');reg.update();}).catch(function(e){console.log('SW skip:',e.message);});
 }
