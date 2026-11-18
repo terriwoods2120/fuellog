@@ -1,4 +1,4 @@
-<!-- FuelLog PWA | Version: V102.41 | Date: 2026-11-17 | V102.41 VENDOR LEDGER LOCK: managers, site supervisors and drivers no longer see vendor amounts — Store → Vendors and the Vendors screen show names/phone only (no due/advance, no TOTAL DUE summary); openVendor() and show('scr-vendor-detail') refuse with Not allowed. recordLumpSumPayment/applyLumpSumPayment now require canTripEnter() (owner/admin/manager — unchanged for them). No sync/storage change. | PREVIOUS: V102.40 | V102.40 QUICK LOCK: Reports → Financial and Project hidden and refused (screen, PDF/print, WhatsApp) for managers, site supervisors and drivers; owners + admins keep Financial; Project P&L stays owner-only. Record vendor payment = owner/admin only (button hidden, _vpOpen/_vpSave refuse). "Amount paid" boxes on bill/inward entry unchanged. Projects module closed to managers (and drivers): More menu hides FILE TODAY'S DPR, PROJECTS, LABOUR CONTRACTORS; show() refuses the 7 project/DPR/work/labour screens; openDPRPicker/startDPR/openProject/openDPRForEdit/openWorkEntry/openGangLedger refuse; store Back no longer opens the project page for them. Store, Paver, RMC unchanged. No sync/storage change. | PREVIOUS: V102.39 | V102.39 USERS SAVED ONE PERSON AT A TIME: every users save first reads the server shape (keys only). Old shape (positions 0..n) = saves work exactly as before (whole list). After the owner presses Health check > Convert users list (checks + backup file + read-back), each save writes ONLY that person (add = one record, edit/PIN = only the changed fields, remove = one record). A whole-list send of users is refused in _fbWrite; old queued users saves are handled safely; Restore writes the users list keyed by id. Health check shows the users-list shape. | V102.38 PHOTOS IN MORE PLACES (same photo store as V102.37; entries keep only a short link in a new field `att`): store ISSUE / TRANSFER (one set per issue, lines tied by new field minId), TRIPS (slip photo), VENDOR PAYMENT (proof), FUEL PURCHASE and DIRECT PUMP FILL (bill). Each has a photo box on the entry form (optional, up to 4 photos or a PDF; a failed photo never blocks the entry), tiles on the list (downloaded only on tap), add-later (owner/admin; trips also manager; field-only PATCH after checking the record is on the server) and Remove (owner; link taken off + attLog, file stays). DATA SAFETY REVIEW V2: new fields only (att, attLog, minId); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.37 Date: 2026-11-15 | V102.37 BILL PHOTO (photo store): a purchase bill (GRN, vendor source) can carry up to 4 photos or a PDF. The file is made small on the phone and sent to the separate Firebase photo store (fuellog/bills/YYYY-MM/...); the entry keeps only a short link (billPhotos on the bill's materialInward lines and service-charge vendorTxns), so sync never carries photos. Vendor page: view (downloaded only on tap), Add bill photo to a saved bill (owner/admin, field-only PATCH after checking the records are on the server), Remove photo (owner; takes the link off + billPhotoLog, the file stays in the store). A failed photo never blocks the bill. DATA SAFETY REVIEW V2: new fields only (billPhotos, billPhotoLog); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.36 Date: 2026-11-15 | V102.36 HEALTH CHECK COUNTS CORRECTED (read-only page, nothing saved): 'Ledger entries with no bill' no longer counts service-only bills (repair/labour bills with no material are valid) and a 'paid with bill' payment is fine when its bill has service charges; 'Bills with no bill total' counts only bills dated 05/11/2026 or later (when the total became compulsory). | V102.35 Date: 2026-11-14 | V102.35 (includes V102.32-V102.34): (1) GST KEPT ON EDIT: editing a single purchase line recalculates GST and the vendor entry is rebuilt GST-inclusive like a new bill (was basic only). (2) CLEAN BILL DELETE: deleting the last line of a bill offers to remove that bill's 'Paid with invoice' payment and service charges. (3) RECORD PAYMENT SCREEN: date, amount, paid by, ref, for bill, note; owner can edit; delete = owner/admin only and checked against the server. (4) HEALTH CHECK (More > System, owner): bills not matching, stock below zero, ledger entries with no bill, saves that did not reach the server, bills with no total - read-only. (5) DAILY BACKUP: on the owner's laptop the first full download of the day is also saved as a backup file (no extra download). (6) SLIM FILE: version history moved to FuelLog_Version_History.txt; unused old work-entry screen and old one-time clean-up call removed. DATA SAFETY REVIEW V2: new fields on vendor payment records only (mode, ref, forBillNo, edited*); per-record saves/deletes only; no rules, sync, MERGE_KEYS or Fast Refresh change. Earlier history: see FuelLog_Version_History.txt -->
+<!-- FuelLog PWA | Version: V102.42 | Date: 2026-11-18 | V102.42 SITE SUPERVISOR SCREEN STAGE 1: new Marathi/English Home for site supervisors (5 buttons); मशीन = opening/closing readings onto today's DPR, saved per machine on the server copy (_dprMachMergeSave) — office DPR save uses the same safe merge; हजेरी = Site Staff attendance, fixed record id sm-<staff>-<date>, server checked first, owner-only lock kept; no-network = save refused, typed values kept; machine ₹/hr rates (new machineRates collection, owner-only, per-record) copied onto DPR lines; P&L warns machines with hours but no rate; L1/L2 vendor tidies. | PREVIOUS: V102.41 | V102.41 VENDOR LEDGER LOCK: managers, site supervisors and drivers no longer see vendor amounts — Store → Vendors and the Vendors screen show names/phone only (no due/advance, no TOTAL DUE summary); openVendor() and show('scr-vendor-detail') refuse with Not allowed. recordLumpSumPayment/applyLumpSumPayment now require canTripEnter() (owner/admin/manager — unchanged for them). No sync/storage change. | PREVIOUS: V102.40 | V102.40 QUICK LOCK: Reports → Financial and Project hidden and refused (screen, PDF/print, WhatsApp) for managers, site supervisors and drivers; owners + admins keep Financial; Project P&L stays owner-only. Record vendor payment = owner/admin only (button hidden, _vpOpen/_vpSave refuse). "Amount paid" boxes on bill/inward entry unchanged. Projects module closed to managers (and drivers): More menu hides FILE TODAY'S DPR, PROJECTS, LABOUR CONTRACTORS; show() refuses the 7 project/DPR/work/labour screens; openDPRPicker/startDPR/openProject/openDPRForEdit/openWorkEntry/openGangLedger refuse; store Back no longer opens the project page for them. Store, Paver, RMC unchanged. No sync/storage change. | PREVIOUS: V102.39 | V102.39 USERS SAVED ONE PERSON AT A TIME: every users save first reads the server shape (keys only). Old shape (positions 0..n) = saves work exactly as before (whole list). After the owner presses Health check > Convert users list (checks + backup file + read-back), each save writes ONLY that person (add = one record, edit/PIN = only the changed fields, remove = one record). A whole-list send of users is refused in _fbWrite; old queued users saves are handled safely; Restore writes the users list keyed by id. Health check shows the users-list shape. | V102.38 PHOTOS IN MORE PLACES (same photo store as V102.37; entries keep only a short link in a new field `att`): store ISSUE / TRANSFER (one set per issue, lines tied by new field minId), TRIPS (slip photo), VENDOR PAYMENT (proof), FUEL PURCHASE and DIRECT PUMP FILL (bill). Each has a photo box on the entry form (optional, up to 4 photos or a PDF; a failed photo never blocks the entry), tiles on the list (downloaded only on tap), add-later (owner/admin; trips also manager; field-only PATCH after checking the record is on the server) and Remove (owner; link taken off + attLog, file stays). DATA SAFETY REVIEW V2: new fields only (att, attLog, minId); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.37 Date: 2026-11-15 | V102.37 BILL PHOTO (photo store): a purchase bill (GRN, vendor source) can carry up to 4 photos or a PDF. The file is made small on the phone and sent to the separate Firebase photo store (fuellog/bills/YYYY-MM/...); the entry keeps only a short link (billPhotos on the bill's materialInward lines and service-charge vendorTxns), so sync never carries photos. Vendor page: view (downloaded only on tap), Add bill photo to a saved bill (owner/admin, field-only PATCH after checking the records are on the server), Remove photo (owner; takes the link off + billPhotoLog, the file stays in the store). A failed photo never blocks the bill. DATA SAFETY REVIEW V2: new fields only (billPhotos, billPhotoLog); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.36 Date: 2026-11-15 | V102.36 HEALTH CHECK COUNTS CORRECTED (read-only page, nothing saved): 'Ledger entries with no bill' no longer counts service-only bills (repair/labour bills with no material are valid) and a 'paid with bill' payment is fine when its bill has service charges; 'Bills with no bill total' counts only bills dated 05/11/2026 or later (when the total became compulsory). | V102.35 Date: 2026-11-14 | V102.35 (includes V102.32-V102.34): (1) GST KEPT ON EDIT: editing a single purchase line recalculates GST and the vendor entry is rebuilt GST-inclusive like a new bill (was basic only). (2) CLEAN BILL DELETE: deleting the last line of a bill offers to remove that bill's 'Paid with invoice' payment and service charges. (3) RECORD PAYMENT SCREEN: date, amount, paid by, ref, for bill, note; owner can edit; delete = owner/admin only and checked against the server. (4) HEALTH CHECK (More > System, owner): bills not matching, stock below zero, ledger entries with no bill, saves that did not reach the server, bills with no total - read-only. (5) DAILY BACKUP: on the owner's laptop the first full download of the day is also saved as a backup file (no extra download). (6) SLIM FILE: version history moved to FuelLog_Version_History.txt; unused old work-entry screen and old one-time clean-up call removed. DATA SAFETY REVIEW V2: new fields on vendor payment records only (mode, ref, forBillNo, edited*); per-record saves/deletes only; no rules, sync, MERGE_KEYS or Fast Refresh change. Earlier history: see FuelLog_Version_History.txt -->
 <!-- FuelLog PWA | Version: V99.86 | Date: 2026-08-05 | V99.86 BOQ PROGRESS SOURCE SPLIT (step 3 of 3, display only): since V99.85 the progress figure is fed by TWO sources -- standalone Work Done entries and linked DPR gang lines -- and nothing on screen said which. New _doneSplitHTML(itemId,unit) renders a muted sub-line under the progress bar, e.g. '20 sqm Work Done + 70.51 sqm (link) gang work'. PURPOSE IS DETECTION, not decoration: if the same physical work is ever entered through BOTH paths the total is silently too high and an inflated percentage just looks like good progress, whereas a visibly wrong breakdown is catchable. Returns '' when no gang work contributes, so rows fed purely by Work Done entries render EXACTLY as before -- the extra line only appears where there is something to explain. Applied at both BOQ progress render sites (project BOQ list and the DPR-side list); the work-entry form header was left alone as it is a single-item entry context, not a review view. Values rounded to 2dp (13.099219... shows as 13.1) and the unit is _esc'd. CORRECTION to the earlier plan: step 3 was described as 'add the BOQ unit to the progress row' -- on inspection the unit was ALREADY rendered there (both progress rows have shown '<qty> <unit> done' since well before this work), so that step was redundant and the source split was built instead. DATA SAFETY: display only. No write path, no schema change, no collection touched, no calculation altered -- _itemDone, _itemPct and _itemLabourDone are read and re-presented, never modified. -->
 <!-- FuelLog PWA | Version: V99.85 | Date: 2026-08-05 | V99.85 LINKED WORK NOW FEEDS BOQ PROGRESS (step 2 of 3, completes the badge's promise): _itemDone previously summed workEntries ONLY, so a DPR work line flagged '(link) linked -- feeds BOQ progress' paid the gang but contributed ZERO progress. New _itemLabourDone(boqItemId) sums linked dailyLabour pieceRows and converts labour units to BOQ units by DIVIDING by convPerBoqUnit (which means labour-units-per-one-BOQ-unit, e.g. 10.764 sqft in 1 sqm). Direction verified against live data before building: item unit sqm, labourUnit sqft, conv 10.764 -- 141 sqft = 13.10 sqm, not 1517. Multiplying would have inflated progress ~116x and looked merely like a large number. STRICT: only rows explicitly stored linked:true count; legacy rows predating V99.84 carry no flag and are deliberately NOT re-derived from the current engagement, since a later rate edit would then silently move historical progress -- re-saving such an entry backfills the flag and it counts from then on. GUARDS: conv<=0/missing/non-numeric skips the row (never divides by zero, never yields Infinity/NaN), MISC and blank item ids excluded, malformed records tolerated. Pending (unapproved backdated) entries excluded via _appr, consistent with V99.58. DOUBLE-COUNT PRE-CHECKED on live data: zero item+date pairs appear in both workEntries and a labour line, so nothing is counted twice; the overlap check should be re-run before any bulk backfill. AFFECTS: _itemPct and the executed-value total (execVal = done x rate), both of which will legitimately RISE for linked items -- they were understated before. DATA SAFETY: read/compute path only. No write path, no schema change, no collection touched, no record created/edited/deleted/migrated; only which numbers are DERIVED at render time. Worst case of a wrong factor is a visibly wrong percentage, never data loss. Step 3 (unit-label display on progress rows) still open. -->
 <!-- FuelLog PWA | Version: V99.84 | Date: 2026-08-05 | V99.84 LINKED-WORK PERSISTENCE (step 1 of 3): saveLabEntry now stores linked + convPerBoqUnit on every saved pieceRow instead of discarding them (previously computed live via _labLineRate but never written to Firebase). editLabEntry trusts the stored linked flag for entries saved under this fix, and only falls back to a fresh gang-rate lookup for legacy rows that predate it -- and that fallback never touches the historical rate/unit that was actually paid. This does NOT yet change BOQ progress calculation (_itemDone still reads workEntries only) -- that is step 2, pending an overlap check on live data. -->
@@ -1909,7 +1909,7 @@ input[type=file]{display:none}
 // ════════════════════════════════════
 // STORAGE
 // ════════════════════════════════════
-const SK={users:'fl7_users',fleet:'fl7_fleet',disbs:'fl7_disbs',readings:'fl7_readings',purchases:'fl7_purchases',pumps:'fl7_pumps',pumpFills:'fl7_pumpFills',sites:'fl7_sites',drivers:'fl7_drivers',musters:'fl7_musters',checklistTemplates:'fl7_clTemplates',checklistRecords:'fl7_clRecords',trips:'fl7_trips',customers:'fl7_customers',materials:'fl7_materials',staff:'fl7_staff',staffMusters:'fl7_staffMusters',pumpPayments:'fl7_pumpPayments',projects:'fl7_projects',boqItems:'fl7_boqItems',workEntries:'fl7_workEntries',subcontractors:'fl7_subcontractors',subContracts:'fl7_subContracts',dailyReports:'fl7_dailyReports',gangs:'fl7_gangs',dailyLabour:'fl7_dailyLabour',royalty:'fl7_royalty',materialInward:'fl7_matInward',paverLabour:'fl7_paverLabour',materialOutward:'fl7_matOutward',vendors:'fl7_vendors',vendorTxns:'fl7_vendorTxns',rmcProd:'fl7_rmcProd',siteWatch:'fl7_siteWatch'};
+const SK={users:'fl7_users',fleet:'fl7_fleet',disbs:'fl7_disbs',readings:'fl7_readings',purchases:'fl7_purchases',pumps:'fl7_pumps',pumpFills:'fl7_pumpFills',sites:'fl7_sites',drivers:'fl7_drivers',musters:'fl7_musters',checklistTemplates:'fl7_clTemplates',checklistRecords:'fl7_clRecords',trips:'fl7_trips',customers:'fl7_customers',materials:'fl7_materials',staff:'fl7_staff',staffMusters:'fl7_staffMusters',pumpPayments:'fl7_pumpPayments',projects:'fl7_projects',boqItems:'fl7_boqItems',workEntries:'fl7_workEntries',subcontractors:'fl7_subcontractors',subContracts:'fl7_subContracts',dailyReports:'fl7_dailyReports',gangs:'fl7_gangs',dailyLabour:'fl7_dailyLabour',royalty:'fl7_royalty',materialInward:'fl7_matInward',paverLabour:'fl7_paverLabour',materialOutward:'fl7_matOutward',vendors:'fl7_vendors',vendorTxns:'fl7_vendorTxns',rmcProd:'fl7_rmcProd',siteWatch:'fl7_siteWatch',machineRates:'fl7_machineRates'};
 // Keys too large to cache in localStorage (Safari 5MB limit).
 // These are loaded fresh from Firebase on every login — no need to persist locally.
 // V54 FIX: LS_NO_CACHE must be declared BEFORE ld() and sv() reference it.
@@ -2529,7 +2529,7 @@ window.addEventListener('beforeunload', (e) => {
     return e.returnValue;
   }
 });
-let users=ld('users'),fleet=ld('fleet'),disbs=ld('disbs'),readings=ld('readings'),purchases=ld('purchases'),pumps=ld('pumps'),pumpFills=ld('pumpFills'),sites=ld('sites'),drivers=ld('drivers'),musters=ld('musters'),checklistTemplates=ld('checklistTemplates'),checklistRecords=ld('checklistRecords'),trips=ld('trips'),customers=ld('customers'),materials=ld('materials'),staff=ld('staff'),staffMusters=ld('staffMusters'),pumpPayments=ld('pumpPayments'),projects=ld('projects'),boqItems=ld('boqItems'),workEntries=ld('workEntries'),subcontractors=ld('subcontractors'),subContracts=ld('subContracts'),dailyReports=ld('dailyReports'),gangs=ld('gangs'),dailyLabour=ld('dailyLabour'),royalty=ld('royalty'),materialInward=ld('materialInward'),materialOutward=ld('materialOutward'),paverLabour=ld('paverLabour'),gangLedger=ld('gangLedger'),vendors=ld('vendors'),vendorTxns=ld('vendorTxns'),rmcProd=ld('rmcProd'),siteWatch=ld('siteWatch');
+let users=ld('users'),fleet=ld('fleet'),disbs=ld('disbs'),readings=ld('readings'),purchases=ld('purchases'),pumps=ld('pumps'),pumpFills=ld('pumpFills'),sites=ld('sites'),drivers=ld('drivers'),musters=ld('musters'),checklistTemplates=ld('checklistTemplates'),checklistRecords=ld('checklistRecords'),trips=ld('trips'),customers=ld('customers'),materials=ld('materials'),staff=ld('staff'),staffMusters=ld('staffMusters'),pumpPayments=ld('pumpPayments'),projects=ld('projects'),boqItems=ld('boqItems'),workEntries=ld('workEntries'),subcontractors=ld('subcontractors'),subContracts=ld('subContracts'),dailyReports=ld('dailyReports'),gangs=ld('gangs'),dailyLabour=ld('dailyLabour'),royalty=ld('royalty'),materialInward=ld('materialInward'),materialOutward=ld('materialOutward'),paverLabour=ld('paverLabour'),gangLedger=ld('gangLedger'),vendors=ld('vendors'),vendorTxns=ld('vendorTxns'),rmcProd=ld('rmcProd'),siteWatch=ld('siteWatch'),machineRates=ld('machineRates');   // V102.42: machineRates
 
 // V77 FIX (DPR resurrection): deleteDPR removes from memory + Firebase + tombstones,
 // but dailyReports is cached in localStorage (not LS_NO_CACHE), so a hard-refresh
@@ -4090,65 +4090,373 @@ function renderDashboard(dash,alerts){
 
 // ── OPERATIONS TAB ──
 // ── SITE SUPERVISOR HOME ──
+// ===================== V102.42 SITE SUPERVISOR SIMPLE SCREEN — STAGE 1 =====================
+// Site supervisors only (sess.role==='sitesup'). Replaces the "Today's DPR Status" card.
+// Home: site name + five buttons, Marathi first, English switch remembered per person on this phone.
+// Stage 1 builds two of them new:
+//   मशीन  — opening/closing reading per machine, written onto today's DPR machine list with
+//            _dprMachMergeSave (fresh server copy, only THIS machine changed, machinery PATCHed).
+//   हजेरी — Site Staff attendance into the same staffMusters records Yogesh uses (fixed record id,
+//            server copy checked first, owner-only change lock as V102.20).
+// माल आला / माल गेला open the existing site store, काम opens the existing Work Done step
+// (unchanged) until Stages 2 and 3. Nothing here queues a save: the server is reached first and a
+// refused save keeps everything typed on screen. Nothing here deletes anything.
+let _ss={view:'home', pid:'', fid:'', msg:''};
+let _ssEls={dash:null, alerts:null};
+const _SS_T={
+  site:['आजची साईट',"TODAY'S SITE"], role:['साईट सुपरवायझर','Site supervisor'],
+  mach:['मशीन','Machines'], maalIn:['माल आला','Material in'], maalOut:['माल गेला','Material out'],
+  hajeri:['हजेरी','Attendance'], kaam:['काम','Work done'],
+  pickSite:['आज कोणती साईट?','Which site today?'],
+  noSite:['तुम्हाला कोणतीही साईट दिलेली नाही. मालकाला सांगा.','No site is assigned to you. Ask the owner.'],
+  nothingToday:['आज काही नाही','Nothing yet today'], done:['पूर्ण','Done'],
+  toCheck:['तपासणे बाकी','to check'], entries:['नोंदी','entries'], marked:['जणांची नोंद','marked'],
+  noMach:['मशीन नाही','No machines'], back:['मागे','Back'],
+  machHere:['या साईटवरील मशीन','Machines at this site'],
+  machMissing:['मशीन यादीत नाही?','Machine not in the list?'],
+  callOwner:['मालकाला फोन करा — मशीन फक्त मालक साईटवर हलवू शकतात','Call the owner — only the owner can move a machine to a site'],
+  filled:['भरले','Filled'], fill:['भरा','Fill'], half:['शेवटचे बाकी','Closing due'], newSite:['नवीन साईट','New site'],
+  open:['सुरुवातीचे रीडिंग','Opening reading'], close:['शेवटचे रीडिंग','Closing reading'],
+  openMeter:['सुरुवातीचे रीडिंग (मीटरवरून)','Opening reading (from the meter)'],
+  autoFilled:['कालच्या शेवटच्या रीडिंगवरून आपोआप भरले · मीटरवर वेगळे असल्यास बदला','Filled from the last closing at this site · change it if the meter differs'],
+  typeHere:['येथे टाका','Type here'], eveningHint:['संध्याकाळी मीटर पाहून टाका','Type it in the evening from the meter'],
+  newSiteNote:['ही मशीन या साईटवर नवीन आहे. सुरुवातीचे रीडिंग मीटरवर पाहून टाका.','This machine is new at this site. Type the opening reading from the meter.'],
+  lastKnown:['शेवटचे रीडिंग','Last reading'], travel:['प्रवास','Travel'],
+  travelNote:['प्रवास कोणत्याही साईटच्या कामात मोजला जात नाही','Travel is not charged to any site'],
+  ranToday:['आज चालले','Ran today'], save:['जतन करा','Save'], saveAgain:['पुन्हा जतन करा','Save again'],
+  hrs:['तास','hrs'], km:['किमी','km'], hourMeter:['तास मीटर','hour meter'], odo:['किमी मीटर','odometer'],
+  officeFilled:['ऑफिसने भरले — बदल हवा असल्यास ऑफिसला फोन करा','Entered by the office — call the office to change it'],
+  enterReading:['किमान एक रीडिंग टाका.','Type at least one reading.'],
+  noNet:['नेटवर्क नाही — जतन झाले नाही','No network — not saved'],
+  noNetSub:['तुम्ही भरलेली माहिती इथेच आहे. ॲप बंद करू नका. नेटवर्क आल्यावर पुन्हा जतन करा दाबा.','What you typed is still here. Do not close the app. When the network is back, tap Save again.'],
+  saved:['जतन झाले','Saved'],
+  warnBack:['शेवटचे रीडिंग सुरुवातीपेक्षा कमी आहे. मीटर बदलला आहे का? तरीही जतन करायचे?','Closing is lower than opening. Was the meter replaced? Save anyway?'],
+  warnBelowLast:['सुरुवातीचे रीडिंग मागच्या रीडिंगपेक्षा कमी आहे. मीटर बदलला आहे का? तरीही जतन करायचे?','Opening is lower than the last reading. Was the meter replaced? Save anyway?'],
+  over24:['एका दिवसात 24 तासांपेक्षा जास्त होऊ शकत नाही. रीडिंग तपासा.','More than 24 hours in one day is not possible. Check the readings.'],
+  over12:['आज 12 तासांपेक्षा जास्त दाखवत आहे. बरोबर आहे का?','This shows more than 12 hours today. Is that right?'],
+  staffTitle:['Site Staff · आज','Site Staff · today'],
+  present:['हजर','Present'], halfday:['अर्धा','Half'], absent:['गैरहजर','Absent'], leave:['रजा','Leave'],
+  markedBy:['यांनी नोंद केली','marked'], lockNote:['एकदा नोंद केल्यावर फक्त मालक बदलू शकतात · आधी नीट तपासा','Once marked, only the owner can change it · check first'],
+  alreadyMarked:['आधीच नोंद झाली आहे. फक्त मालक बदलू शकतात.','Already marked. Only the owner can change it.'],
+  noStaff:['Site Staff गटात कोणीही नाही.','Nobody is in the Site Staff group.'],
+  ofMarked:['नोंद','Marked'], left:['बाकी','left'],
+  oldScreen:['(सध्याची स्क्रीन)','(current screen)'],
+  readingNotSent:['मशीनचे रीडिंग जतन झाले, पण फ्युएल रिपोर्टचा भाग पोहोचला नाही. नेटवर्क आल्यावर पुन्हा जतन करा दाबा.','The machine reading is saved, but the fuel-report part did not reach the server. When the network is back, tap Save again.']
+};
+function _st(k){ const v=_SS_T[k]; if(!v) return k; return _ssLang()==='en'?v[1]:v[0]; }
+function _ssLangKey(){ return 'fl7_sslang_'+((sess&&sess.userId)||''); }
+function _ssLang(){ try{ return localStorage.getItem(_ssLangKey())==='en'?'en':'mr'; }catch(e){ return 'mr'; } }
+function _ssSetLang(l){ try{ localStorage.setItem(_ssLangKey(), l==='en'?'en':'mr'); }catch(e){} _ssRender(); }
+function _ssProjects(){ return _myProjects().filter(p=>(p.status||'active')!=='completed'); }
+function _ssProj(){ return projects.find(p=>p.id===_ss.pid)||null; }
+function _ssGo(view, extra){ _ss=Object.assign({}, _ss, {view, msg:''}, extra||{}); _ssRender(); try{ window.scrollTo(0,0); }catch(e){} }
+function _ssRender(){
+  const d=_ssEls.dash, a=_ssEls.alerts;
+  if(d && a && document.body.contains(d)) renderSiteSupHome(d, a); else if(typeof renderHome==='function') renderHome();
+}
+// ---- shared pieces ----
+const _SS_HUE={mach:['#B45309','#FEF3C7'], maalIn:['#1D4ED8','#DBEAFE'], maalOut:['#6D28D9','#EDE9FE'], hajeri:['#15803D','#DCFCE7'], kaam:['#0F766E','#CCFBF1']};
+function _ssToggleHTML(){
+  const mr=_ssLang()!=='en';
+  const b=(t,on,l)=>`<button type="button" onclick="_ssSetLang('${l}')" style="border:none;border-radius:999px;padding:6px 12px;font-size:14px;font-weight:700;min-height:34px;background:${on?'#FFFFFF':'transparent'};color:${on?'#17140F':'rgba(255,255,255,0.8)'}">${t}</button>`;
+  return `<div style="display:flex;border:1px solid rgba(255,255,255,0.2);border-radius:999px;padding:3px;background:rgba(255,255,255,0.08);flex-shrink:0">${b('मराठी',mr,'mr')}${b('English',!mr,'en')}</div>`;
+}
+function _ssHead(title, sub, backView){
+  const bk=backView?`<button type="button" aria-label="${_st('back')}" onclick="_ssGo('${backView}')" style="width:46px;height:46px;border-radius:14px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);color:#fff;font-size:22px;flex-shrink:0">‹</button>`:'';
+  return `<div style="background:#1E1B16;color:#fff;padding:14px 14px 18px;border-radius:0 0 24px 24px;display:flex;align-items:center;gap:10px;margin-bottom:12px">
+    ${bk}<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;letter-spacing:1px;color:#FCD34D;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(sub||'')}</div>
+    <div style="font-size:22px;font-weight:800;line-height:1.15;overflow-wrap:anywhere">${_esc(title)}</div></div>${_ssToggleHTML()}</div>`;
+}
+function _ssChip(t,fg,bg){ return `<span style="display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:999px;background:${bg};color:${fg};font-size:13px;font-weight:700;white-space:nowrap">${t}</span>`; }
+function _ssMsgHTML(){
+  if(_ss.msg!=='net') return '';
+  return `<div id="ss-netmsg" style="margin:0 14px 12px;padding:14px;border-radius:16px;background:#FEE2E2;border:2px solid #B91C1C;color:#7F1D1D">
+    <div style="font-size:18px;font-weight:800">${_st('noNet')}</div><div style="font-size:15px;line-height:1.35;margin-top:2px">${_st('noNetSub')}</div></div>`;
+}
+function _ssBigBtn(label, onclick, col){
+  return `<button type="button" onclick="${onclick}" style="width:100%;height:58px;border-radius:16px;border:none;background:${col||'#B45309'};color:#fff;font-size:21px;font-weight:800">${label}</button>`;
+}
+// ---- the screen ----
 function renderSiteSupHome(dash, alerts){
-  const td=today();
-  const myProj=_myProjects();
+  // V102.42: a redraw (e.g. Refresh) while typing on the machine screen keeps the typed numbers
+  if(_ss.view==='machEntry' && !_ss.keep){ const o=document.getElementById('ss-open'), c=document.getElementById('ss-close');
+    if(o && c && o.dataset.fid===_ss.fid) _ss.keep={o:o.value, c:c.value}; }
+  _ssEls={dash, alerts};
   alerts.innerHTML='';
-
-  if(!myProj.length){
-    dash.innerHTML=`
-      <div style="padding:40px 20px;text-align:center">
-        <div style="font-size:48px;margin-bottom:12px">📋</div>
-        <div style="font-family:var(--fh);font-size:18px;color:var(--amber);margin-bottom:8px">No projects assigned</div>
-        <div style="font-size:13px;color:var(--muted);line-height:1.5">Ask the Owner to assign projects to your account in User setup.</div>
-      </div>`;
+  const list=_ssProjects();
+  if(!list.length){
+    dash.innerHTML=_ssHead((sess&&sess.name)||'', _st('role'))+`<div style="padding:30px 20px;text-align:center;font-size:17px;color:var(--muted);line-height:1.5">${_st('noSite')}</div>`;
     return;
   }
-
-  // DPR status cards per assigned project
-  const cards=myProj.map(p=>{
-    const dpr=_findDPR(p.id,td);
-    const site=sites.find(s=>s.id===p.siteId);
-    const macCount=_siteMachines(p.siteId||'').length;
-    let statusBadge,statusColor,actionLabel;
-    if(!dpr){
-      statusBadge='NOT FILED'; statusColor='var(--red)'; actionLabel='START DPR →';
-    } else if(dpr.status==='verified'){
-      statusBadge='VERIFIED ✓'; statusColor='var(--green)'; actionLabel='VIEW →';
-    } else if(dpr.status==='submitted'){
-      statusBadge='SUBMITTED'; statusColor='var(--green)'; actionLabel='VIEW →';
-    } else {
-      statusBadge='DRAFT'; statusColor='var(--amber)'; actionLabel='CONTINUE →';
-    }
-    // machinery filled count
-    const machFilled=dpr?(dpr.machinery||[]).length:0;
-    return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin:0 14px 10px;cursor:pointer" onclick="startDPR('${p.id}')">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-        <div style="flex:1;min-width:0">
-          <div style="font-family:var(--fh);font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(p.name)}</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px">${site?_esc(site.name):'—'} · ${fmtD(td)}</div>
-        </div>
-        <span style="font-size:11px;font-weight:700;color:${statusColor};border:1.5px solid ${statusColor};border-radius:7px;padding:2px 9px;white-space:nowrap;margin-left:8px">${statusBadge}</span>
-      </div>
-      ${dpr?`<div style="display:flex;gap:12px;margin-bottom:10px">
-        <div style="font-size:12px;color:var(--muted)">⚙️ <span style="color:var(--txt)">${machFilled}/${macCount}</span> machinery</div>
-        <div style="font-size:12px;color:var(--muted)">👷 <span style="color:var(--txt)">${(dailyLabour||[]).filter(r=>r.dprId===dpr.id).length}</span> labour entries</div>
-        <div style="font-size:12px;color:var(--muted)">📐 <span style="color:var(--txt)">${workEntries.filter(w=>w.projectId===p.id&&w.date===td).length+(dailyLabour||[]).filter(r=>r.dprId===dpr.id).reduce((s,r)=>s+((r.pieceRows||[]).length),0)}</span> work items</div>
-      </div>`:'<div style="font-size:12px;color:var(--muted);margin-bottom:10px">Tap to start today\'s report</div>'}
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-        <button onclick="event.stopPropagation();openSiteSupStore('${p.id}')" style="background:var(--bg3);border:1px solid var(--amber);color:var(--amber);font-size:12px;font-weight:700;padding:7px 14px;border-radius:8px;cursor:pointer">📦 STORE</button>
-        <span style="font-size:13px;font-weight:700;color:${statusColor}">${actionLabel}</span>
-      </div>
-    </div>`;
-  }).join('');
-
-  dash.innerHTML=`
-    <div style="padding:12px 14px 6px;display:flex;justify-content:space-between;align-items:baseline">
-      <div style="font-family:var(--fh);font-size:15px">Today's DPR Status</div>
-      <div style="font-size:11px;color:var(--muted)">${fmtD(td)}</div>
-    </div>
-    ${cards}`;
+  if(_ss.pid && !list.some(p=>p.id===_ss.pid)) _ss.pid='';
+  if(!_ss.pid && list.length===1) _ss.pid=list[0].id;
+  if(!_ss.pid) _ss.view='pick';
+  if(_ss.view==='pick') return _ssPickHTML(dash, list);
+  if(_ss.view==='mach') return _ssMachListHTML(dash);
+  if(_ss.view==='machEntry') return _ssMachEntryHTML(dash);
+  if(_ss.view==='hajeri') return _ssHajeriHTML(dash);
+  _ss.view='home';
+  return _ssHomeHTML(dash, list);
 }
+function _ssPickHTML(dash, list){
+  dash.innerHTML=_ssHead(_st('pickSite'), (sess&&sess.name)||'')+
+    `<div style="display:flex;flex-direction:column;gap:10px;padding:0 14px 20px">`+
+    list.map(p=>{ const s=sites.find(x=>x.id===p.siteId);
+      return `<button type="button" onclick="_ssGo('home',{pid:'${p.id}'})" style="text-align:left;padding:18px 16px;border-radius:18px;background:var(--bg2);border:1px solid var(--border);color:var(--white)">
+        <div style="font-size:22px;font-weight:800">${_esc(p.name)}</div><div style="font-size:14px;color:var(--muted)">${_esc(s?s.name:'')}</div></button>`; }).join('')+`</div>`;
+}
+function _ssMachStatus(p){
+  const dpr=_findDPR(p.id,today());
+  const list=dpr?_dprMachineList(dpr):_siteMachines(p.siteId||'');
+  const lines={}; ((dpr&&dpr.machinery)||[]).forEach(m=>{ if(m&&m.fleetId) lines[m.fleetId]=m; });
+  const done=list.filter(v=>{ const m=lines[v.id]; return m && (m.mode==='km'?m.closeKm!=null:m.closeHr!=null); }).length;
+  return {list, lines, done, dpr};
+}
+function _ssStaffList(){ return (staff||[]).filter(s=>s.active!==false && s.category==='Site Staff'); }
+function _ssHomeHTML(dash, list){
+  const p=_ssProj(); const td=today();
+  const site=sites.find(s=>s.id===p.siteId);
+  const ms=_ssMachStatus(p);
+  const inN=_incomingTripsFor(p.id).length;
+  const outN=(materialOutward||[]).filter(r=>r&&r.projectId===p.id&&r.date===td).length;
+  const st=_ssStaffList(); const stDone=st.filter(s=>{ const r=(staffMusters||[]).find(m=>m.staffId===s.id&&m.date===td); return r&&r.status&&r.status!=='pending'; }).length;
+  const dpr=ms.dpr; const workN=dpr?(dailyLabour||[]).filter(r=>r.dprId===dpr.id).length:0;
+  const C=_SS_HUE;
+  const btn=(k,ico,label,status,onclick)=>`<button type="button" onclick="${onclick}" style="display:flex;align-items:center;gap:14px;padding:14px;min-height:90px;width:100%;text-align:left;border-radius:22px;background:var(--bg2);border:1px solid var(--border);color:var(--white)">
+      <div style="width:58px;height:58px;border-radius:18px;background:${C[k][1]};display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0">${ico}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:24px;font-weight:800;line-height:1.1">${label}</div></div>${status}</button>`;
+  const machStat=ms.list.length?(ms.done===ms.list.length?_ssChip('✓ '+_st('done'),'#15803D','#DCFCE7'):_ssChip(ms.done+' / '+ms.list.length,'#B45309','#FEF3C7')):_ssChip(_st('noMach'),'var(--muted)','var(--bg3)');
+  const inStat=inN?_ssChip(inN+' '+_st('toCheck'),'#fff','#1D4ED8'):'';
+  const outStat=outN?_ssChip(outN+' '+_st('entries'),'#6D28D9','#EDE9FE'):'';
+  const hjStat=st.length?(stDone===st.length?_ssChip('✓ '+_st('done'),'#15803D','#DCFCE7'):_ssChip(stDone+' / '+st.length,'#15803D','#DCFCE7')):'';
+  const kStat=workN?_ssChip(workN+' '+_st('entries'),'#0F766E','#CCFBF1'):'';
+  const mr=_ssLang()!=='en';
+  const dt=new Date(td+'T00:00:00');
+  const dateTxt=dt.toLocaleDateString(mr?'mr-IN-u-nu-latn':'en-IN',{weekday:'long',day:'numeric',month:'long'});
+  dash.innerHTML=`<div style="background:#1E1B16;color:#fff;padding:16px 16px 20px;border-radius:0 0 26px 26px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div style="min-width:0"><div style="font-size:16px;font-weight:700">${_esc((sess&&sess.name)||'')}</div><div style="font-size:13px;color:rgba(255,255,255,0.7)">${_st('role')}</div></div>${_ssToggleHTML()}</div>
+      <div style="margin-top:16px;font-size:12px;font-weight:700;letter-spacing:1px;color:#FCD34D">${_st('site')}</div>
+      <div style="font-size:32px;font-weight:800;line-height:1.05;text-transform:uppercase">${_esc(p.name)}</div>
+      <div style="font-size:15px;color:rgba(255,255,255,0.75)">${_esc(site?site.name+' · ':'')}${_esc(dateTxt)}</div>
+      ${list.length>1?`<button type="button" onclick="_ssGo('pick')" style="margin-top:10px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:12px;padding:8px 12px;font-size:14px;font-weight:700;min-height:40px">${_st('pickSite')}</button>`:''}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;padding:0 14px 20px">
+      ${btn('mach','🚜',_st('mach'),machStat,"_ssGo('mach')")}
+      ${btn('maalIn','📦',_st('maalIn'),inStat,"openSiteSupStore(_ss.pid)")}
+      ${btn('maalOut','📤',_st('maalOut'),outStat,"openSiteSupStore(_ss.pid)")}
+      ${btn('hajeri','🙋',_st('hajeri'),hjStat,"_ssGo('hajeri')")}
+      ${btn('kaam','🔨',_st('kaam'),kStat,"_ssOpenWork()")}
+    </div>`;
+}
+async function _ssOpenWork(){
+  const pid=_ss.pid; if(!pid) return;
+  await startDPR(pid);
+  if(_curDPR()){ _dprStep=2; renderDPRStep(); }
+}
+// ---- मशीन ----
+function _ssLineVals(m){ if(!m) return {o:null,c:null}; return m.mode==='km'?{o:m.openKm??null,c:m.closeKm??null}:{o:m.openHr??null,c:m.closeHr??null}; }
+// Opening rule (owner-approved 17 Nov): fill from the last closing ONLY if it was saved at this same
+// project and no later DPR at another project has a reading for the machine. Otherwise "new site".
+function _ssLastReadings(fid, pid){
+  const td=today(); let here=null, else_=null;
+  (dailyReports||[]).forEach(d=>{
+    if(!d || d.date>=td || d.pendingApproval) return;
+    const m=(d.machinery||[]).find(x=>x&&x.fleetId===fid); if(!m) return;
+    const v=_ssLineVals(m); const val=v.c!=null?v.c:v.o; if(val==null) return;
+    const rec={date:d.date, val, closed:v.c!=null, pid:d.projectId};
+    if(d.projectId===pid){ if(!here || d.date>here.date) here=rec; }
+    else { if(!else_ || d.date>else_.date) else_=rec; }
+  });
+  const newSite=!(here && here.closed && (!else_ || else_.date<here.date));
+  const last=[here,else_].filter(Boolean).sort((a,b)=>b.date.localeCompare(a.date))[0]||null;
+  return {here, else_, newSite, last};
+}
+function _ssMachListHTML(dash){
+  const p=_ssProj(); if(!p){ _ss.view='home'; return _ssRender(); }
+  const ms=_ssMachStatus(p);
+  const rows=ms.list.map(v=>{
+    const mode=_machMode(v), m=ms.lines[v.id], val=_ssLineVals(m);
+    const lr=_ssLastReadings(v.id,p.id);
+    let chip;
+    if(val.c!=null) chip=_ssChip('✓ '+_st('filled'),'#15803D','#DCFCE7');
+    else if(val.o!=null) chip=_ssChip(_st('half'),'#B45309','#FEF3C7');
+    else if(lr.newSite) chip=_ssChip(_st('newSite'),'#fff','#1D4ED8');
+    else chip=_ssChip(_st('fill'),'#B45309','#FEF3C7');
+    const unit=mode==='km'?_st('km'):_st('hrs');
+    const det=(val.o!=null||val.c!=null)?(_fmtNum(val.o)||'—')+' → '+(_fmtNum(val.c)||'—')+(val.o!=null&&val.c!=null&&val.c>=val.o?' · '+_fmtNum(Math.round((val.c-val.o)*100)/100)+' '+unit:''):(mode==='km'?_st('odo'):_st('hourMeter'));
+    return `<button type="button" onclick="_ssGo('machEntry',{fid:'${v.id}'})" style="display:flex;align-items:center;gap:12px;padding:14px;width:100%;text-align:left;border-radius:20px;background:var(--bg2);border:1px solid var(--border);color:var(--white)">
+      <div style="width:50px;height:50px;border-radius:16px;background:#FEF3C7;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">🚜</div>
+      <div style="flex:1;min-width:0"><div style="font-size:21px;font-weight:800;line-height:1.1">${_esc(v.name)}</div><div style="font-size:14px;color:var(--muted)">${_esc(det)}</div></div>${chip}</button>`;
+  }).join('');
+  dash.innerHTML=_ssHead(_st('mach'), p.name+' · '+fmtD(today()), 'home')+
+    `<div style="display:flex;flex-direction:column;gap:10px;padding:0 14px">
+      <div style="font-size:13px;font-weight:700;letter-spacing:1px;color:var(--muted)">${_st('machHere')} · ${ms.list.length}</div>${rows}</div>
+    <div style="margin:16px 14px 20px;padding:16px;border-radius:18px;border:1.5px dashed var(--border);display:flex;gap:12px;align-items:center">
+      <div style="font-size:26px">📞</div><div style="font-size:16px;line-height:1.35"><b>${_st('machMissing')}</b><br><span style="color:var(--muted)">${_st('callOwner')}</span></div></div>`;
+}
+function _ssMachEntryHTML(dash){
+  const p=_ssProj(); const v=gV(_ss.fid);
+  if(!p||!v){ _ss.view='mach'; return _ssRender(); }
+  const mode=_machMode(v), unit=mode==='km'?_st('km'):_st('hrs');
+  const dpr=_findDPR(p.id,today());
+  const m=dpr?(dpr.machinery||[]).find(x=>x&&x.fleetId===v.id):null;
+  const val=_ssLineVals(m);
+  const mine=!m || (val.o==null&&val.c==null) || (m.enteredBy && m.enteredBy===(sess&&sess.userId));
+  const lr=_ssLastReadings(v.id,p.id);
+  const keep=_ss.keep||{};                      // values typed before a refused save
+  let openVal=keep.o!=null?keep.o:(val.o!=null?val.o:'');
+  let auto=false;
+  if(openVal==='' && !lr.newSite && lr.here){ openVal=lr.here.val; auto=true; }
+  const closeVal=keep.c!=null?keep.c:(val.c!=null?val.c:'');
+  const box=(id,v_,ro,focus)=>`<input id="${id}" data-fid="${_esc(v.id)}" type="number" inputmode="decimal" value="${v_===''?'':_esc(v_)}" ${ro?'readonly':''} oninput="_ssLive()" placeholder="${_st('typeHere')}"
+      style="width:100%;box-sizing:border-box;height:70px;border-radius:16px;border:2px solid ${focus?'#B45309':'var(--border)'};background:var(--bg);color:var(--white);font-size:32px;font-weight:800;padding:0 16px">`;
+  const lastPlace=lr.last?((projects.find(x=>x.id===lr.last.pid)||{}).name||''):'';
+  const newSiteBox=lr.newSite?`<div style="padding:14px;border-radius:16px;background:#DBEAFE;color:#1E3A8A;font-size:16px;line-height:1.35"><b>${_st('newSiteNote')}</b>${lr.last?`<br>${_st('lastKnown')}: <b>${_fmtNum(lr.last.val)} ${unit}</b> · ${_esc(lastPlace)} · ${fmtD(lr.last.date)}`:''}</div>`:'';
+  dash.innerHTML=_ssHead(v.name, (mode==='km'?_st('odo'):_st('hourMeter'))+' · '+p.name, 'mach')+_ssMsgHTML()+
+    `<div style="display:flex;flex-direction:column;gap:14px;padding:0 14px">
+      ${mine?'':`<div style="padding:12px 14px;border-radius:14px;background:var(--bg3);font-size:15px">${_st('officeFilled')}</div>`}
+      ${newSiteBox}
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:8px">
+        <label for="ss-open" style="font-size:18px;font-weight:700">${lr.newSite?_st('openMeter'):_st('open')} (${unit})</label>${box('ss-open',openVal,!mine,false)}
+        ${auto?`<div style="font-size:14px;color:#15803D;font-weight:600">✓ ${_st('autoFilled')}</div>`:''}
+        <div id="ss-travel" style="font-size:15px;color:#1D4ED8;font-weight:700"></div></div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:8px">
+        <label for="ss-close" style="font-size:18px;font-weight:700">${_st('close')} (${unit})</label>${box('ss-close',closeVal,!mine,true)}
+        <div style="font-size:14px;color:var(--muted)">${_st('eveningHint')}</div></div>
+      <div style="padding:12px 14px;border-radius:16px;background:#FEF3C7;color:#78350F;font-size:18px;font-weight:700">${_st('ranToday')}: <span id="ss-ran" style="font-size:24px">—</span></div>
+      ${mine?_ssBigBtn(_ss.msg==='net'?_st('saveAgain'):_st('save'),"_ssSaveMach()"):''}
+    </div><div style="height:24px"></div>`;
+  _ss.lastKnown=lr.newSite&&lr.last?lr.last.val:(lr.here?lr.here.val:null);
+  _ss.newSite=!!lr.newSite;
+  _ss.keep=null;
+  _ssLive();
+}
+function _ssLive(){
+  const v=gV(_ss.fid); if(!v) return;
+  const unit=_machMode(v)==='km'?_st('km'):_st('hrs');
+  const o=_numOrNull((document.getElementById('ss-open')||{}).value), c=_numOrNull((document.getElementById('ss-close')||{}).value);
+  const ran=document.getElementById('ss-ran'); if(ran) ran.textContent=(o!=null&&c!=null&&c>=o)?(_fmtNum(Math.round((c-o)*100)/100)+' '+unit):'—';
+  const tr=document.getElementById('ss-travel');
+  if(tr) tr.textContent=(_ss.newSite && _ss.lastKnown!=null && o!=null && o>_ss.lastKnown)?(_st('travel')+': '+_fmtNum(Math.round((o-_ss.lastKnown)*100)/100)+' '+unit+' — '+_st('travelNote')):'';
+}
+async function _ssSaveMach(){
+  if(!isSiteSup()) return;
+  const p=_ssProj(); const v=gV(_ss.fid); if(!p||!v) return;
+  const mode=_machMode(v);
+  const o=_numOrNull((document.getElementById('ss-open')||{}).value), c=_numOrNull((document.getElementById('ss-close')||{}).value);
+  if(o==null && c==null){ alert(_st('enterReading')); return; }
+  if(o!=null && c!=null){
+    if(c<o){ if(!confirm(_st('warnBack'))) return; }
+    else if(mode==='hr'){ const h=c-o; if(h>24){ alert(_st('over24')); return; } if(h>12 && !confirm(_st('over12'))) return; }
+  }
+  if(o!=null && _ss.lastKnown!=null && o<_ss.lastKnown){ if(!confirm(_st('warnBelowLast'))) return; }
+  const keep={o:o==null?'':o, c:c==null?'':c};
+  const refuse=()=>{ _ss.msg='net'; _ss.keep=keep; _ssRender(); };
+  // today's DPR: adopt the server's, or create it (same rules as startDPR, V100.12)
+  const td=today();
+  let dpr=_findDPR(p.id,td);
+  if(!dpr){
+    const id=_dprKey(p.id,td);
+    const remote=await _dprRemoteGet(id);
+    if(remote===undefined) return refuse();
+    if(remote && typeof remote==='object'){ dpr=Object.assign({},remote,{id}); dailyReports.push(dpr); }
+    else {
+      dpr={id, projectId:p.id, siteId:p.siteId||'', date:td, status:'draft', machinery:[], labour:[],
+           loggedBy:sess.userId, loggedByName:sess.name, ts:Date.now()};
+      _bdStamp(dpr);
+      const ok=await _dprCreateWrite(dpr);
+      if(ok===false) return refuse();
+      dailyReports.push(dpr);
+    }
+  }
+  const fid=v.id, me=sess.userId, myName=sess.name;
+  let blocked=false;
+  const change=cur=>{
+    const cv=_ssLineVals(cur);
+    if(cur && (cv.o!=null||cv.c!=null) && cur.enteredBy!==me){ blocked=true; return cur; }   // office line: not his to change
+    const r=Object.assign({}, cur||{}, {fleetId:fid, name:v.name, mode});
+    if(mode==='hr'){ r.openHr=o; r.closeHr=c; } else { r.openKm=o; r.closeKm=c; }
+    if(mode==='hr' && r.rateHr==null){ const mr=_mrRate(fid); if(mr!=null) r.rateHr=mr; }
+    r.enteredBy=me; r.enteredByName=myName; r.enteredTs=Date.now();
+    return r;
+  };
+  const res=await _dprMachMergeSave(dpr, {[fid]:change}, null);
+  if(!res.ok) return refuse();
+  if(blocked){ alert(_st('officeFilled')); _ssGo('machEntry',{fid, keep:{}}); return; }
+  const rw=await _syncMachineryToReports(dpr,[fid]);
+  if((rw||[]).some(x=>x===false)){ _ss.msg='net'; _ss.keep=keep; alert(_st('readingNotSent')); return _ssRender(); }
+  flash(_st('saved'), v.name);
+  _ssGo('mach');
+}
+// ---- हजेरी ----
+function _smKey(staffId,date){ const clean=x=>String(x==null?'':x).replace(/[.$#\[\]\/]/g,''); return 'sm-'+clean(staffId)+'-'+clean(date); }
+// Reads ONE attendance record from the server. object = exists, null = does not, undefined = could not check.
+async function _smRemoteGet(id){
+  if(typeof FB_URL==='undefined'||typeof FB_KEY==='undefined'||!id) return undefined;
+  try{
+    const token=(typeof fbGetAuth==='function')?await fbGetAuth():null;
+    const authParam=token?('auth='+token):('auth='+FB_KEY);
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),8000);
+    const res=await fetch(FB_URL+'/fuellog/staffMusters/'+id+'.json?'+authParam,{signal:ctrl.signal});
+    clearTimeout(t);
+    if(!res.ok) return undefined;
+    const val=await res.json();
+    return (val&&typeof val==='object')?val:null;
+  }catch(e){ return undefined; }
+}
+function _ssHajeriHTML(dash){
+  const p=_ssProj(); if(!p){ _ss.view='home'; return _ssRender(); }
+  const td=today(); const list=_ssStaffList();
+  const recOf=s=>(staffMusters||[]).find(m=>m.staffId===s.id&&m.date===td);
+  const doneN=list.filter(s=>{ const r=recOf(s); return r&&r.status&&r.status!=='pending'; }).length;
+  const ST=[['present','#15803D'],['halfday','#B45309'],['absent','#B91C1C'],['leave','#4F46E5']];
+  const rows=list.map(s=>{
+    const r=recOf(s); const marked=r&&r.status&&r.status!=='pending';
+    const ini=_esc(String(s.name||'?').trim().charAt(0).toUpperCase());
+    const av=`<div style="width:44px;height:44px;border-radius:999px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:var(--muted);flex-shrink:0">${ini}</div>`;
+    if(marked){
+      const col=(ST.find(x=>x[0]===r.status)||['','#57534E'])[1];
+      return `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;background:var(--bg2);border:1px solid var(--border)">${av}
+        <div style="flex:1;min-width:0"><div style="font-size:19px;font-weight:800">${_esc(s.name)}</div><div style="font-size:14px;color:var(--muted)"><b style="color:${col}">${_st(r.status)}</b> · ${_esc(r.by||'')} ${_st('markedBy')}</div></div><div style="font-size:20px">🔒</div></div>`;
+    }
+    const bs=ST.map(([k,c])=>`<button type="button" onclick="_ssMark('${s.id}','${k}')" style="height:46px;border-radius:12px;border:2px solid ${c};background:transparent;color:${c};font-size:15px;font-weight:800">${_st(k)}</button>`).join('');
+    return `<div style="display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:18px;background:var(--bg2);border:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:12px">${av}<div style="font-size:19px;font-weight:800">${_esc(s.name)}</div></div>
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">${bs}</div></div>`;
+  }).join('');
+  dash.innerHTML=_ssHead(_st('hajeri'), _st('staffTitle'), 'home')+_ssMsgHTML()+
+    `<div style="display:flex;flex-direction:column;gap:10px;padding:0 14px">
+      <div style="font-size:13px;font-weight:700;letter-spacing:1px;color:var(--muted)">${_st('ofMarked')}: ${doneN} / ${list.length}</div>
+      ${list.length?rows:`<div style="padding:20px;text-align:center;color:var(--muted);font-size:16px">${_st('noStaff')}</div>`}
+      <div style="padding:10px 4px 24px;text-align:center;font-size:14px;color:var(--muted)">🔒 ${_st('lockNote')}</div></div>`;
+}
+async function _ssMark(staffId, status){
+  if(!isSiteSup()) return;
+  const s=(staff||[]).find(x=>x.id===staffId);
+  if(!s || s.active===false || s.category!=='Site Staff') return;           // Site Staff only
+  if(!['present','halfday','absent','leave'].includes(status)) return;
+  const td=today();                                                         // today only
+  const local=(staffMusters||[]).find(m=>m.staffId===staffId&&m.date===td)||null;
+  const fixedId=_smKey(staffId,td);
+  const remote=await _smRemoteGet(local?local.id:fixedId);
+  if(remote===undefined){ _ss.msg='net'; return _ssRender(); }
+  const ex=remote||local;
+  if(ex && ex.status && ex.status!=='pending'){
+    // someone already marked: show it (server copy wins) and stop — only the owner changes it
+    if(remote){ const i=staffMusters.findIndex(m=>m.id===remote.id); const rr=Object.assign({},remote); if(i>=0) staffMusters[i]=rr; else staffMusters.push(rr); }
+    if(ex.status!==status) alert(_st('alreadyMarked'));
+    _ss.msg=''; return _ssRender();
+  }
+  const rec={id:(ex&&ex.id)||fixedId, staffId, date:td, status, advance:(ex&&ex.advance)||0, advRemark:(ex&&ex.advRemark)||'',
+             by:sess.name||'', byUserId:sess.userId||'', siteProjectId:_ss.pid||'', ts:Date.now()};
+  const ok=await _fbWrite('staffMusters/'+rec.id, rec);
+  if(ok===false){ _ss.msg='net'; return _ssRender(); }
+  const i=staffMusters.findIndex(m=>m.id===rec.id || (m.staffId===staffId&&m.date===td));
+  if(i>=0) staffMusters[i]=rec; else staffMusters.push(rec);
+  _ss.msg=''; _ssRender();
+}
+// =================== END V102.42 SITE SUPERVISOR SCREEN ===================
 
 function renderOpsTab(el){
   const pending=disbs.filter(d=>(d.source==='can'||d.destType==='can')&&d.dipStatus==='pending').length;
@@ -9319,7 +9627,7 @@ function renderFleetLog(){
         <div class="li-ico">${vIco(f.type)}</div>
         <div class="li-main">
           <div class="li-name">${f.name}</div>
-          <div class="li-det">${f.type}${f.calibration?' · 📏 '+f.calibration+' L/cm':''}${f.unit&&f.unit!=='none'?' · '+f.unit.toUpperCase():''}</div>
+          <div class="li-det">${f.type}${f.calibration?' · 📏 '+f.calibration+' L/cm':''}${f.unit&&f.unit!=='none'?' · '+f.unit.toUpperCase():''}${isOwner()&&_machMode(f)==='hr'?(_mrRate(f.id)!=null?' · <b style="color:var(--green)">₹'+_mrRate(f.id)+'/hr</b>':' · <span style="color:var(--amber)">no ₹/hr</span>'):''}</div>
           <div class="li-by">👤 ${f.driverName||'No driver assigned'} · ✅ ${(checklistTemplates||[]).find(t=>t.id===f.checklistTemplateId)?.name||'No checklist'}</div>
           ${f.calibration?'<span class="bdg bg-grn">Dip Ready</span>':isMach(f.type)?'<span class="bdg bg-amb">No Calib</span>':''}
         </div>
@@ -9327,6 +9635,7 @@ function renderFleetLog(){
           <button class="li-btn" title="Change Site" onclick="editFleetSite('${f.id}')">📍</button>
           <button class="li-btn" title="Assign Driver" onclick="editFleetDriver('${f.id}')">👤</button>
           <button class="li-btn" title="Assign Checklist" onclick="editFleetChecklist('${f.id}')" style="color:${f.checklistTemplateId?'var(--green)':'var(--muted)'}">✅</button>
+          ${isOwner()&&_machMode(f)==='hr'?`<button class="li-btn" title="₹ per hour (diesel included)" onclick="editMachineRate('${f.id}')">₹</button>`:''}
           ${isOwner()?`<button class="li-btn" onclick="openEditModal('fleet','${f.id}')">✏️</button>
           <button class="li-btn del" onclick="delFleet('${f.id}')">🗑</button>`:''}
         </div>`:''}
@@ -14388,14 +14697,15 @@ function _plMachinery(projectId, from, to, boqItemId){
     const c=Number(t.tripCost)||0; if(!(c>0)) return;
     tripTotal += c*(Number(t.numTrips)||1); tripCount++;
   });
-  const byMach={};
+  const byMach={}, noRate={};
   _appr(dailyReports).filter(d=>d.projectId===projectId && _plIn(d.date, from, to)).forEach(d=>{
     (d.machinery||[]).forEach(m=>{
       if(!m || m.mode!=='hr') return;
-      const rate=Number(m.rateHr)||0; if(!(rate>0)) return;
+      const rate=Number(m.rateHr)||0;
       const o=Number(m.openHr), c=Number(m.closeHr);
-      if(!isFinite(o)||!isFinite(c)) return;
+      if(m.openHr==null||m.closeHr==null||!isFinite(o)||!isFinite(c)) return;
       const hrs=c-o; if(!(hrs>0)) return;                   // never a negative or zero cost
+      if(!(rate>0)){ const nk=m.fleetId||m.name||'?'; noRate[nk]=noRate[nk]||{name:m.name||'(machine)', hours:0}; noRate[nk].hours+=hrs; return; }   // V102.42
       const k=m.fleetId||m.name||'?';
       byMach[k]=byMach[k]||{fleetId:m.fleetId||'', name:m.name||'(machine)', hours:0, amount:0};
       byMach[k].hours+=hrs; byMach[k].amount+=hrs*rate;
@@ -14403,7 +14713,7 @@ function _plMachinery(projectId, from, to, boqItemId){
   });
   const machines=Object.values(byMach).sort((a,b)=>b.amount-a.amount);
   const machTotal=machines.reduce((s,m)=>s+m.amount,0);
-  return {total:tripTotal+machTotal, trips:{total:tripTotal,count:tripCount}, machines};
+  return {total:tripTotal+machTotal, trips:{total:tripTotal,count:tripCount}, machines, noRate:Object.values(noRate)};
 }
 // LABOUR — ONE head, TWO lines inside, from two different collections:
 //  (a) OWN GANGS: dailyLabour.totalAmount = daywork (count × rate) + piecework (per-line amount).
@@ -14483,6 +14793,7 @@ function _plSummary(projectId, from, to, boqItemId){
   if(rev.total<=0 && cost>0) warnings.unshift('No work done recorded in this period, so revenue reads zero. This is a measurement gap, not a loss.');
   else if(cost>0 && rev.total>0 && rev.total<cost*0.5) warnings.unshift('Recorded work done looks low against costs — check whether execution has been entered for the whole period.');
   if(lab.skipped.length) warnings.push(lab.skipped.length+' subcontract line(s) skipped: contract unit does not match the BOQ unit.');
+  if(mac.noRate && mac.noRate.length) warnings.push('Machines with hours but no \u20b9/hr rate (counted as \u20b90): '+mac.noRate.map(function(x){ return x.name+' '+_plQty(x.hours)+' hrs'; }).join(', ')+'. Set the rate in Fleet.');   // V102.42
   // Material head = materials consumed + invoice service charges, shown as TWO lines under one
   // head (same pattern as own-gangs/subcontract under Labour), so the summary stays at 3 heads.
   return {projectId, from:from||'', to:to||'', revenue:rev, material:mat, services:svc,
@@ -15051,7 +15362,7 @@ async function _dprRemoteGet(id){
 // regression a shared id would otherwise introduce.
 // Every read of machinery in the file is (x.machinery||[]) — verified by grep — so a
 // record created without the key behaves identically to one created with [].
-// saveDPRMachinery is UNTOUCHED and still writes the whole record, as it always has.
+// V102.42: saveDPRMachinery no longer writes the whole record — see _dprMachMergeSave.
 async function _dprCreateWrite(dpr){
   if(typeof _clearTombstone==='function') _clearTombstone('dailyReports',dpr.id);
   const patch={};
@@ -15368,7 +15679,7 @@ function openDPRForEdit(dprId){
   _curDPRId=dpr.id;
   _dprFromHistory=true;
   _dprReturn=false;
-  _dprMach={};
+  _dprMach={}; _dprShownFor='';   // V102.42
   (dpr.machinery||[]).forEach(m=>{ _dprMach[m.fleetId]=m; });
   _dprStep=1;
   renderDPRStep();
@@ -15527,7 +15838,7 @@ async function openBackdateDPR(){
   _curDPRId=dpr.id;
   _dprFromHistory=true;
   _dprReturn=false;
-  _dprMach={};
+  _dprMach={}; _dprShownFor='';   // V102.42
   _dprStep=1;
   renderDPRStep();
   show('scr-dpr-wizard');
@@ -17134,7 +17445,7 @@ let _vendDetailId=null;
 // behaves exactly as before; only the report sets it to scr-reports.
 let _vendBackTo='scr-vendors';
 function _vendBack(){ const t=_vendBackTo; _vendBackTo='scr-vendors'; show(t); }
-function openVendorFromReport(vid){ _vendBackTo='scr-reports'; openVendor(vid); }
+function openVendorFromReport(vid){ if(!_canFin()){ alert(_NOT_ALLOWED_VEND); return; } _vendBackTo='scr-reports'; openVendor(vid); }   // V102.42 L1
 // ===================== V102.29 BILL-WISE VENDOR LEDGER =====================
 // Display only: groups the vendor's purchase lines into bills (vendor + bill no. + date; no bill
 // no. → the save's invoiceId; nothing → the line alone). The balance is computed exactly as
@@ -17857,7 +18168,8 @@ function _hcCompute(){
 }
 function openHealth(){ if(!isOwner()){ alert('Owner only'); return; } _hcOpen={}; show('scr-health'); renderHealth(); }
 function _hcToggle(k){ _hcOpen[k]=!_hcOpen[k]; renderHealth(); }
-function _hcGo(vid,key){ if(!vid) return; openVendor(vid); if(key){ _vlState.open[key]=true; _vlRenderList(); } }
+function _hcGo(vid,key){ if(!vid) return; if(!_canFin()){ alert(_NOT_ALLOWED_VEND); return; } openVendor(vid);   // V102.42 L2
+  if(key){ _vlState.open[key]=true; _vlRenderList(); } }
 function renderHealth(){
   const el=document.getElementById('health-body'); if(!el) return;
   const r=_hcCompute();
@@ -21103,7 +21415,7 @@ async function startDPR(projectId){
   }
   _curDPRId=dpr.id;
   // hydrate machinery working-state from saved record
-  _dprMach={};
+  _dprMach={}; _dprShownFor='';   // V102.42
   (dpr.machinery||[]).forEach(m=>{ _dprMach[m.fleetId]=m; });
   _dprStep=1;
   renderDPRStep();
@@ -21129,7 +21441,7 @@ function renderDPRStep(){
     </div>`;
   }).join('');
   const body=document.getElementById('dpr-wiz-body');
-  if(_dprStep===1){ sup ? renderDPRMachineryView(body) : renderDPRMachinery(body); }
+  if(_dprStep===1){ sup ? renderDPRMachineryView(body) : renderDPRMachinery(body); if(!sup) _dprSnapShown(); }   // V102.42
   else if(_dprStep===2) renderDPRLabour(body);          // V99.69: merged Work Done (BOQ + gang)
   else if(_dprStep===3) renderDPRMaterialStep(body);
   else { _dprStep=3; renderDPRMaterialStep(body); }     // stale step 4 → Material
@@ -21250,7 +21562,7 @@ function renderDPRMachinery(body){
       ${_canEnterDprRate()?(mode==='hr'
         ? `<div style="border-top:1px dashed var(--border);margin-top:9px;padding-top:9px;display:flex;gap:8px;align-items:flex-end">
              <div style="flex:1"><label style="font-size:11px;color:var(--amber)">Rate ₹/hr</label>
-               <input class="f-inp" id="m-rate-${v.id}" type="number" inputmode="decimal" value="${m.rateHr??''}" style="padding:7px 8px;border-color:var(--amber)" oninput="_dprRateLive('${v.id}')"></div>
+               <input class="f-inp" id="m-rate-${v.id}" type="number" inputmode="decimal" value="${m.rateHr??(_mrRate(v.id)??'')}" style="padding:7px 8px;border-color:var(--amber)" oninput="_dprRateLive('${v.id}')"></div>
              <div style="flex:1.4;padding-bottom:8px" id="m-ramt-${v.id}"></div>
            </div>`
         : `<div style="font-size:10px;color:var(--muted);font-style:italic;margin-top:8px">Cost for this vehicle is entered per trip, not here.</div>`
@@ -21461,30 +21773,145 @@ function _readMachInputs(){
     // A rate on its own is not worth a record — no hours means no cost either way. The
     // rate is kept only when the machine actually has a reading against it.
     const any=[rec.openHr,rec.closeHr,rec.openKm,rec.closeKm,rec.openFuel,rec.fuelFilled,rec.closeFuel].some(x=>x!=null);
+    const _prev=_dprMach[v.id]||{};   // V102.42: keep who entered it (site screen)
+    ['enteredBy','enteredByName','enteredTs'].forEach(k=>{ if(_prev[k]!=null && rec[k]==null) rec[k]=_prev[k]; });
     if(any) _dprMach[v.id]=rec; else delete _dprMach[v.id];
   });
 }
 function _numOrNull(v){ if(v===''||v==null) return null; const n=parseFloat(v); return isNaN(n)?null:n; }
-function saveDPRMachinery(){
-  _readMachInputs();
+// ===================== V102.42 SAFE MACHINE-LINE SAVE =====================
+// Before V102.42 saveDPRMachinery PUT the WHOLE DPR from this phone's copy, so a reading the site
+// supervisor saved a minute earlier could be wiped. Now every machine save (office screen and site
+// screen) fetches the server's DPR, changes ONLY the machines this person changed, and PATCHes the
+// machinery list (plus the fields passed in `extra`). Nothing is written if the server can't be read.
+// changes = {fleetId: newLine | null (remove) | function(serverLine)->newLine}
+function _mNorm(m){ if(!m||typeof m!=='object') return null; const o={}; Object.keys(m).forEach(k=>{ if(m[k]!==null && m[k]!==undefined) o[k]=m[k]; }); return o; }
+function _mSame(a,b){ return _frStable(_mNorm(a))===_frStable(_mNorm(b)); }
+async function _dprMachMergeSave(dpr, changes, extra){
+  if(!dpr||!dpr.id) return {ok:false};
+  const remote=await _dprRemoteGet(dpr.id);
+  if(remote===undefined) return {ok:false, why:'net'};
+  let base=[];
+  if(remote && remote.machinery){ base=Array.isArray(remote.machinery)?remote.machinery:Object.values(remote.machinery); }
+  else if(remote===null){ base=dpr.machinery||[]; }      // record not on the server yet: start from this phone's copy
+  const map=new Map(); const order=[];
+  base.forEach(m=>{ if(m&&m.fleetId){ if(!map.has(m.fleetId)) order.push(m.fleetId); map.set(m.fleetId,m); } });
+  Object.keys(changes||{}).forEach(id=>{
+    const ch=changes[id];
+    const nv=(typeof ch==='function')?ch(map.get(id)||null):ch;
+    if(nv){ if(!map.has(id)) order.push(id); map.set(id,nv); } else map.delete(id);
+  });
+  const merged=order.filter(id=>map.has(id)).map(id=>map.get(id));
+  const patch=Object.assign({}, extra||{}, {machinery:merged, ts:Date.now()});
+  if(remote===null){   // also write the identity fields so the record is complete
+    Object.keys(dpr).forEach(k=>{ if(k!=='machinery'&&k!=='labour'&&!(k in patch)) patch[k]=dpr[k]; });
+  }
+  if(typeof _clearTombstone==='function') _clearTombstone('dailyReports',dpr.id);
+  const ok=await _fbMerge('dailyReports/'+dpr.id, patch);
+  if(!ok) return {ok:false, why:'net'};
+  if(remote) Object.keys(remote).forEach(k=>{ if(k!=='machinery'&&!(k in patch)) dpr[k]=remote[k]; });
+  Object.assign(dpr, patch);
+  return {ok:true, merged};
+}
+// ---- V102.42 machine ₹/hr rates (diesel included) — collection machineRates, one record per machine,
+// id = fleetId, owner-only, written per record (never the whole Fleet list). Copied onto a DPR machine
+// line when that line is saved without a rate; changing a rate never changes old DPR lines.
+function _mrRate(fid){ const r=(machineRates||[]).find(x=>x&&x.id===fid); const n=r?Number(r.rate):NaN; return (isFinite(n)&&n>0)?n:null; }
+async function editMachineRate(fid){
+  if(!isOwner()){ alert('Only the owner can set machine rates.'); return; }
+  const v=gV(fid); if(!v) return;
+  const cur=_mrRate(fid);
+  const s=prompt('₹ per hour for '+v.name+' (diesel included).\nLeave empty to clear.', cur!=null?String(cur):'');
+  if(s===null) return;
+  const t=String(s).trim();
+  const n=t===''?0:parseFloat(t);
+  if(t!=='' && (!isFinite(n)||n<=0||n>100000)){ alert('Enter a rate between 1 and 1,00,000.'); return; }
+  const rec={id:fid, fleetId:fid, rate:t===''?0:Math.round(n*100)/100, by:sess.name||'', byUserId:sess.userId||'', ts:Date.now()};
+  const ok=await _fbWrite('machineRates/'+fid, rec);
+  if(ok===false){ alert('Could not reach the server — rate NOT saved. Try again.'); return; }
+  machineRates=machineRates||[];
+  const i=machineRates.findIndex(x=>x&&x.id===fid); if(i>=0) machineRates[i]=rec; else machineRates.push(rec);
+  try{ localStorage.setItem(SK.machineRates, JSON.stringify(machineRates)); }catch(e){}
+  flash('RATE SAVED', v.name+(rec.rate?' · ₹'+rec.rate+'/hr':' · cleared'));
+  renderFleetLog();
+}
+// =================== END V102.42 HELPERS ===================
+
+// V102.42: saves ONLY what this person changed, onto the server's latest DPR (_dprMachMergeSave).
+// "Changed" is judged against what the boxes SHOWED when the step was first drawn (_dprShown), never
+// against this phone's copy — boxes the screen filled itself (Log Reading, fuel issued, machine rate)
+// are not edits. Per machine: no line on the server yet -> write what the screen shows (pre-fill
+// included, as before); a line already on the server -> apply ONLY the fields this person edited;
+// untouched -> left exactly as the server has it. An edited line becomes an office line (enteredBy
+// removed) so the site supervisor can no longer overwrite the office's correction.
+let _dprShown=null, _dprShownFor='';
+function _readMachBoxes(){
+  const dpr=_curDPR(); const out={}; if(!dpr) return out;
+  _dprMachineList(dpr).forEach(v=>{
+    const modeEl=document.getElementById('m-mode-'+v.id); if(!modeEl) return;
+    const g=pre=>{ const e=document.getElementById(pre+v.id); return e?_numOrNull(e.value):undefined; };
+    const r={mode:modeEl.value};
+    if(r.mode==='hr'){ r.openHr=g('m-open-'); r.closeHr=g('m-close-'); } else { r.openKm=g('m-open-'); r.closeKm=g('m-close-'); }
+    r.openFuel=g('m-of-'); r.fuelFilled=g('m-ff-'); r.closeFuel=g('m-cf-');
+    const re=document.getElementById('m-rate-'+v.id); if(re) r.rateHr=_numOrNull(re.value);
+    out[v.id]=r;
+  });
+  return out;
+}
+function _dprSnapShown(){ const dpr=_curDPR(); if(dpr && _dprShownFor!==dpr.id){ _dprShown=_readMachBoxes(); _dprShownFor=dpr.id; } }
+const _M_READ=['openHr','closeHr','openKm','closeKm','openFuel','fuelFilled','closeFuel'];
+async function saveDPRMachinery(){
   const dpr=_curDPR(); if(!dpr) return;
-  dpr.machinery=Object.values(_dprMach);
-  dpr.ts=Date.now();
+  const now=_readMachBoxes();
+  const shown=(_dprShownFor===dpr.id && _dprShown)?_dprShown:{};
+  _readMachInputs();                                       // working copy for step navigation, as before
+  const touched=[];
+  const changes={};
+  Object.keys(now).forEach(id=>{
+    const box=now[id], sh=shown[id]||{}, v=gV(id);
+    changes[id]=cur=>{
+      let r;
+      if(!cur){
+        r={fleetId:id, name:(v&&v.name)||'', mode:box.mode};
+        Object.keys(box).forEach(k=>{ if(k!=='mode' && box[k]!=null) r[k]=box[k]; });
+      } else {
+        const edited=Object.keys(box).filter(k=>box[k]!==undefined && !_mSame({v:box[k]},{v:sh[k]}));
+        if(!edited.length) return cur;                       // untouched: server line stays as it is
+        r=Object.assign({}, cur, {fleetId:id, name:(v&&v.name)||cur.name||''});
+        edited.forEach(k=>{ if(box[k]==null) delete r[k]; else r[k]=box[k]; });
+        if(r.mode==='hr'){ delete r.openKm; delete r.closeKm; } else { delete r.openHr; delete r.closeHr; }
+        delete r.enteredBy; delete r.enteredByName; delete r.enteredTs;
+      }
+      if(r.mode==='hr' && r.rateHr==null){ const mr=_mrRate(id); if(mr!=null) r.rateHr=mr; }
+      const any=_M_READ.some(k=>r[k]!=null);
+      const out=any?r:null;
+      if(!_mSame(out,cur)) touched.push(id);
+      return out;
+    };
+  });
+  const tmp=Object.assign({}, dpr);
   // V71: if this DPR was opened from history (a past/existing DPR), stamp the edit.
   // Owner editing a VERIFIED DPR drops it back to submitted so the sign-off stays honest.
   if(_dprFromHistory){
-    dpr.editedBy=sess.userId; dpr.editedByName=sess.name; dpr.editedTs=Date.now();
-    if(dpr.status==='verified'){ dpr.status='submitted'; dpr.unverifiedByEdit=true; }
+    tmp.editedBy=sess.userId; tmp.editedByName=sess.name; tmp.editedTs=Date.now();
+    if(tmp.status==='verified'){ tmp.status='submitted'; tmp.unverifiedByEdit=true; }
   }
-  _bdStamp(dpr); _fbWrite('dailyReports/'+dpr.id, dpr);   // append-only single-record write
-  // write native readings + disbs so efficiency reports see this data
-  _syncMachineryToReports(dpr);
+  _bdStamp(tmp);
+  const extra={}; Object.keys(tmp).forEach(k=>{ if(k!=='machinery'&&k!=='labour'&&k!=='ts'&&!_mSame({v:tmp[k]},{v:dpr[k]})) extra[k]=tmp[k]; });
+  const res=await _dprMachMergeSave(dpr, changes, extra);
+  if(!res.ok){ alert('Could not reach the server — machinery NOT saved.\n\nCheck the connection and tap SAVE again. What you typed is still on screen.'); return; }
+  _dprMach={}; (dpr.machinery||[]).forEach(m=>{ if(m&&m.fleetId) _dprMach[m.fleetId]=m; });
+  _dprShownFor='';
+  _syncMachineryToReports(dpr, touched);
   flash('MACHINERY SAVED','Linked to fuel reports');
   _dprStep=2; renderDPRStep();
 }
 // Writes DPR machinery into readings (hours/fuel-level) only. V102.23: no longer writes disbs (fuel).
-function _syncMachineryToReports(dpr){
+function _syncMachineryToReports(dpr, onlyIds){   // V102.42: onlyIds = write readings for these machines only
+  const only=Array.isArray(onlyIds)?new Set(onlyIds):null;
+  const _rw=[];   // V102.42: the writes, so a caller can wait for them
   (dpr.machinery||[]).forEach(m=>{
+    if(only && !(m && only.has(m.fleetId))) return;
     const v=gV(m.fleetId); const calib=v&&v.calibration||null;
     // READINGS: hours + fuel levels
     const hours=(m.mode==='hr')?( (m.closeHr!=null&&m.openHr!=null)?(m.closeHr-m.openHr):null):null;
@@ -21504,11 +21931,12 @@ function _syncMachineryToReports(dpr){
       };
       const idx=readings.findIndex(r=>r.id===rId);
       if(idx>=0) readings[idx]=rec; else readings.push(rec);
-      _fbWrite('readings/'+rId, rec);
+      _rw.push(_fbWrite('readings/'+rId, rec));
     }
     // V102.23: the DPR NO LONGER writes fuel entries. 'Fuel filled' flows one way only:
     // fuel log -> DPR (pre-fill). Writing it back created a second 'Auto from DPR' entry.
   });
+  return Promise.all(_rw);
 }
 
 // ---- Step 3: Work Done (re-houses V65 work-entry engine into the wizard) ----
@@ -23834,10 +24262,10 @@ const FB_KEY = 'AIzaSyB44pKu7YTc-Q_6GLC3mlaEBPJm3d3odPc';
 // V102.18 SECURITY STEP 4: the shared master account (and its password) was REMOVED from the app.
 // Each device signs in with its own account (see 'Set up this device'). Old master sign-in passes are wiped below.
 try{ localStorage.removeItem('fb_auth'); localStorage.removeItem('fb_refresh'); }catch(e){}
-const APP_VERSION = 'V102.41'; // bump this on every deploy
+const APP_VERSION = 'V102.42'; // bump this on every deploy
 
 // All keys we sync to Firebase
-const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords','trips','customers','materials','staff','staffMusters','pumpPayments','projects','boqItems','workEntries','subcontractors','subContracts','dailyReports','gangs','dailyLabour','royalty','materialInward','materialOutward','vendors','vendorTxns','paverLabour','gangLedger','rmcProd','siteWatch'];
+const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords','trips','customers','materials','staff','staffMusters','pumpPayments','projects','boqItems','workEntries','subcontractors','subContracts','dailyReports','gangs','dailyLabour','royalty','materialInward','materialOutward','vendors','vendorTxns','paverLabour','gangLedger','rmcProd','siteWatch','machineRates'];
 
 let fbOnline = false;
 let fbSyncing = false;
@@ -24805,6 +25233,7 @@ async function fbInit(){
       else if(k==='paverLabour') paverLabour=_dedup(val);
       else if(k==='rmcProd') rmcProd=_dedup(val);
       else if(k==='siteWatch') siteWatch=_dedup(val);
+      else if(k==='machineRates') machineRates=_dedup(val);   // V102.42
       else if(k==='gangLedger') gangLedger=_dedup(val);
       else if(k==='gangs') gangs=_dedup(val);
       else if(k==='dailyLabour') dailyLabour=_dedup(val);
@@ -24858,6 +25287,7 @@ async function fbInit(){
         else if(k==='paverLabour') paverLabour=val;
         else if(k==='rmcProd') rmcProd=val;
         else if(k==='siteWatch') siteWatch=val;
+        else if(k==='machineRates') machineRates=val;   // V102.42
         else if(k==='gangLedger') gangLedger=val;
         else if(k==='gangs') gangs=val;
         else if(k==='dailyLabour') dailyLabour=val;
@@ -25160,6 +25590,7 @@ async function refreshData(_frPre){   // V102.15: _frPre = data already download
       else if(k==='paverLabour') paverLabour=_dedup(val);
       else if(k==='rmcProd') rmcProd=_dedup(val);
       else if(k==='siteWatch') siteWatch=_dedup(val);
+      else if(k==='machineRates') machineRates=_dedup(val);   // V102.42
       });
       window._dataAt=Date.now();   // V102.28: screens refilled
       // Re-render current screen
@@ -26099,53 +26530,72 @@ function renderStaffMuster(){
   }).join('');
 }
 
-function markStaffMuster(staffId, status){
+// V102.42: office muster saves (mark + advance) read the server copy FIRST, check the owner-only
+// lock against it, and PATCH only the fields they change — so a phone that has not refreshed can
+// never overwrite or reset a mark made on another phone (site supervisor or another office phone).
+// Nothing is written if the server cannot be read.
+async function _smFresh(staffId, td){
+  const local=(staffMusters||[]).find(m=>m.staffId===staffId&&m.date===td)||null;
+  const remote=await _smRemoteGet(local?local.id:_smKey(staffId,td));
+  if(remote===undefined) return {fail:true};
+  if(remote){ const rr=Object.assign({},remote); const i=staffMusters.findIndex(m=>m.id===rr.id); if(i>=0) staffMusters[i]=rr; else staffMusters.push(rr); }
+  const ex=remote||local;
+  return {ex, onServer:!!remote, id:(ex&&ex.id)||_smKey(staffId,td)};
+}
+function _smNoNet(){ alert('Could not reach the server — attendance NOT saved.\n\nCheck the connection and try again.'); }
+async function markStaffMuster(staffId, status){
   if(!isOwner()&&!isAdmin()&&!isManager()){alert('Access denied');return;}
   const td = _musterDate||today();
-  { const _ex=(staffMusters||[]).find(m=>m.staffId===staffId&&m.date===td); if(_musterLocked(_ex,status,_ex&&_ex.by)) return; }   // V102.20
+  const f=await _smFresh(staffId, td);
+  if(f.fail){ _smNoNet(); return; }
+  const _ex=f.ex;
+  if(_ex && _ex.status===status){ renderStaffMuster(); updateMusterCount(); return; }   // same status: nothing to change, keep who marked
+  if(_musterLocked(_ex,status,_ex&&_ex.by)){ renderStaffMuster(); updateMusterCount(); return; }   // V102.20, now on the server copy
   // Backdate mode — require remark if record already exists and was previously marked
-  if(_musterDate){
-    const existing = staffMusters.find(m=>m.staffId===staffId&&m.date===td);
-    if(existing && existing.status && existing.status!=='pending'){
-      const remark=prompt('⚠️ Attendance for this day was already marked as "'+existing.status.toUpperCase()+'" by '+(existing.by||'manager')+'.\n\nEnter reason for change (required):','');
-      if(remark===null) return;
-      if(!remark.trim()){alert('A reason is required to edit past attendance.');return;}
-      _doMarkStaffMuster(staffId,status,td,remark.trim());
-      return;
-    }
+  if(_musterDate && _ex && _ex.status && _ex.status!=='pending'){
+    const remark=prompt('⚠️ Attendance for this day was already marked as "'+_ex.status.toUpperCase()+'" by '+(_ex.by||'manager')+'.\n\nEnter reason for change (required):','');
+    if(remark===null) return;
+    if(!remark.trim()){alert('A reason is required to edit past attendance.');return;}
+    return _doMarkStaffMuster(staffId,status,td,remark.trim(),f);
   }
-  _doMarkStaffMuster(staffId,status,td,null);
+  return _doMarkStaffMuster(staffId,status,td,null,f);
 }
 
-function _doMarkStaffMuster(staffId, status, td, editRemark){
-  const idx = staffMusters.findIndex(m=>m.staffId===staffId&&m.date===td);
-  const existing = idx>=0 ? staffMusters[idx] : null;
-  const rec = {id: existing?.id||uid(), staffId, date:td, status, advance:existing?.advance||0, advRemark:existing?.advRemark||'', by:sess?.name||'', ts:Date.now(),
+async function _doMarkStaffMuster(staffId, status, td, editRemark, f){
+  f=f||await _smFresh(staffId, td);
+  if(f.fail){ _smNoNet(); return; }
+  const ex=f.ex;
+  const patch={id:f.id, staffId, date:td, status, by:sess?.name||'', byUserId:sess?.userId||'', ts:Date.now(),
     ...(editRemark?{editRemark,editBy:sess.name,editTs:Date.now()}:{})};
+  if(!ex){ patch.advance=0; patch.advRemark=''; }
+  const ok=await _fbMerge('staffMusters/'+f.id, patch);
+  if(!ok){ _smNoNet(); return; }
+  const rec=Object.assign({}, ex||{}, patch);
+  const idx=staffMusters.findIndex(m=>m.id===rec.id || (m.staffId===staffId&&m.date===td));
   if(idx>=0) staffMusters[idx]=rec; else staffMusters.push(rec);
-  // V56 Rule 9: per-record write
-  _fbWrite('staffMusters/'+rec.id, rec);
   renderStaffMuster();
   updateMusterCount();
 }
 
-function saveStaffAdvance(staffId){
+async function saveStaffAdvance(staffId){
   const td = _musterDate||today();
   const amt = parseFloat(document.getElementById('adv-amt-'+staffId)?.value)||0;
   const rem = document.getElementById('adv-rem-'+staffId)?.value.trim()||'';
-  const idx = staffMusters.findIndex(m=>m.staffId===staffId&&m.date===td);
-  if(idx>=0){
-    staffMusters[idx].advance=amt; staffMusters[idx].advRemark=rem;
-    // V56 Rule 9: per-record write
-    _fbWrite('staffMusters/'+staffMusters[idx].id, staffMusters[idx]);
-  } else if(amt>0){
-    // V102.20: an advance NEVER marks attendance - saved as 'pending' (Not marked), same as the driver muster.
-    const rec={id:uid(),staffId,date:td,status:'pending',advance:amt,advRemark:rem,by:sess?.name||'',ts:Date.now()};
-    staffMusters.push(rec);
-    // V56 Rule 9: per-record write
-    _fbWrite('staffMusters/'+rec.id, rec);
-    renderStaffMuster();
-  }
+  const local=(staffMusters||[]).find(m=>m.staffId===staffId&&m.date===td);
+  if(!local && !(amt>0)) return;
+  const f=await _smFresh(staffId, td);
+  if(f.fail){ alert('Could not reach the server — advance NOT saved.\n\nCheck the connection and try again.'); return; }
+  let patch;
+  if(f.ex && f.onServer) patch={advance:amt, advRemark:rem, ts:Date.now()};
+  else if(f.ex) patch=Object.assign({}, f.ex, {id:f.id, staffId, date:td, status:f.ex.status||'pending', advance:amt, advRemark:rem, ts:Date.now()});   // record only on this phone: send it whole
+  else if(amt>0) patch={id:f.id,staffId,date:td,status:'pending',advance:amt,advRemark:rem,by:sess?.name||'',ts:Date.now()};   // V102.20: an advance NEVER marks attendance
+  else return;
+  const ok=await _fbMerge('staffMusters/'+f.id, patch);
+  if(!ok){ alert('Could not reach the server — advance NOT saved.\n\nCheck the connection and try again.'); return; }
+  const rec=Object.assign({}, f.ex||{}, patch);
+  const idx=staffMusters.findIndex(m=>m.id===rec.id || (m.staffId===staffId&&m.date===td));
+  if(idx>=0) staffMusters[idx]=rec; else staffMusters.push(rec);
+  renderStaffMuster();
 }
 
 // ════════════════════════════════════
@@ -26520,7 +26970,7 @@ fbInit();
 
 <script>
 if('serviceWorker' in navigator){
-  var swCode="var CACHE='fl-v202611171500';self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/fuellog/'])).then(()=>self.skipWaiting())));self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));self.addEventListener('fetch',e=>{if(e.request.url.includes('firebaseio.com')||e.request.url.includes('googleapis.com'))return;e.respondWith(fetch(e.request).then(r=>{var c=r.clone();caches.open(CACHE).then(cache=>cache.put(e.request,c));return r;}).catch(()=>caches.match(e.request)));});";
+  var swCode="var CACHE='fl-v202611181700';self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/fuellog/'])).then(()=>self.skipWaiting())));self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));self.addEventListener('fetch',e=>{if(e.request.url.includes('firebaseio.com')||e.request.url.includes('googleapis.com'))return;e.respondWith(fetch(e.request).then(r=>{var c=r.clone();caches.open(CACHE).then(cache=>cache.put(e.request,c));return r;}).catch(()=>caches.match(e.request)));});";
   var blob=new Blob([swCode],{type:'text/javascript'});
   navigator.serviceWorker.register(URL.createObjectURL(blob)).then(function(reg){console.log('SW v202604171529');reg.update();}).catch(function(e){console.log('SW skip:',e.message);});
 }
