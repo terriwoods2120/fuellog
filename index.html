@@ -1,4 +1,4 @@
-<!-- FuelLog PWA | Version: V102.42 | Date: 2026-11-18 | V102.42 SITE SUPERVISOR SCREEN STAGE 1: new Marathi/English Home for site supervisors (5 buttons); मशीन = opening/closing readings onto today's DPR, saved per machine on the server copy (_dprMachMergeSave) — office DPR save uses the same safe merge; हजेरी = Site Staff attendance, fixed record id sm-<staff>-<date>, server checked first, owner-only lock kept; no-network = save refused, typed values kept; machine ₹/hr rates (new machineRates collection, owner-only, per-record) copied onto DPR lines; P&L warns machines with hours but no rate; L1/L2 vendor tidies. | PREVIOUS: V102.41 | V102.41 VENDOR LEDGER LOCK: managers, site supervisors and drivers no longer see vendor amounts — Store → Vendors and the Vendors screen show names/phone only (no due/advance, no TOTAL DUE summary); openVendor() and show('scr-vendor-detail') refuse with Not allowed. recordLumpSumPayment/applyLumpSumPayment now require canTripEnter() (owner/admin/manager — unchanged for them). No sync/storage change. | PREVIOUS: V102.40 | V102.40 QUICK LOCK: Reports → Financial and Project hidden and refused (screen, PDF/print, WhatsApp) for managers, site supervisors and drivers; owners + admins keep Financial; Project P&L stays owner-only. Record vendor payment = owner/admin only (button hidden, _vpOpen/_vpSave refuse). "Amount paid" boxes on bill/inward entry unchanged. Projects module closed to managers (and drivers): More menu hides FILE TODAY'S DPR, PROJECTS, LABOUR CONTRACTORS; show() refuses the 7 project/DPR/work/labour screens; openDPRPicker/startDPR/openProject/openDPRForEdit/openWorkEntry/openGangLedger refuse; store Back no longer opens the project page for them. Store, Paver, RMC unchanged. No sync/storage change. | PREVIOUS: V102.39 | V102.39 USERS SAVED ONE PERSON AT A TIME: every users save first reads the server shape (keys only). Old shape (positions 0..n) = saves work exactly as before (whole list). After the owner presses Health check > Convert users list (checks + backup file + read-back), each save writes ONLY that person (add = one record, edit/PIN = only the changed fields, remove = one record). A whole-list send of users is refused in _fbWrite; old queued users saves are handled safely; Restore writes the users list keyed by id. Health check shows the users-list shape. | V102.38 PHOTOS IN MORE PLACES (same photo store as V102.37; entries keep only a short link in a new field `att`): store ISSUE / TRANSFER (one set per issue, lines tied by new field minId), TRIPS (slip photo), VENDOR PAYMENT (proof), FUEL PURCHASE and DIRECT PUMP FILL (bill). Each has a photo box on the entry form (optional, up to 4 photos or a PDF; a failed photo never blocks the entry), tiles on the list (downloaded only on tap), add-later (owner/admin; trips also manager; field-only PATCH after checking the record is on the server) and Remove (owner; link taken off + attLog, file stays). DATA SAFETY REVIEW V2: new fields only (att, attLog, minId); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.37 Date: 2026-11-15 | V102.37 BILL PHOTO (photo store): a purchase bill (GRN, vendor source) can carry up to 4 photos or a PDF. The file is made small on the phone and sent to the separate Firebase photo store (fuellog/bills/YYYY-MM/...); the entry keeps only a short link (billPhotos on the bill's materialInward lines and service-charge vendorTxns), so sync never carries photos. Vendor page: view (downloaded only on tap), Add bill photo to a saved bill (owner/admin, field-only PATCH after checking the records are on the server), Remove photo (owner; takes the link off + billPhotoLog, the file stays in the store). A failed photo never blocks the bill. DATA SAFETY REVIEW V2: new fields only (billPhotos, billPhotoLog); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.36 Date: 2026-11-15 | V102.36 HEALTH CHECK COUNTS CORRECTED (read-only page, nothing saved): 'Ledger entries with no bill' no longer counts service-only bills (repair/labour bills with no material are valid) and a 'paid with bill' payment is fine when its bill has service charges; 'Bills with no bill total' counts only bills dated 05/11/2026 or later (when the total became compulsory). | V102.35 Date: 2026-11-14 | V102.35 (includes V102.32-V102.34): (1) GST KEPT ON EDIT: editing a single purchase line recalculates GST and the vendor entry is rebuilt GST-inclusive like a new bill (was basic only). (2) CLEAN BILL DELETE: deleting the last line of a bill offers to remove that bill's 'Paid with invoice' payment and service charges. (3) RECORD PAYMENT SCREEN: date, amount, paid by, ref, for bill, note; owner can edit; delete = owner/admin only and checked against the server. (4) HEALTH CHECK (More > System, owner): bills not matching, stock below zero, ledger entries with no bill, saves that did not reach the server, bills with no total - read-only. (5) DAILY BACKUP: on the owner's laptop the first full download of the day is also saved as a backup file (no extra download). (6) SLIM FILE: version history moved to FuelLog_Version_History.txt; unused old work-entry screen and old one-time clean-up call removed. DATA SAFETY REVIEW V2: new fields on vendor payment records only (mode, ref, forBillNo, edited*); per-record saves/deletes only; no rules, sync, MERGE_KEYS or Fast Refresh change. Earlier history: see FuelLog_Version_History.txt -->
+<!-- FuelLog PWA | Version: V102.44 | Date: 2026-11-19 | V102.44 SITE SUPERVISOR SCREENS — CORPORATE LOOK (approved mockup V2, 19 Nov): light background, white cards, one corporate blue, Noto Sans Devanagari for Marathi, line icons (no emoji), small status tags, home as one task list, main buttons fixed above the bottom menu; always light for site supervisors (class ss2 on the home area, removed for other roles). Fixes: a Plant delivery waiting for confirmation shows once (not again in today's list); "material not in the list? call the admin" hint; readable ticks/colours. LOOK ONLY: no change to saving, records, sync, rules, office screens or Rates pending. | PREVIOUS: V102.43 | V102.43 SITE SUPERVISOR SCREEN STAGE 2: माल आला = confirm Plant/site deliveries (existing Accept; difference = field-only PATCH on the trip) + outside purchase in 3 steps (vendor + bill no. optional + bill photo compulsory -> materials -> check) saved like saveGRN with rate 0 and ratePending:true, no vendor purchase entry until the office fills rates; cash paid on the spot = pay_<invoiceId> as today. माल गेला = used in work (BOQ optional) / sent to another site or Plant (xfer_ arrival as saveMIN) / given to a machine, never below site stock. Every line gets its id when added; Save checks the server line by line and sends only what is missing (no doubles); no network = refused, everything kept on screen. RATES PENDING (owner/admin): Home card + screen; fill rate/GST per line, optional extra charges, bill total; vendor entries written first with fixed ids (pur_<line>, chg_<invoice>_<n>), then lines PATCHed (ratePending:false). P&L warns on pending lines. DATA SAFETY REVIEW V2: new fields only (ratePending, viaSite, rateFilledBy/ByName/Ts); per-record writes and field-only PATCHes; no sync, rules, MERGE_KEYS or Fast Refresh change. | PREVIOUS: V102.42 | V102.42 SITE SUPERVISOR SCREEN STAGE 1: new Marathi/English Home for site supervisors (5 buttons); मशीन = opening/closing readings onto today's DPR, saved per machine on the server copy (_dprMachMergeSave) — office DPR save uses the same safe merge; हजेरी = Site Staff attendance, fixed record id sm-<staff>-<date>, server checked first, owner-only lock kept; no-network = save refused, typed values kept; machine ₹/hr rates (new machineRates collection, owner-only, per-record) copied onto DPR lines; P&L warns machines with hours but no rate; L1/L2 vendor tidies. | PREVIOUS: V102.41 | V102.41 VENDOR LEDGER LOCK: managers, site supervisors and drivers no longer see vendor amounts — Store → Vendors and the Vendors screen show names/phone only (no due/advance, no TOTAL DUE summary); openVendor() and show('scr-vendor-detail') refuse with Not allowed. recordLumpSumPayment/applyLumpSumPayment now require canTripEnter() (owner/admin/manager — unchanged for them). No sync/storage change. | PREVIOUS: V102.40 | V102.40 QUICK LOCK: Reports → Financial and Project hidden and refused (screen, PDF/print, WhatsApp) for managers, site supervisors and drivers; owners + admins keep Financial; Project P&L stays owner-only. Record vendor payment = owner/admin only (button hidden, _vpOpen/_vpSave refuse). "Amount paid" boxes on bill/inward entry unchanged. Projects module closed to managers (and drivers): More menu hides FILE TODAY'S DPR, PROJECTS, LABOUR CONTRACTORS; show() refuses the 7 project/DPR/work/labour screens; openDPRPicker/startDPR/openProject/openDPRForEdit/openWorkEntry/openGangLedger refuse; store Back no longer opens the project page for them. Store, Paver, RMC unchanged. No sync/storage change. | PREVIOUS: V102.39 | V102.39 USERS SAVED ONE PERSON AT A TIME: every users save first reads the server shape (keys only). Old shape (positions 0..n) = saves work exactly as before (whole list). After the owner presses Health check > Convert users list (checks + backup file + read-back), each save writes ONLY that person (add = one record, edit/PIN = only the changed fields, remove = one record). A whole-list send of users is refused in _fbWrite; old queued users saves are handled safely; Restore writes the users list keyed by id. Health check shows the users-list shape. | V102.38 PHOTOS IN MORE PLACES (same photo store as V102.37; entries keep only a short link in a new field `att`): store ISSUE / TRANSFER (one set per issue, lines tied by new field minId), TRIPS (slip photo), VENDOR PAYMENT (proof), FUEL PURCHASE and DIRECT PUMP FILL (bill). Each has a photo box on the entry form (optional, up to 4 photos or a PDF; a failed photo never blocks the entry), tiles on the list (downloaded only on tap), add-later (owner/admin; trips also manager; field-only PATCH after checking the record is on the server) and Remove (owner; link taken off + attLog, file stays). DATA SAFETY REVIEW V2: new fields only (att, attLog, minId); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.37 Date: 2026-11-15 | V102.37 BILL PHOTO (photo store): a purchase bill (GRN, vendor source) can carry up to 4 photos or a PDF. The file is made small on the phone and sent to the separate Firebase photo store (fuellog/bills/YYYY-MM/...); the entry keeps only a short link (billPhotos on the bill's materialInward lines and service-charge vendorTxns), so sync never carries photos. Vendor page: view (downloaded only on tap), Add bill photo to a saved bill (owner/admin, field-only PATCH after checking the records are on the server), Remove photo (owner; takes the link off + billPhotoLog, the file stays in the store). A failed photo never blocks the bill. DATA SAFETY REVIEW V2: new fields only (billPhotos, billPhotoLog); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.36 Date: 2026-11-15 | V102.36 HEALTH CHECK COUNTS CORRECTED (read-only page, nothing saved): 'Ledger entries with no bill' no longer counts service-only bills (repair/labour bills with no material are valid) and a 'paid with bill' payment is fine when its bill has service charges; 'Bills with no bill total' counts only bills dated 05/11/2026 or later (when the total became compulsory). | V102.35 Date: 2026-11-14 | V102.35 (includes V102.32-V102.34): (1) GST KEPT ON EDIT: editing a single purchase line recalculates GST and the vendor entry is rebuilt GST-inclusive like a new bill (was basic only). (2) CLEAN BILL DELETE: deleting the last line of a bill offers to remove that bill's 'Paid with invoice' payment and service charges. (3) RECORD PAYMENT SCREEN: date, amount, paid by, ref, for bill, note; owner can edit; delete = owner/admin only and checked against the server. (4) HEALTH CHECK (More > System, owner): bills not matching, stock below zero, ledger entries with no bill, saves that did not reach the server, bills with no total - read-only. (5) DAILY BACKUP: on the owner's laptop the first full download of the day is also saved as a backup file (no extra download). (6) SLIM FILE: version history moved to FuelLog_Version_History.txt; unused old work-entry screen and old one-time clean-up call removed. DATA SAFETY REVIEW V2: new fields on vendor payment records only (mode, ref, forBillNo, edited*); per-record saves/deletes only; no rules, sync, MERGE_KEYS or Fast Refresh change. Earlier history: see FuelLog_Version_History.txt -->
 <!-- FuelLog PWA | Version: V99.86 | Date: 2026-08-05 | V99.86 BOQ PROGRESS SOURCE SPLIT (step 3 of 3, display only): since V99.85 the progress figure is fed by TWO sources -- standalone Work Done entries and linked DPR gang lines -- and nothing on screen said which. New _doneSplitHTML(itemId,unit) renders a muted sub-line under the progress bar, e.g. '20 sqm Work Done + 70.51 sqm (link) gang work'. PURPOSE IS DETECTION, not decoration: if the same physical work is ever entered through BOTH paths the total is silently too high and an inflated percentage just looks like good progress, whereas a visibly wrong breakdown is catchable. Returns '' when no gang work contributes, so rows fed purely by Work Done entries render EXACTLY as before -- the extra line only appears where there is something to explain. Applied at both BOQ progress render sites (project BOQ list and the DPR-side list); the work-entry form header was left alone as it is a single-item entry context, not a review view. Values rounded to 2dp (13.099219... shows as 13.1) and the unit is _esc'd. CORRECTION to the earlier plan: step 3 was described as 'add the BOQ unit to the progress row' -- on inspection the unit was ALREADY rendered there (both progress rows have shown '<qty> <unit> done' since well before this work), so that step was redundant and the source split was built instead. DATA SAFETY: display only. No write path, no schema change, no collection touched, no calculation altered -- _itemDone, _itemPct and _itemLabourDone are read and re-presented, never modified. -->
 <!-- FuelLog PWA | Version: V99.85 | Date: 2026-08-05 | V99.85 LINKED WORK NOW FEEDS BOQ PROGRESS (step 2 of 3, completes the badge's promise): _itemDone previously summed workEntries ONLY, so a DPR work line flagged '(link) linked -- feeds BOQ progress' paid the gang but contributed ZERO progress. New _itemLabourDone(boqItemId) sums linked dailyLabour pieceRows and converts labour units to BOQ units by DIVIDING by convPerBoqUnit (which means labour-units-per-one-BOQ-unit, e.g. 10.764 sqft in 1 sqm). Direction verified against live data before building: item unit sqm, labourUnit sqft, conv 10.764 -- 141 sqft = 13.10 sqm, not 1517. Multiplying would have inflated progress ~116x and looked merely like a large number. STRICT: only rows explicitly stored linked:true count; legacy rows predating V99.84 carry no flag and are deliberately NOT re-derived from the current engagement, since a later rate edit would then silently move historical progress -- re-saving such an entry backfills the flag and it counts from then on. GUARDS: conv<=0/missing/non-numeric skips the row (never divides by zero, never yields Infinity/NaN), MISC and blank item ids excluded, malformed records tolerated. Pending (unapproved backdated) entries excluded via _appr, consistent with V99.58. DOUBLE-COUNT PRE-CHECKED on live data: zero item+date pairs appear in both workEntries and a labour line, so nothing is counted twice; the overlap check should be re-run before any bulk backfill. AFFECTS: _itemPct and the executed-value total (execVal = done x rate), both of which will legitimately RISE for linked items -- they were understated before. DATA SAFETY: read/compute path only. No write path, no schema change, no collection touched, no record created/edited/deleted/migrated; only which numbers are DERIVED at render time. Worst case of a wrong factor is a visibly wrong percentage, never data loss. Step 3 (unit-label display on progress rows) still open. -->
 <!-- FuelLog PWA | Version: V99.84 | Date: 2026-08-05 | V99.84 LINKED-WORK PERSISTENCE (step 1 of 3): saveLabEntry now stores linked + convPerBoqUnit on every saved pieceRow instead of discarding them (previously computed live via _labLineRate but never written to Firebase). editLabEntry trusts the stored linked flag for entries saved under this fix, and only falls back to a fresh gang-rate lookup for legacy rows that predate it -- and that fallback never touches the historical rate/unit that was actually paid. This does NOT yet change BOQ progress calculation (_itemDone still reads workEntries only) -- that is step 2, pending an overlap check on live data. -->
@@ -16,7 +16,7 @@
 <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiRnVlbExvZyDigJQgQ2hpZGRhcndhciBDb25zdHJ1Y3Rpb24iLCJzaG9ydF9uYW1lIjoiRnVlbExvZyIsInN0YXJ0X3VybCI6Ii9mdWVsbG9nLyIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiMxMTExMTEiLCJ0aGVtZV9jb2xvciI6IiNmZmIzMDAiLCJvcmllbnRhdGlvbiI6InBvcnRyYWl0IiwiaWNvbnMiOlt7InNyYyI6ImRhdGE6aW1hZ2UvcG5nO2Jhc2U2NCxpVkJPUncwS0dnb0FBQUFOU1VoRVVnQUFBTUFBQUFEQUNBWUFBQUJTM0d3SEFBQUNjMGxFUVZSNDJ1M2IwUWtBSUFoRlVWZHcvekVhMEhhSXdNSno0VzNnK1RSQ2tpUkpraVJKa2lSSmtpUkpraVJKa3VhVm1XWFdQUUFNQUFBTUFBQU1BQUFNQUFBTUFBQU1BQUFNQUFBTUFBQU1BQUFNQUFBTUFBQU1BQUFNQUFBTUFBQU1BQUFNQUFBTUFBQU1BQUFNZ0Q4QjFBcTdQQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQTdoZ2NBQUFBQUFBQUFBQUFBQUFBQUFBQ0F3d0VBQUFNQUFBTUFBQU1BQUFNQUFBTUFBQU1BQUFNQUFBTUFBQU1BQUFNQUFBTUFBQU1BQUFNQUFQTVRESUFCQUlBQkFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUNBQVFDQUFRQ0FBUUNBQVFDQUFRQ0FBUUNBQVFDQUFRQ0FBUUNBQVFDQUFRQ0FBUUNBQVFDQUFRQ0FBUUNBQVFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBamh3T0FBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFNQUI4aE5uc0FXQUFBR0FBQUdBQUFHQUFBR0FBQUdBQUFHQUFBR0FBQUdBQUFHQUFBR0FBQUdBQUFHQUFBR0FBQUdBQUFHQUFBR0FBQUdBQVNKSWtTWklrU1pJa1NaSWtTWklrU2RLemJiSVlaMDd6RDZJUUFBQUFBRWxGVGtTdVFtQ0MiLCJzaXplcyI6IjE5MngxOTIiLCJ0eXBlIjoiaW1hZ2UvcG5nIn0seyJzcmMiOiJkYXRhOmltYWdlL3BuZztiYXNlNjQsaVZCT1J3MEtHZ29BQUFBTlNVaEVVZ0FBQWdBQUFBSUFDQVlBQUFEMGVOVDZBQUFNM1VsRVFWUjQydTNXQVEwQUlBaEZRU3JRUDRZQnNZU2J3TzV2MThEaGl6QXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TTN1NHpDd0FtTVlQTGdBQUVBQW1BQUFRQUNZQUFCQUFKZ0FBRUFBbUFBQVFBQUlBQUFTQUFBQUFBU0FBQUVBQUNBQUFFQUFDQUFBRWdBQUFBQUVnQUFCQUFBZ0FBQkFBQWdBQUJJQUFBQUFCSUFBQVFBQUlBQUFRQUFJQUFBRmdBZ0FBQVdBQ0FBQUJZQUlBQUFGZ0FnQUFBU0FBQUVBQUNBQUFFQUFDQUFBRWdBQUFBQUVnQUFCQUFBZ0FBQkFBQWdBQUJJQUFBQUFCSUFBQVFBQUlBQUFRQUFJQUFBU0FBQUFBQVNBQUFCQUFKZ0FBRUFBbUFBQVFBQ1lBQUJBQUpnQUFFQUFDQUFBRWdBQUFBQUVnQUFCQUFBZ0FBQkFBQWdBQUJJQUFBQUFCSUFBQVFBQUlBQUFRQUFJQUFBU0FBQUFBQVNBQUFFQUFDQUFBRUFBQ0FBQUJZQUpncVRvQmZPUU9DUUFCZ0FBQUFZQUFFQUFJQUJBQUNBQUJnQUFBQVlBQUVBQUlBQkFBQ0FBQmdBQUFBWUFBRUFBSUFCQUFDQUFCZ0FBQUFZQUFFQUFJQUJBQUNBQUJJQUFBQVlBQUVBQUNBQkFBQ0FBQklBQUFBU0FBVEFBSUFFQUFDQUFUQUFJQUVBQUN3QVNBQUFBRWdBQXdBU0FBQUFFZ0FBUUFBZ0FRQUFKQUFDQUFBQUVnQUFRQUFnQUVBQUpBQUNBQVFBQWdBQVFBQWdBRUFBSkFBQ0FBUUFBZ0FBUUFBZ0FFQUFKQUFDQUFRQUFnQUFRQUFnQUVBQUpBQUNBQVFBQWdBQVFBRGpBSUFBU0FBQkFBZ0FCQUFBZ0FBUUFJQUFGZ0FrQUFBQUpBQUpnQUVBQ0FBQkFBSmdBRUFDQUFCSUFKQUFFQUNBQUJJQUFRQUlBQUVBQUNBQUVBQ0FBQklBQVFBQ0FBRUFBQ0FBRUFBZ0FCSUFBUUFDQUFFQUFDQUFFQUFnQUJJQUFRQUNBQUVBQUNBQUVBQWdBQklBQVFBQ0FBRUFBQ0FBRUFBZ0FCSUFBUUFDQUFFQUFDUUFBQUFnQUJJQUFFQUNBQUJJQUpBQUVBQ0FBQllBSkFBQUFDUUFDWUFCQUFnQUFRQUNZQUJBQWdBQVNBQVBDSUJBQWdBQVNBQUVBQUFBd0lLVCs0QUJBQUFBTEFCSUFBQUJBQUpnQUVBSUFBTUFFZ0FBQUVnQWtBQVFBZ0FBUUFBZ0JBQUFnQUJBQ0FBQkFBQ0FBQUFTQUFFQUFBQWtBQUlBQUFCSUFBUUFBQUNBQUJnQUFBQklBQUVBQUlBRUFBQ0FBQmdBQUFCSUFBRUFBSUFFQUFDQUFCSUFBQUJJQUFFQUFDQUVBQUNBQUJJQUFBQklBSkFBRUFJQUJNQUFnQUFBRmdBa0FBQUFnQUV3QUNBRUFBQ0FBRUFJQUFFQUFJQUFBQklBQVFBQUFDUUFBZ0FBQUVnQUJBQUFBSUFBR0FBQUFRQUFJQUFRQUlBQUVnQUJBQWdBQVFBQUlBQVFBSUFBRWdBQkFBZ0FBUUFBSkFBRGdjZ0FBUUFBSkFBQUFJQUFFZ0FBUUFnQUF3QVNBQUFBU0FDUUFCQUNBQVRBQUlBQUFCWUFKQUFBQUlBQUdBQUFBUUFBSUFBUUFnQUFRQUFnQkFBQWdBQkFDQUFCQUFDQUFBQVNBQUVBQUFBa0FBSUFBQUJJQUFRQUFBQWtBQUNBQUVBQ0FBQklBQVFBQUFBa0FBQ0FBRUFDQUFCSUFBRUFEQWlvOExBU0FBRUFBZ0FCQUFBZ0FCQUFJQUFTQUFFQUFnQUJBQUFrQUFBQUlBQVNBQUJBQWdBQVNBQ1FBQkFBZ0FBV0FDUUFBQUFrQUFtQUFRQUlBQUVBQW1BQVFBSUFBRWdBRHdpQVFBSUFBRWdBQkFBQUFDUUFBSUFBUUFDQUFFZ0FCQUFJQUFRQUFJQUFRQUNBQUVnQUJBQUlBQVFBQUlBQVFBQ0FBRWdBQkFBSUFBUUFBSUFBUUFDQUFFZ0FCQUFJQUFRQUFJQUFRQUNBQUVnQUFRQUlBQVFBQUlBQUVBQ0FBQllBSkFBQUFDUUFDWUFCQUFnQUFRQUNZQUJBQWdBQVNBQ1FBQkFBZ0FBV0FDUUFBQUFrQUFDQUFFQUNBQUJJQUFRQUNBQUVBQUNBQUVBQWdBQklBQVFBQ0FBRUFBQ0FBRUFBZ0FCSUFBUUFDQUFFQUFDQUFFQUFnQUJJQUFRQUNBQUVBQUNBQUVBQWdBQklBQVFBQ0FBRUFBQ0FBQkFBZ0FCSUFBRUFDQUFFQUFDQUFCQUFnQUFXQUNRQUFBQWtBQW1BQVFBSUFBRUFBbUFBUUFJQUFFZ0FrQUFRQUlBQUVnQUJBQWdBQVFBQUlBQVFDNFF3SkFBQ0FBUUFBZ0FBUUFBZ0FFQUFKQUFDQUFRQUFnQUFRQUFnQUVBQUpBQUNBQVFBQWdBQVFBQWdBRUFBSkFBQ0FBUUFBZ0FBUUFBZ0FFQUFKQUFBZ0FRQUFnQUFTQUFBQUVBQUpBQUFnQVFBQUlBQk1BQWdBUUFBTEFCSUFBQUFTQUFEQUJJQUFBQVNBQVRBQUlBRUFBQ0FBQmdBQUFCSUFBRUFBSUFFQUFDQUFCZ0FBQUFZQUFFQUFJQUJBQUNBQUJnQUFBQVlBQUVBQUlBQkFBQ0FBQmdBQUFBWUFBRUFBSUFCQUFDQUFCZ0FBQUFZQUFFQUFJQUJBQUNBQUJnQU1NQWdBQklBQUVBQ0FBRUFBQ1FBQUFBa0FBbUFBUUFJQUFFQUFtQUFRQUlBQUVnQWtBQVFBSUFBRmdBa0FBQUFKQUFBZ0FCQUFnQUFTQUFFQUFBQUpBQUFnQUJBQUlBQVNBQUVBQWdBQkFBQWdBQkFBSUFBU0FBRUFBZ0FCQUFBZ0FCQUFJQUFTQUFFQUFnQUJBQUFnQUJBQUlBQVNBQUVBQWdBQkFBQWdBQkFBSUFBU0FBQkFBZ0FCQUFBZ0FBUUFJQUFGZ0FrQUFBQUpBQUpnQUVBQ0FBQkFBSmdBRUFDQUFCSUFKQUFFQUNBQUJJQUE4SWdFQUNBQUJJQUFRQUlBQUVBQUNBQUVBQWdBQklBQVFBQ0FBRUFBQ0FBRUFBZ0FCSUFBUUFDQUFFQUFDQUFFQUFnQUJJQUFRQUNBQUVBQUNBQUVBQWdBQklBQVFBQ0FBRUFBQ0FBRUFBZ0FCSUFBRUFDQUFFQUFDUUFBQUFrQUFtQUFRQUlBQUVBQW1BQVFBSUFBRWdBa0FBUUFJQUFGZ0FrQUFBQUpBQUpnQUVBQ0FBQkFBQWdBQkFBZ0FBU0FBRUFBZ0FCQUFBZ0FCQUFJQUFTQUFFQUFnQUJBQUFnQUJBQUlBQVNBQUVBQWdBQkFBQWdBQkFBSUFBU0FBRUFBZ0FCQUFBZ0FCQUFJQUFTQUFFQUFnQUJBQUFrQUFBQUlBQVNBQUJBQWdBQkFBQWtBQUFBSkFBSmdBRUFDQUFCQUFKZ0FFQUNBQUJJQUpBQUVBQ0FBQllBSkFBQUFDUUFBSUFBUUFJQUFFZ0FCQUFBRHVrQUFRQUFnQUVBQUlBQUdBQUFBQmdBQVFBQWdBRUFBSUFBR0FBQUFCZ0FBUUFBZ0FFQUFJQUFHQUFBQUJnQUFRQUFnQUVBQUlBQUdBQUFBQmdBQVFBQUlBRUFBSUFBRWdBQUFCZ0FBUUFBSUFFQUFDd0FTQUFBQUVnQUF3QVNBQUFBRWdBRXdBQ0FCQUFBZ0FFd0FDQUJBQUFrQUFJQUFBQVNBQUJBQUNBQkFBQWtBQUlBQkFBQ0FBQkFBQ0FBUUFBa0FBSUFCQUFDQUFCQUFDQUFRQUFrQUFJQUJBQUNBQUJBQUNBQVFBQWtBQUlBQkFBQ0FBQkFBQ0FBUUFBa0FBNEFDREFFQUFDQUFCQUFnQUJJQUFFQUNBQUJBQUpnQUVBQ0FBQklBSkFBRUFDQUFCWUFKQUFBQUNRQUNZQUJBQWdBQVFBQUlBQVFBSUFBRWdBQkFBZ0FBUUFBSUFBUUFDQUFFZ0FCQUFJQUFRQUFJQUFRQUNBQUVnQUJBQUlBQVFBQUlBQVFBQ0FBRWdBQkFBSUFBUUFBSUFBUUFDQUFFZ0FCQUFJQUFRQUFJQUFRQUNBQUVnQUFRQUlBQVFBQUpBQUFBQ1FBQ1lBQkFBZ0FBUUFDWUFmTmFBcUJBQUpnQUVBQ0FBQklBSkFBRUFDQUFCSUFBOElnRUFDQUFCSUFBUUFJQUFFQUFDQUFFQUNBQUJJQUFRQUlBQUVBQUNBQUVBQ0FBQklBQUVBSUFBRUFBQ1FBQUFDQUFCSUFBRUFJQUFFQUFDUUFBQUFnQUJJQUFFQUNBQUVBQUNRQUFBQWdBQklBQUVBQ0FBRUFBQ1FBQUFBa0FBbUFBUUFJQUFFQUFtQUFRQUlBQUVnQWtBQVFBSUFBRmdBa0FBQUFKQUFKZ0FFQUNBQUJBQUFnQUJBQWdBQVNBQUVBQ0FBQkFBQWdBQkFBZ0FBU0FBRUFDQUFCQUFBZ0NIRFJBQUFrQUFDQUFBQVNBQUJJQUFBQkFBQWtBQUNBQkFBQ0FBQklBQUFBUUFBa0FBQ0FCQUFDQUFCSUFBQUFRQUFrQUFDQUJBQUNBQUJJQUFBQVNBQURBQklBQUFBU0FBVEFBSUFFQUFDQUFUQUFJQUVBQUN3QVNBQUFBRWdBQVFBQWdBUUFBSUFBR0FBQUFFZ0FBUUFBZ0FRQUFJQUFHQUFBQUVnQUFRQUFnQVFBQUlBQUVnQUFBRWdBQVFBQUlBUUFBSUFBRWdBQUFCZ0FBUUFBQWdBQVFBQUFnQUFRQUFBa0FBQUlBQUVBQUFDQUFUQUFBSUFCTUFBQWdBRXdBQUNBQVRBQUFJQUFFQUFBSkFBQUNBQUJBQUFDQUFCQUFBQ0FBQkFBQUNRQUFBZ0FBUUFBQWdBQVFBQUFnQUFRQUFBa0FBQUlBQUVBQUFJQUFFQUFBSUFBRUFnQUF3QVFDQUFEQUJBSUFBTUFFQWdBQXdBUUNBQUJBQUFDQUFCQUFBQ0FBQkFBQUNRQUFBZ0FBUUFBQWdBQVFBQUFnQUFRQUFBa0FBQUlBQUVBQUFJQUFFQUFBSUFBRUFBQUpBQUFDQUFCQUFBQWdBRXdBQUNBQVRBQUFJQUJNQUFBZ0FFd0FBQ0FBQjRCRUJJQUFFQUFBSUFBRUFBQUpBQUFDQUFCQUFBQ0FBQkFBQUNBQUJBQUFDUUFBQWdBQVFBQUFnQU16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek16TXpNek1yTWN1dHY5bWozdnhMRlVBQUFBQVNVVk9SSzVDWUlJPSIsInNpemVzIjoiNTEyeDUxMiIsInR5cGUiOiJpbWFnZS9wbmcifV19">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>FuelLog — Chiddarwar Construction</title>
-<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans:wght@400;600;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans:wght@400;600;700;900&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -154,6 +154,12 @@ body{font-family:var(--fb);color:var(--white);touch-action:manipulation}
 .act-arr{font-size:20px;color:var(--border2);flex-shrink:0}
 .act-lock{font-size:15px;flex-shrink:0;color:var(--muted2)}
 /* BOTTOM NAV */
+.ss2{--bg:#FFFFFF;--bg2:#FFFFFF;--bg3:#EEF1F5;--white:#111827;--muted:#5B6472;--border:#D5DAE1;background:#F5F6F8;color:#111827;font-family:'Noto Sans','Noto Sans Devanagari',sans-serif;min-height:100%;font-variant-numeric:tabular-nums}
+.ss2:empty{min-height:0}   /* V102.43a: site supervisor screens, light corporate look in every theme */
+.ss2 button,.ss2 input{font-family:inherit}
+.ss2 input::placeholder{color:#8A93A0}
+.ss2-bar{position:sticky;bottom:0;z-index:5;background:#FFFFFF;border-top:1px solid #E3E6EB;padding:12px 16px;display:flex;gap:10px;margin-top:16px}
+#home-content:has(.ss2){background:#F5F6F8}
 .bnav{position:fixed;bottom:0;left:0;right:0;background:var(--bg2);
   border-top:1px solid var(--border);display:flex;z-index:100;
   padding-bottom:env(safe-area-inset-bottom,0px);flex-shrink:0}
@@ -3858,6 +3864,7 @@ function bnavRender(tab){
   const alerts=document.getElementById('home-alerts');
   const actions=document.getElementById('home-actions');
   if(!dash||!alerts||!actions)return;
+  dash.classList.remove('ss2');   // V102.44: the site-sup look only ever sits on the Home tab (renderSiteSupHome adds it back)
 
   if(tab==='home'){
     renderDashboard(dash,alerts);
@@ -3889,6 +3896,7 @@ function renderDashboard(dash,alerts){
     renderSiteSupHome(dash,alerts);
     return;
   }
+  if(dash && dash.classList) dash.classList.remove('ss2');   // V102.43a: other roles keep the normal look
   const td=today();
   const stock=getBowserStock();
   const maxStock=purchases.reduce((a,p)=>a+p.litres,0)||2000;
@@ -4085,6 +4093,15 @@ function renderDashboard(dash,alerts){
       if(moreBadge) moreBadge.style.display='none';
     }
   }
+  // V102.43: site bills waiting for rates (owner/admin)
+  if(isOwner()||isAdmin()){
+    const _rpN=(typeof _rpBills==='function')?_rpBills().length:0;
+    if(_rpN>0) alertHtml+=`<div class="dash-alert" style="background:rgba(255,179,0,.07);border:2px solid var(--amber);cursor:pointer" onclick="openRatesPending()">
+        <div class="dash-alert-row"><div style="font-size:24px">🧾</div>
+          <div style="flex:1"><div style="font-family:var(--fh);font-size:14px;color:var(--amber)">${_rpN} SITE BILL${_rpN>1?'S':''} · RATES PENDING</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">Fill rate, GST and bill total from the photo · Tap to open</div></div>
+          <div style="color:var(--amber);font-size:18px">›</div></div></div>`;
+  }
   alerts.innerHTML=alertHtml ? `<div style="padding:0 14px;display:flex;flex-direction:column;gap:6px;margin-top:6px">${alertHtml}</div>` : '';
 }
 
@@ -4102,6 +4119,25 @@ function renderDashboard(dash,alerts){
 // (unchanged) until Stages 2 and 3. Nothing here queues a save: the server is reached first and a
 // refused save keeps everything typed on screen. Nothing here deletes anything.
 let _ss={view:'home', pid:'', fid:'', msg:''};
+// V102.43a: line icons (no emoji) for the site supervisor screens
+const _SS_ICO={
+  back:'<path d="M15 6l-6 6 6 6"/>', chev:'<path d="M9 6l6 6-6 6"/>',
+  mach:'<path d="M4 18a8 8 0 1 1 16 0"/><path d="M12 18l4-6"/><path d="M3 18h18"/>',
+  in:'<path d="M12 3v11"/><path d="M8 10l4 4 4-4"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>',
+  out:'<path d="M12 14V3"/><path d="M8 7l4-4 4 4"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>',
+  users:'<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="17" cy="9" r="2.4"/><path d="M16.5 14.6c2.6 0.2 4.5 2 4.5 4.9"/>',
+  work:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9z"/><path d="M9 13l2 2 4-4"/>',
+  truck:'<rect x="2.5" y="6.5" width="11" height="10" rx="1.5"/><path d="M13.5 9.5h4l3 3.5v3.5h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>',
+  wrench:'<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/>',
+  phone:'<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
+  lock:'<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  camera:'<rect x="3" y="7" width="18" height="13" rx="2.5"/><circle cx="12" cy="13.5" r="3.5"/><path d="M8.5 7l1.8-2.5h3.4L15.5 7"/>',
+  check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>', plus:'<path d="M12 5v14M5 12h14"/>',
+  info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.5v.5"/>'
+};
+function _ssIco(n, col, sz){ return `<svg width="${sz||22}" height="${sz||22}" viewBox="0 0 24 24" fill="none" stroke="${col||'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0">${_SS_ICO[n]||''}</svg>`; }
+// status tags: done / warn / info / neutral
+function _ssTag(t, kind){ const c={done:['#166534','#E8F5EC'],warn:['#8A4B00','#FFF4E5'],info:['#1F4E9C','#E8EFFB'],neutral:['#374151','#EEF1F5']}[kind]||['#374151','#EEF1F5']; return _ssChip(t,c[0],c[1]); }
 let _ssEls={dash:null, alerts:null};
 const _SS_T={
   site:['आजची साईट',"TODAY'S SITE"], role:['साईट सुपरवायझर','Site supervisor'],
@@ -4141,6 +4177,10 @@ const _SS_T={
   noStaff:['Site Staff गटात कोणीही नाही.','Nobody is in the Site Staff group.'],
   ofMarked:['नोंद','Marked'], left:['बाकी','left'],
   oldScreen:['(सध्याची स्क्रीन)','(current screen)'],
+  todayTasks:['आजची कामे',"Today's tasks"], machSub:['सुरुवात आणि शेवटचे रीडिंग','Opening and closing readings'],
+  inSub:['प्लांटचा माल · बाहेरून खरेदी','From Plant · bought outside'], outSub:['कामात · दुसऱ्या साईटवर · मशीनला','Work · other site · machine'],
+  hajSub:['Site Staff','Site Staff'], kaamSub:['आज झालेले काम',"Today's work"], pendingTag:['बाकी','Pending'],
+  matMissing:['माल यादीत नाही? ॲडमिनला फोन करा','Material not in the list? Call the admin'],
   readingNotSent:['मशीनचे रीडिंग जतन झाले, पण फ्युएल रिपोर्टचा भाग पोहोचला नाही. नेटवर्क आल्यावर पुन्हा जतन करा दाबा.','The machine reading is saved, but the fuel-report part did not reach the server. When the network is back, tap Save again.']
 };
 function _st(k){ const v=_SS_T[k]; if(!v) return k; return _ssLang()==='en'?v[1]:v[0]; }
@@ -4155,29 +4195,32 @@ function _ssRender(){
   if(d && a && document.body.contains(d)) renderSiteSupHome(d, a); else if(typeof renderHome==='function') renderHome();
 }
 // ---- shared pieces ----
-const _SS_HUE={mach:['#B45309','#FEF3C7'], maalIn:['#1D4ED8','#DBEAFE'], maalOut:['#6D28D9','#EDE9FE'], hajeri:['#15803D','#DCFCE7'], kaam:['#0F766E','#CCFBF1']};
+const _SS_HUE={mach:['#8A4B00','#FFF4E5'], maalIn:['#1F4E9C','#E8EFFB'], maalOut:['#374151','#E8EFFB'], hajeri:['#166534','#E8F5EC'], kaam:['#374151','#EEF1F5']};
 function _ssToggleHTML(){
   const mr=_ssLang()!=='en';
-  const b=(t,on,l)=>`<button type="button" onclick="_ssSetLang('${l}')" style="border:none;border-radius:999px;padding:6px 12px;font-size:14px;font-weight:700;min-height:34px;background:${on?'#FFFFFF':'transparent'};color:${on?'#17140F':'rgba(255,255,255,0.8)'}">${t}</button>`;
-  return `<div style="display:flex;border:1px solid rgba(255,255,255,0.2);border-radius:999px;padding:3px;background:rgba(255,255,255,0.08);flex-shrink:0">${b('मराठी',mr,'mr')}${b('English',!mr,'en')}</div>`;
+  const b=(t,on,l)=>`<button type="button" onclick="_ssSetLang('${l}')" style="border:none;border-radius:8px;padding:6px 10px;font-size:13px;font-weight:600;min-height:34px;background:${on?'#FFFFFF':'transparent'};color:${on?'#111827':'#5B6472'};${on?'box-shadow:0 1px 2px rgba(17,24,39,0.12)':''}">${t}</button>`;
+  return `<div style="display:flex;background:#EEF1F5;border-radius:10px;padding:3px;flex-shrink:0">${b('मराठी',mr,'mr')}${b('English',!mr,'en')}</div>`;
 }
 function _ssHead(title, sub, backView){
-  const bk=backView?`<button type="button" aria-label="${_st('back')}" onclick="_ssGo('${backView}')" style="width:46px;height:46px;border-radius:14px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);color:#fff;font-size:22px;flex-shrink:0">‹</button>`:'';
-  return `<div style="background:#1E1B16;color:#fff;padding:14px 14px 18px;border-radius:0 0 24px 24px;display:flex;align-items:center;gap:10px;margin-bottom:12px">
-    ${bk}<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;letter-spacing:1px;color:#FCD34D;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(sub||'')}</div>
-    <div style="font-size:22px;font-weight:800;line-height:1.15;overflow-wrap:anywhere">${_esc(title)}</div></div>${_ssToggleHTML()}</div>`;
+  const bk=backView?`<button type="button" aria-label="${_st('back')}" onclick="_ssGo('${backView}')" style="width:44px;height:44px;border-radius:12px;background:#FFFFFF;border:1px solid #E3E6EB;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_ssIco('back','#111827',20)}</button>`:'';
+  return `<div style="background:#FFFFFF;border-bottom:1px solid #E3E6EB;padding:12px 16px;display:flex;align-items:center;gap:12px;margin-bottom:14px">
+    ${bk}<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;letter-spacing:0.3px;color:#5B6472;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(sub||'')}</div>
+    <div style="font-size:20px;font-weight:700;line-height:1.25;overflow-wrap:anywhere">${_esc(title)}</div></div>${_ssToggleHTML()}</div>`;
 }
-function _ssChip(t,fg,bg){ return `<span style="display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:999px;background:${bg};color:${fg};font-size:13px;font-weight:700;white-space:nowrap">${t}</span>`; }
+function _ssChip(t,fg,bg){ return `<span style="display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:13px;background:${bg};color:${fg};font-size:13px;font-weight:600;white-space:nowrap">${t}</span>`; }
 function _ssMsgHTML(){
+  if(_ss.msg==='part') return `<div id="ss-netmsg" style="margin:0 14px 12px;padding:14px 16px;border-radius:12px;background:#FFF4E5;border:1px solid #F2C27A;color:#8A4B00">
+    <div style="font-size:16px;font-weight:700">${_st('partSaved')}</div><div style="font-size:14px;line-height:1.4;margin-top:2px">${_st('partSavedSub')}</div></div>`;   // V102.43
   if(_ss.msg!=='net') return '';
-  return `<div id="ss-netmsg" style="margin:0 14px 12px;padding:14px;border-radius:16px;background:#FEE2E2;border:2px solid #B91C1C;color:#7F1D1D">
-    <div style="font-size:18px;font-weight:800">${_st('noNet')}</div><div style="font-size:15px;line-height:1.35;margin-top:2px">${_st('noNetSub')}</div></div>`;
+  return `<div id="ss-netmsg" style="margin:0 14px 12px;padding:14px 16px;border-radius:12px;background:#FEF3F2;border:1px solid #F4B4AE;color:#912018">
+    <div style="font-size:16px;font-weight:700">${_st('noNet')}</div><div style="font-size:14px;line-height:1.4;margin-top:2px">${_st('noNetSub')}</div></div>`;
 }
 function _ssBigBtn(label, onclick, col){
-  return `<button type="button" onclick="${onclick}" style="width:100%;height:58px;border-radius:16px;border:none;background:${col||'#B45309'};color:#fff;font-size:21px;font-weight:800">${label}</button>`;
+  return `<button type="button" onclick="${onclick}" style="width:100%;height:52px;border-radius:12px;border:none;background:${col||'#1F4E9C'};color:#fff;font-size:17px;font-weight:600">${label}</button>`;
 }
 // ---- the screen ----
 function renderSiteSupHome(dash, alerts){
+  if(dash && dash.classList) dash.classList.add('ss2');   // V102.43a: light corporate look
   // V102.42: a redraw (e.g. Refresh) while typing on the machine screen keeps the typed numbers
   if(_ss.view==='machEntry' && !_ss.keep){ const o=document.getElementById('ss-open'), c=document.getElementById('ss-close');
     if(o && c && o.dataset.fid===_ss.fid) _ss.keep={o:o.value, c:c.value}; }
@@ -4195,6 +4238,14 @@ function renderSiteSupHome(dash, alerts){
   if(_ss.view==='mach') return _ssMachListHTML(dash);
   if(_ss.view==='machEntry') return _ssMachEntryHTML(dash);
   if(_ss.view==='hajeri') return _ssHajeriHTML(dash);
+  // V102.43 Stage 2
+  if(_ss.view==='in') return _ssInHTML(dash);
+  if(_ss.view==='pur1') return _ssPur1HTML(dash);
+  if(_ss.view==='pur2') return _ssPur2HTML(dash);
+  if(_ss.view==='pur3') return _ssPur3HTML(dash);
+  if(_ss.view==='out') return _ssOutListHTML(dash);
+  if(_ss.view==='outE') return _ssOutEHTML(dash);
+  if(_ss.view==='outC') return _ssOutCHTML(dash);
   _ss.view='home';
   return _ssHomeHTML(dash, list);
 }
@@ -4202,8 +4253,8 @@ function _ssPickHTML(dash, list){
   dash.innerHTML=_ssHead(_st('pickSite'), (sess&&sess.name)||'')+
     `<div style="display:flex;flex-direction:column;gap:10px;padding:0 14px 20px">`+
     list.map(p=>{ const s=sites.find(x=>x.id===p.siteId);
-      return `<button type="button" onclick="_ssGo('home',{pid:'${p.id}'})" style="text-align:left;padding:18px 16px;border-radius:18px;background:var(--bg2);border:1px solid var(--border);color:var(--white)">
-        <div style="font-size:22px;font-weight:800">${_esc(p.name)}</div><div style="font-size:14px;color:var(--muted)">${_esc(s?s.name:'')}</div></button>`; }).join('')+`</div>`;
+      return `<button type="button" onclick="_ssGo('home',{pid:'${p.id}'})" style="text-align:left;padding:18px 16px;border-radius:14px;background:var(--bg2);border:1px solid var(--border);color:var(--white)">
+        <div style="font-size:22px;font-weight:700">${_esc(p.name)}</div><div style="font-size:14px;color:var(--muted)">${_esc(s?s.name:'')}</div></button>`; }).join('')+`</div>`;
 }
 function _ssMachStatus(p){
   const dpr=_findDPR(p.id,today());
@@ -4221,32 +4272,36 @@ function _ssHomeHTML(dash, list){
   const outN=(materialOutward||[]).filter(r=>r&&r.projectId===p.id&&r.date===td).length;
   const st=_ssStaffList(); const stDone=st.filter(s=>{ const r=(staffMusters||[]).find(m=>m.staffId===s.id&&m.date===td); return r&&r.status&&r.status!=='pending'; }).length;
   const dpr=ms.dpr; const workN=dpr?(dailyLabour||[]).filter(r=>r.dprId===dpr.id).length:0;
-  const C=_SS_HUE;
-  const btn=(k,ico,label,status,onclick)=>`<button type="button" onclick="${onclick}" style="display:flex;align-items:center;gap:14px;padding:14px;min-height:90px;width:100%;text-align:left;border-radius:22px;background:var(--bg2);border:1px solid var(--border);color:var(--white)">
-      <div style="width:58px;height:58px;border-radius:18px;background:${C[k][1]};display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0">${ico}</div>
-      <div style="flex:1;min-width:0"><div style="font-size:24px;font-weight:800;line-height:1.1">${label}</div></div>${status}</button>`;
-  const machStat=ms.list.length?(ms.done===ms.list.length?_ssChip('✓ '+_st('done'),'#15803D','#DCFCE7'):_ssChip(ms.done+' / '+ms.list.length,'#B45309','#FEF3C7')):_ssChip(_st('noMach'),'var(--muted)','var(--bg3)');
-  const inStat=inN?_ssChip(inN+' '+_st('toCheck'),'#fff','#1D4ED8'):'';
-  const outStat=outN?_ssChip(outN+' '+_st('entries'),'#6D28D9','#EDE9FE'):'';
-  const hjStat=st.length?(stDone===st.length?_ssChip('✓ '+_st('done'),'#15803D','#DCFCE7'):_ssChip(stDone+' / '+st.length,'#15803D','#DCFCE7')):'';
-  const kStat=workN?_ssChip(workN+' '+_st('entries'),'#0F766E','#CCFBF1'):'';
+  const row=(ico,label,sub,status,onclick,last)=>`<button type="button" onclick="${onclick}" style="display:flex;align-items:center;gap:14px;padding:14px 16px;min-height:72px;width:100%;text-align:left;background:#FFFFFF;border:none;${last?'':'border-bottom:1px solid #EEF1F5;'}color:#111827">
+      <div style="width:44px;height:44px;border-radius:12px;background:#E8EFFB;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_ssIco(ico,'#1F4E9C',22)}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:18px;font-weight:600;line-height:1.25">${label}</div><div style="font-size:14px;color:#5B6472;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sub}</div></div>${status}${_ssIco('chev','#9AA3AF',18)}</button>`;
+  const machStat=ms.list.length?(ms.done===ms.list.length?_ssTag('✓ '+_st('done'),'done'):_ssTag(ms.done+' / '+ms.list.length,'warn')):_ssTag(_st('noMach'),'neutral');
+  const inStat=inN?_ssTag(inN+' '+_st('toCheck'),'info'):'';
+  const outStat=outN?_ssTag(outN+' '+_st('entries'),'neutral'):'';
+  const hjStat=st.length?(stDone===st.length?_ssTag('✓ '+_st('done'),'done'):_ssTag(stDone+' / '+st.length,'warn')):'';
+  const kStat=workN?_ssTag(workN+' '+_st('entries'),'neutral'):'';
   const mr=_ssLang()!=='en';
   const dt=new Date(td+'T00:00:00');
   const dateTxt=dt.toLocaleDateString(mr?'mr-IN-u-nu-latn':'en-IN',{weekday:'long',day:'numeric',month:'long'});
-  dash.innerHTML=`<div style="background:#1E1B16;color:#fff;padding:16px 16px 20px;border-radius:0 0 26px 26px;margin-bottom:14px">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
-        <div style="min-width:0"><div style="font-size:16px;font-weight:700">${_esc((sess&&sess.name)||'')}</div><div style="font-size:13px;color:rgba(255,255,255,0.7)">${_st('role')}</div></div>${_ssToggleHTML()}</div>
-      <div style="margin-top:16px;font-size:12px;font-weight:700;letter-spacing:1px;color:#FCD34D">${_st('site')}</div>
-      <div style="font-size:32px;font-weight:800;line-height:1.05;text-transform:uppercase">${_esc(p.name)}</div>
-      <div style="font-size:15px;color:rgba(255,255,255,0.75)">${_esc(site?site.name+' · ':'')}${_esc(dateTxt)}</div>
-      ${list.length>1?`<button type="button" onclick="_ssGo('pick')" style="margin-top:10px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:12px;padding:8px 12px;font-size:14px;font-weight:700;min-height:40px">${_st('pickSite')}</button>`:''}
-    </div>
-    <div style="display:flex;flex-direction:column;gap:10px;padding:0 14px 20px">
-      ${btn('mach','🚜',_st('mach'),machStat,"_ssGo('mach')")}
-      ${btn('maalIn','📦',_st('maalIn'),inStat,"openSiteSupStore(_ss.pid)")}
-      ${btn('maalOut','📤',_st('maalOut'),outStat,"openSiteSupStore(_ss.pid)")}
-      ${btn('hajeri','🙋',_st('hajeri'),hjStat,"_ssGo('hajeri')")}
-      ${btn('kaam','🔨',_st('kaam'),kStat,"_ssOpenWork()")}
+  const nm=(sess&&sess.name)||'';
+  dash.innerHTML=`<div style="background:#FFFFFF;border-bottom:1px solid #E3E6EB;padding:14px 16px;display:flex;align-items:center;gap:12px">
+      <div style="width:44px;height:44px;border-radius:14px;background:#E8EFFB;color:#1F4E9C;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;flex-shrink:0">${_esc(String(nm).trim().charAt(0).toUpperCase())}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:17px;font-weight:700;line-height:1.25">${_esc(nm)}</div><div style="font-size:13px;color:#5B6472">${_st('role')}</div></div>${_ssToggleHTML()}</div>
+    <div style="display:flex;flex-direction:column;gap:16px;padding:16px">
+      <div style="background:#FFFFFF;border:1px solid #E3E6EB;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:4px">
+        <div style="font-size:12px;font-weight:600;color:#5B6472;letter-spacing:0.4px">${_st('site')}</div>
+        <div style="font-size:24px;font-weight:700;line-height:1.2">${_esc(p.name)}</div>
+        <div style="font-size:15px;color:#5B6472">${_esc(site?site.name+' · ':'')}${_esc(dateTxt)}</div>
+        ${list.length>1?`<button type="button" onclick="_ssGo('pick')" style="align-self:flex-start;margin-top:8px;background:#FFFFFF;border:1px solid #C9D2E3;color:#1F4E9C;border-radius:10px;padding:8px 12px;font-size:14px;font-weight:600;min-height:40px">${_st('pickSite')}</button>`:''}
+      </div>
+      <div style="font-size:13px;font-weight:600;color:#5B6472;letter-spacing:0.4px;padding:0 4px">${_st('todayTasks')}</div>
+      <div style="background:#FFFFFF;border:1px solid #E3E6EB;border-radius:14px;overflow:hidden">
+        ${row('mach',_st('mach'),_st('machSub'),machStat,"_ssGo('mach')")}
+        ${row('in',_st('maalIn'),_st('inSub'),inStat,"_ssGo('in')")}
+        ${row('out',_st('maalOut'),_st('outSub'),outStat,"_ssGo('out')")}
+        ${row('users',_st('hajeri'),_st('hajSub'),hjStat,"_ssGo('hajeri')")}
+        ${row('work',_st('kaam'),_st('kaamSub'),kStat,"_ssOpenWork()",true)}
+      </div>
     </div>`;
 }
 async function _ssOpenWork(){
@@ -4279,21 +4334,20 @@ function _ssMachListHTML(dash){
     const mode=_machMode(v), m=ms.lines[v.id], val=_ssLineVals(m);
     const lr=_ssLastReadings(v.id,p.id);
     let chip;
-    if(val.c!=null) chip=_ssChip('✓ '+_st('filled'),'#15803D','#DCFCE7');
-    else if(val.o!=null) chip=_ssChip(_st('half'),'#B45309','#FEF3C7');
-    else if(lr.newSite) chip=_ssChip(_st('newSite'),'#fff','#1D4ED8');
-    else chip=_ssChip(_st('fill'),'#B45309','#FEF3C7');
+    if(val.c!=null) chip=_ssTag('✓ '+_st('filled'),'done');
+    else if(val.o!=null) chip=_ssTag(_st('half'),'warn');
+    else if(lr.newSite) chip=_ssTag(_st('newSite'),'info');
+    else chip=_ssTag(_st('fill'),'neutral');
     const unit=mode==='km'?_st('km'):_st('hrs');
     const det=(val.o!=null||val.c!=null)?(_fmtNum(val.o)||'—')+' → '+(_fmtNum(val.c)||'—')+(val.o!=null&&val.c!=null&&val.c>=val.o?' · '+_fmtNum(Math.round((val.c-val.o)*100)/100)+' '+unit:''):(mode==='km'?_st('odo'):_st('hourMeter'));
-    return `<button type="button" onclick="_ssGo('machEntry',{fid:'${v.id}'})" style="display:flex;align-items:center;gap:12px;padding:14px;width:100%;text-align:left;border-radius:20px;background:var(--bg2);border:1px solid var(--border);color:var(--white)">
-      <div style="width:50px;height:50px;border-radius:16px;background:#FEF3C7;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">🚜</div>
-      <div style="flex:1;min-width:0"><div style="font-size:21px;font-weight:800;line-height:1.1">${_esc(v.name)}</div><div style="font-size:14px;color:var(--muted)">${_esc(det)}</div></div>${chip}</button>`;
+    return `<button type="button" onclick="_ssGo('machEntry',{fid:'${v.id}'})" style="display:flex;align-items:center;gap:12px;padding:14px;width:100%;text-align:left;border-radius:14px;background:var(--bg2);border:1px solid var(--border);color:var(--white)">
+      <div style="flex:1;min-width:0"><div style="font-size:21px;font-weight:700;line-height:1.1">${_esc(v.name)}</div><div style="font-size:14px;color:var(--muted)">${_esc(det)}</div></div>${chip}</button>`;
   }).join('');
   dash.innerHTML=_ssHead(_st('mach'), p.name+' · '+fmtD(today()), 'home')+
     `<div style="display:flex;flex-direction:column;gap:10px;padding:0 14px">
       <div style="font-size:13px;font-weight:700;letter-spacing:1px;color:var(--muted)">${_st('machHere')} · ${ms.list.length}</div>${rows}</div>
-    <div style="margin:16px 14px 20px;padding:16px;border-radius:18px;border:1.5px dashed var(--border);display:flex;gap:12px;align-items:center">
-      <div style="font-size:26px">📞</div><div style="font-size:16px;line-height:1.35"><b>${_st('machMissing')}</b><br><span style="color:var(--muted)">${_st('callOwner')}</span></div></div>`;
+    <div style="margin:16px 14px 20px;padding:16px;border-radius:14px;border:1.5px dashed var(--border);display:flex;gap:12px;align-items:center">
+      ${_ssIco('phone','#5B6472',22)}<div style="font-size:16px;line-height:1.35"><b>${_st('machMissing')}</b><br><span style="color:var(--muted)">${_st('callOwner')}</span></div></div>`;
 }
 function _ssMachEntryHTML(dash){
   const p=_ssProj(); const v=gV(_ss.fid);
@@ -4310,23 +4364,22 @@ function _ssMachEntryHTML(dash){
   if(openVal==='' && !lr.newSite && lr.here){ openVal=lr.here.val; auto=true; }
   const closeVal=keep.c!=null?keep.c:(val.c!=null?val.c:'');
   const box=(id,v_,ro,focus)=>`<input id="${id}" data-fid="${_esc(v.id)}" type="number" inputmode="decimal" value="${v_===''?'':_esc(v_)}" ${ro?'readonly':''} oninput="_ssLive()" placeholder="${_st('typeHere')}"
-      style="width:100%;box-sizing:border-box;height:70px;border-radius:16px;border:2px solid ${focus?'#B45309':'var(--border)'};background:var(--bg);color:var(--white);font-size:32px;font-weight:800;padding:0 16px">`;
+      style="width:100%;box-sizing:border-box;height:70px;border-radius:12px;border:2px solid ${focus?'#1F4E9C':'var(--border)'};background:var(--bg);color:var(--white);font-size:32px;font-weight:700;padding:0 16px">`;
   const lastPlace=lr.last?((projects.find(x=>x.id===lr.last.pid)||{}).name||''):'';
-  const newSiteBox=lr.newSite?`<div style="padding:14px;border-radius:16px;background:#DBEAFE;color:#1E3A8A;font-size:16px;line-height:1.35"><b>${_st('newSiteNote')}</b>${lr.last?`<br>${_st('lastKnown')}: <b>${_fmtNum(lr.last.val)} ${unit}</b> · ${_esc(lastPlace)} · ${fmtD(lr.last.date)}`:''}</div>`:'';
+  const newSiteBox=lr.newSite?`<div style="padding:14px;border-radius:12px;background:#E8EFFB;color:#1F4E9C;font-size:16px;line-height:1.35"><b>${_st('newSiteNote')}</b>${lr.last?`<br>${_st('lastKnown')}: <b>${_fmtNum(lr.last.val)} ${unit}</b> · ${_esc(lastPlace)} · ${fmtD(lr.last.date)}`:''}</div>`:'';
   dash.innerHTML=_ssHead(v.name, (mode==='km'?_st('odo'):_st('hourMeter'))+' · '+p.name, 'mach')+_ssMsgHTML()+
     `<div style="display:flex;flex-direction:column;gap:14px;padding:0 14px">
       ${mine?'':`<div style="padding:12px 14px;border-radius:14px;background:var(--bg3);font-size:15px">${_st('officeFilled')}</div>`}
       ${newSiteBox}
-      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:8px">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px">
         <label for="ss-open" style="font-size:18px;font-weight:700">${lr.newSite?_st('openMeter'):_st('open')} (${unit})</label>${box('ss-open',openVal,!mine,false)}
-        ${auto?`<div style="font-size:14px;color:#15803D;font-weight:600">✓ ${_st('autoFilled')}</div>`:''}
-        <div id="ss-travel" style="font-size:15px;color:#1D4ED8;font-weight:700"></div></div>
-      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:8px">
+        ${auto?`<div style="font-size:14px;color:#166534;font-weight:600">✓ ${_st('autoFilled')}</div>`:''}
+        <div id="ss-travel" style="font-size:15px;color:#1F4E9C;font-weight:700"></div></div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px">
         <label for="ss-close" style="font-size:18px;font-weight:700">${_st('close')} (${unit})</label>${box('ss-close',closeVal,!mine,true)}
         <div style="font-size:14px;color:var(--muted)">${_st('eveningHint')}</div></div>
-      <div style="padding:12px 14px;border-radius:16px;background:#FEF3C7;color:#78350F;font-size:18px;font-weight:700">${_st('ranToday')}: <span id="ss-ran" style="font-size:24px">—</span></div>
-      ${mine?_ssBigBtn(_ss.msg==='net'?_st('saveAgain'):_st('save'),"_ssSaveMach()"):''}
-    </div><div style="height:24px"></div>`;
+      <div style="padding:12px 14px;border-radius:12px;background:#F5F6F8;color:#374151;font-size:18px;font-weight:700">${_st('ranToday')}: <span id="ss-ran" style="font-size:24px">—</span></div>
+    </div>${mine?`<div class="ss2-bar">${_ssBigBtn(_ss.msg==='net'?_st('saveAgain'):_st('save'),"_ssSaveMach()")}</div>`:''}`;
   _ss.lastKnown=lr.newSite&&lr.last?lr.last.val:(lr.here?lr.here.val:null);
   _ss.newSite=!!lr.newSite;
   _ss.keep=null;
@@ -4410,26 +4463,26 @@ function _ssHajeriHTML(dash){
   const td=today(); const list=_ssStaffList();
   const recOf=s=>(staffMusters||[]).find(m=>m.staffId===s.id&&m.date===td);
   const doneN=list.filter(s=>{ const r=recOf(s); return r&&r.status&&r.status!=='pending'; }).length;
-  const ST=[['present','#15803D'],['halfday','#B45309'],['absent','#B91C1C'],['leave','#4F46E5']];
+  const ST=[['present','#166534'],['halfday','#8A4B00'],['absent','#B42318'],['leave','#1F4E9C']];
   const rows=list.map(s=>{
     const r=recOf(s); const marked=r&&r.status&&r.status!=='pending';
     const ini=_esc(String(s.name||'?').trim().charAt(0).toUpperCase());
-    const av=`<div style="width:44px;height:44px;border-radius:999px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:var(--muted);flex-shrink:0">${ini}</div>`;
+    const av=`<div style="width:44px;height:44px;border-radius:999px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:var(--muted);flex-shrink:0">${ini}</div>`;
     if(marked){
       const col=(ST.find(x=>x[0]===r.status)||['','#57534E'])[1];
-      return `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;background:var(--bg2);border:1px solid var(--border)">${av}
-        <div style="flex:1;min-width:0"><div style="font-size:19px;font-weight:800">${_esc(s.name)}</div><div style="font-size:14px;color:var(--muted)"><b style="color:${col}">${_st(r.status)}</b> · ${_esc(r.by||'')} ${_st('markedBy')}</div></div><div style="font-size:20px">🔒</div></div>`;
+      return `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:var(--bg2);border:1px solid var(--border)">${av}
+        <div style="flex:1;min-width:0"><div style="font-size:19px;font-weight:700">${_esc(s.name)}</div><div style="font-size:14px;color:var(--muted)"><b style="color:${col}">${_st(r.status)}</b> · ${_esc(r.by||'')} ${_st('markedBy')}</div></div>${_ssIco('lock','#9AA3AF',18)}</div>`;
     }
-    const bs=ST.map(([k,c])=>`<button type="button" onclick="_ssMark('${s.id}','${k}')" style="height:46px;border-radius:12px;border:2px solid ${c};background:transparent;color:${c};font-size:15px;font-weight:800">${_st(k)}</button>`).join('');
-    return `<div style="display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:18px;background:var(--bg2);border:1px solid var(--border)">
-      <div style="display:flex;align-items:center;gap:12px">${av}<div style="font-size:19px;font-weight:800">${_esc(s.name)}</div></div>
+    const bs=ST.map(([k,c])=>`<button type="button" onclick="_ssMark('${s.id}','${k}')" style="height:46px;border-radius:10px;border:1px solid #C9D2E3;background:#FFFFFF;color:#111827;font-size:15px;font-weight:600">${_st(k)}</button>`).join('');
+    return `<div style="display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:14px;background:var(--bg2);border:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:12px">${av}<div style="font-size:19px;font-weight:700">${_esc(s.name)}</div></div>
       <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">${bs}</div></div>`;
   }).join('');
   dash.innerHTML=_ssHead(_st('hajeri'), _st('staffTitle'), 'home')+_ssMsgHTML()+
     `<div style="display:flex;flex-direction:column;gap:10px;padding:0 14px">
       <div style="font-size:13px;font-weight:700;letter-spacing:1px;color:var(--muted)">${_st('ofMarked')}: ${doneN} / ${list.length}</div>
       ${list.length?rows:`<div style="padding:20px;text-align:center;color:var(--muted);font-size:16px">${_st('noStaff')}</div>`}
-      <div style="padding:10px 4px 24px;text-align:center;font-size:14px;color:var(--muted)">🔒 ${_st('lockNote')}</div></div>`;
+      <div style="padding:10px 4px 24px;text-align:center;font-size:14px;color:var(--muted);display:flex;gap:8px;align-items:center;justify-content:center">${_ssIco('lock','#5B6472',16)}${_st('lockNote')}</div></div>`;
 }
 async function _ssMark(staffId, status){
   if(!isSiteSup()) return;
@@ -4456,6 +4509,756 @@ async function _ssMark(staffId, status){
   if(i>=0) staffMusters[i]=rec; else staffMusters.push(rec);
   _ss.msg=''; _ssRender();
 }
+// ===================== V102.43 SITE SUPERVISOR SCREEN — STAGE 2 (माल आला / माल गेला) =====================
+// Same rules as Stage 1: site supervisors only, Marathi first, only his own sites, nothing is queued —
+// the server is checked first and a refused or partly-sent save keeps everything on screen.
+// Records are built exactly like saveGRN (vendor bill) and saveMIN (issue / transfer / machine), one
+// record per path. Every line gets its id when it is added, so "Save again" re-sends ONLY the lines
+// the server does not have yet (checked line by line) — never a double.
+// New fields only: ratePending (site bill saved without rate/GST/total), viaSite (entered on this screen),
+// rateFilledBy/rateFilledByName/rateFilledTs (office filled the rates).
+Object.assign(_SS_T,{
+  fromPlant:['प्लांट / साईटकडून आलेला माल','Delivered from Plant / site'],
+  okRecv:['बरोबर मिळाले','Received correctly'], diff:['फरक आहे','Something differs'],
+  diffNote:['फरक असल्यास ऑफिस ट्रिप दुरुस्त करेल','If different, the office corrects the trip'],
+  inStockNote:['बरोबर मिळाला तर खात्री करा.','Confirm if it arrived correctly.'],
+  disputedLbl:['फरक कळवला — ऑफिस तपासेल','Difference reported — office will check'],
+  whatDiff:['काय फरक आहे? (उदा. 45 बॅगच आल्या)','What is different? (e.g. only 45 bags came)'],
+  outside:['बाहेरून आलेला माल','Bought from outside'],
+  todayIn:['आज नोंदवलेला माल','Recorded today'], todayOut:['आज गेलेला माल','Sent out today'],
+  newEntry:['नवीन नोंद','New entry'], nothingYet:['अजून काही नाही','Nothing yet'],
+  vendor:['वेंडर','Vendor'], vendorSearch:['वेंडरचे नाव शोधा','Search vendor name'],
+  vendorMissing:['नाव यादीत नाही? ॲडमिनला फोन करा','Not in the list? Call the admin'],
+  change:['बदला','Change'],
+  billNo:['बिल / चलन नंबर','Bill / challan no.'], ifNone:['नसेल तर रिकामे','leave empty if none'],
+  billPhoto:['बिलाचा फोटो','Bill photo'], takePhoto:['फोटो घ्या','Take photo'], addPhoto:['आणखी फोटो','Add photo'],
+  photoNeed:['फोटो जरूरी · ऑफिस यावरून दर भरेल','Photo required · the office fills rates from it'],
+  sending:['जात आहे…','Sending…'], sent:['गेला','Sent'], photoFail:['गेला नाही','Not sent'], retry:['पुन्हा','Retry'],
+  next:['पुढे','Next'], material:['माल','Material'], check:['तपासा','Check'],
+  whichMat:['कोणता माल?','Which material?'], matSearch:['माल शोधा — टाइप करा किंवा बोला','Search material — type or speak'],
+  usual:['या साईटवर नेहमीचा माल','Usual at this site'], howMuch:['किती?','How much?'],
+  remark:['शेरा (ऐच्छिक)','Remark (optional)'], remarkMisc:['काय घेतले ते लिहा (जरूरी)','Write what was bought (required)'],
+  cashPaid:['वेंडरला रोख पैसे दिले? (₹)','Cash paid to vendor? (₹)'], oldDate:['जुनी तारीख?','Earlier date?'],
+  more:['आणखी','Add more'], isRight:['बरोबर आहे का?','Is it right?'],
+  officeRates:['दर, GST आणि बिलाची एकूण रक्कम ऑफिस फोटोवरून भरेल','The office fills rates, GST and the bill total from the photo'],
+  edit:['बदल करा','Edit'], cashLbl:['वेंडरला रोख दिले','Cash paid to vendor'],
+  needVendor:['वेंडर निवडा.','Pick the vendor.'], needPhoto:['बिलाचा फोटो घ्या.','Take the bill photo.'],
+  photoWait:['फोटो अजून जात आहे. थोडा थांबा.','A photo is still sending. Wait a moment.'],
+  needMat:['माल निवडा आणि किती ते टाका.','Pick a material and type how much.'],
+  needQty:['किती ते टाका.','Type how much.'],
+  serialNo:['टायर/बॅटरीसारखा नंबरवाला माल ऑफिस नोंदवते.','Serial-numbered items (tyres, batteries) are entered by the office.'],
+  noLines:['किमान एक माल टाका.','Add at least one material.'],
+  whereOut:['माल कुठे गेला?','Where did it go?'],
+  usedWork:['कामात वापरला','Used in work'], usedWorkSub:['या साईटवरच्या कामासाठी','For work at this site'],
+  sentSite:['दुसऱ्या साईटवर / प्लांटला पाठवला','Sent to another site / Plant'], sentSiteSub:['त्या साईटच्या स्टॉकमध्ये आपोआप जमा','Added to that site’s stock automatically'],
+  toMach:['मशीनला दिला','Given to a machine'], toMachSub:['ऑईल, पार्ट · मशीनच्या जॉब कार्डवर जाईल','Oil, parts · goes on the machine’s job card'],
+  whichWork:['कोणत्या कामासाठी?','For which work?'], optional:['ऐच्छिक','optional'],
+  boqSearch:['काम शोधा (आयटम नंबर किंवा नाव)','Search work item (no. or name)'], noBoq:['काम निवडले नाही','No work item picked'],
+  whereTo:['कुठे पाठवला?','Sent where?'], whichMach:['कोणत्या मशीनला?','Which machine?'], machSearch:['मशीन शोधा','Search machine'],
+  stockHere:['साईटवर स्टॉक','Stock at site'],
+  overStock:['इतका माल साईटवर नाही. स्टॉकपेक्षा जास्त टाकता येणार नाही.','There is not this much at the site. You cannot enter more than the stock.'],
+  photoOpt:['फोटो (ऐच्छिक)','Photo (optional)'],
+  partSaved:['काही नोंदी पोहोचल्या नाहीत','Some entries did not reach the server'],
+  partSavedSub:['नेटवर्क आल्यावर पुन्हा जतन करा दाबा — आधी गेलेल्या नोंदी पुन्हा जाणार नाहीत.','When the network is back tap Save again — entries already sent will not be sent twice.'],
+  pickTo:['कुठे पाठवला ते निवडा.','Pick where it was sent.'], pickMach:['मशीन निवडा.','Pick the machine.'],
+  plantName:['प्लांट','Plant'], photoYes:['फोटो आहे','photo'], ratePend:['दर बाकी','rate pending'],
+  remove:['काढा','Remove'], noMatch:['सापडले नाही','No match'], dateLbl:['तारीख','Date'],
+  future:['पुढची तारीख चालणार नाही.','A future date is not allowed.'],
+  backdateNote:['जुन्या तारखेची नोंद मालकाच्या मंजुरीनंतर मोजली जाते.','An earlier-date entry counts after the owner approves it.'],
+  sameLoc:['ही हीच साईट आहे. दुसरी साईट निवडा.','That is this same site. Pick another.'],
+  siteMachines:['या साईटवरील मशीन','Machines at this site'], otherMachines:['इतर मशीन','Other machines'],
+  lines:['माल','Materials'], accepted:['खात्री केली','Confirmed'],
+  alreadyDone:['ही ट्रिप आधीच तपासली आहे.','This trip was already checked.'],
+  tripGone:['ही ट्रिप ऑफिसने काढली आहे किंवा अजून सर्व्हरवर नाही. ऑफिसला फोन करा.','The office has removed this trip, or it is not on the server yet. Call the office.'],
+  tripChanged:['ऑफिसने ही ट्रिप दुरुस्त केली आहे. नवीन माल पहा आणि पुन्हा तपासा.','The office has corrected this trip. Check the new quantities and tap again.'],
+  finishFirst:['आधीची नोंद अर्धवट राहिली आहे. आधी ती पुन्हा जतन करा.','The earlier entry is only partly saved. Save it again first.']
+});
+let _ssPur=null, _ssOut=null;
+function _ssNewPur(pid){ return {pid, vendorId:'', vq:'', invNo:'', date:'', showDate:false, cash:'', showCash:false, invId:uid(), lines:[], cur:null, mq:'', payDone:false}; }
+function _ssNewOut(pid, mode){ return {pid, mode, boqId:'', bq:'', toSiteId:'', machId:'', hq:'', lines:[], cur:null, mq:'', minId:uid()}; }
+function _ssMat(id){ return (materials||[]).find(m=>m.id===id)||null; }
+function _ssQty(n){ const v=Math.round((Number(n)||0)*1000)/1000; return v.toLocaleString('en-IN'); }
+function _ssNum(v){ const n=parseFloat(String(v==null?'':v).replace(/[,₹\s]/g,'')); return isFinite(n)?n:NaN; }
+function _ssCard(inner, extra){ return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px;${extra||''}">${inner}</div>`; }
+function _ssLbl(t, sub){ return `<div style="font-size:18px;font-weight:700;margin-bottom:8px">${t}${sub?` <span style="font-size:14px;font-weight:500;color:var(--muted)">· ${sub}</span>`:''}</div>`; }
+function _ssInp(id, val, oninput, ph, type){ return `<input id="${id}" type="${type||'text'}" ${type==='number'?'inputmode="decimal"':''} value="${_esc(val==null?'':String(val))}" oninput="${oninput}" placeholder="${_esc(ph||'')}" autocomplete="off" style="width:100%;box-sizing:border-box;height:60px;border-radius:12px;border:2px solid var(--border);background:var(--bg);color:var(--white);font-size:22px;font-weight:700;padding:0 14px">`; }
+function _ssBtn2(label, onclick, col){ return `<button type="button" onclick="${onclick}" style="width:100%;height:52px;border-radius:12px;border:1px solid #C9D2E3;background:#FFFFFF;color:${col||'#1F4E9C'};font-size:16px;font-weight:600">${label}</button>`; }
+function _ssBar(left, right){ return `<div class="ss2-bar">${left?`<div style="flex:1">${left}</div>`:''}<div style="flex:1.4">${right}</div></div>`; }   // V102.43a: fixed above the bottom menu
+function _ssSteps(n){
+  const lab=[_st('vendor'),_st('material'),_st('check')];
+  return `<div style="display:flex;align-items:center;gap:6px;padding:0 16px 10px">`+lab.map((l,i)=>{
+    const k=i+1, done=k<n, on=k===n;
+    return (i?`<div style="flex:1;height:2px;background:${done||on?'#166534':'var(--border)'}"></div>`:'')+
+      `<div style="display:flex;align-items:center;gap:5px"><div style="width:26px;height:26px;border-radius:999px;background:${done?'#166534':on?'#1F4E9C':'transparent'};border:${done||on?'none':'2px solid var(--border)'};color:${done||on?'#fff':'var(--muted)'};font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center">${done?'✓':k}</div><span style="font-size:14px;font-weight:700;color:${on?'var(--white)':'var(--muted)'}">${l}</span></div>`;
+  }).join('')+`</div>`;
+}
+// ---- photos (same photo store as V102.37/38; kept as {p,ct,sz,by,ts}) ----
+function _ssPhotoPick(ctx, kind){
+  const list=window._att[ctx]=window._att[ctx]||[];
+  if(list.filter(p=>p.status!=='fail').length>=4){ alert('4 photos max.'); return; }
+  _bpChoose(true, async f=>{
+    const it={id:uid(), status:'up', name:f.name||'photo', p:'', ct:'', sz:0, ts:Date.now(), file:f};
+    list.push(it); _ssRender(); await _attSend(it, kind); _ssRender();
+  });
+}
+async function _ssPhotoRetry(ctx, kind, id){ const it=(window._att[ctx]||[]).find(p=>p.id===id); if(!it||!it.file) return; const pr=_attSend(it,kind); _ssRender(); await pr; _ssRender(); }
+function _ssPhotoDrop(ctx, id){ window._att[ctx]=(window._att[ctx]||[]).filter(p=>p.id!==id); _ssRender(); }
+function _ssPhotosHTML(ctx, kind, required){
+  const list=window._att[ctx]||[];
+  const tiles=list.map((p,i)=>{
+    const st=p.status==='ok'?`<span style="color:#166534">✓ ${_st('sent')}</span>`:p.status==='up'?`<span style="color:#1F4E9C">${_st('sending')}</span>`:`<span style="color:#B42318">${_st('photoFail')}</span>`;
+    return `<div style="flex:1 1 120px;border:1px solid var(--border);border-radius:14px;padding:10px;font-size:15px;font-weight:600">${_st('billPhoto')} ${i+1} · ${st}
+      <div style="display:flex;gap:14px;margin-top:6px;font-size:15px">${p.status==='fail'&&p.file?`<span onclick="_ssPhotoRetry('${ctx}','${kind}','${p.id}')" style="color:#1F4E9C;cursor:pointer">${_st('retry')}</span>`:''}${p.status!=='up'?`<span onclick="_ssPhotoDrop('${ctx}','${p.id}')" style="color:var(--muted);cursor:pointer">${_st('remove')}</span>`:''}</div></div>`;
+  }).join('');
+  const has=list.some(p=>p.status!=='fail');
+  return `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:${list.length?'10px':'0'}">${tiles}</div>
+    <button type="button" onclick="_ssPhotoPick('${ctx}','${kind}')" style="width:100%;height:56px;border-radius:12px;border:1px dashed #9DB0D3;background:#F7F9FD;color:#1F4E9C;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">${_ssIco('camera','#1F4E9C',22)}${has?_st('addPhoto'):_st('takePhoto')}</button>
+    ${required?`<div style="font-size:15px;color:var(--muted);margin-top:8px">${_st('photoNeed')}</div>`:''}`;
+}
+// ---- stock at this site (base unit), same in-minus-out sum saveMIN uses ----
+function _ssBal(pid, matId){
+  const inQ=(materialInward||[]).filter(r=>r&&r.materialId===matId&&r.projectId===pid).reduce((a,r)=>a+(Number(r.qty)||0),0);
+  const outQ=(materialOutward||[]).filter(r=>r&&r.materialId===matId&&r.projectId===pid).reduce((a,r)=>a+(Number(r.qty)||0),0);
+  return inQ-outQ;
+}
+// ---- material picker (shared by bill and issue) ----
+function _ssUsualMats(pid){
+  const cnt={};
+  (materialInward||[]).forEach(r=>{ if(r&&r.projectId===pid&&r.materialId) cnt[r.materialId]=(cnt[r.materialId]||0)+1; });
+  (materialOutward||[]).forEach(r=>{ if(r&&r.projectId===pid&&r.materialId) cnt[r.materialId]=(cnt[r.materialId]||0)+1; });
+  const live=new Set(_matLive().map(m=>m.id));
+  return Object.keys(cnt).filter(id=>live.has(id)&&!_matSerial(_ssMat(id))).sort((a,b)=>cnt[b]-cnt[a]).slice(0,6).map(_ssMat).filter(Boolean);
+}
+function _ssSt(){ return _ss.matCtx==='out'?_ssOut:_ssPur; }
+function _ssMatListHTML(){
+  const st=_ssSt(); if(!st) return '';
+  const q=String(st.mq||'').toLowerCase().trim(); if(!q) return '';
+  const pool=_matLive().filter(m=>String(m.name||'').toLowerCase().includes(q)).slice(0,30);
+  if(!pool.length) return `<div style="padding:12px;color:var(--muted);font-size:16px">${_st('noMatch')}</div>`;
+  return pool.map(m=>`<button type="button" onclick="_ssPickMat('${m.id}')" style="display:flex;justify-content:space-between;width:100%;text-align:left;padding:14px;border:none;border-bottom:1px solid var(--border);background:transparent;color:var(--white);font-size:18px;font-weight:700"><span>${_esc(m.name)}</span><span style="color:var(--muted);font-size:14px">${_esc(m.baseUnit||m.unit||'')}</span></button>`).join('');
+}
+function _ssMatSearch(v){ const st=_ssSt(); if(!st) return; st.mq=v; const el=document.getElementById('ss-matlist'); if(el) el.innerHTML=_ssMatListHTML(); }
+function _ssPickMat(id){
+  const st=_ssSt(); const m=_ssMat(id); if(!st||!m) return;
+  if(_matSerial(m)){ alert(_st('serialNo')); return; }
+  st.cur={matId:id, qty:'', unit:m.baseUnit||m.unit||'', note:'', recId:uid()}; st.mq='';
+  _ssRender(); setTimeout(()=>{ const q=document.getElementById('ss-qty'); if(q) try{ q.focus(); }catch(e){} },50);
+}
+function _ssCurSet(k, v){ const st=_ssSt(); if(!st||!st.cur) return; st.cur[k]=v; if(k==='qty') _ssStockWarn(); }
+function _ssCurUnit(u){ const st=_ssSt(); if(!st||!st.cur) return; st.cur.unit=u; _ssRender(); }
+function _ssCurBase(st){ const c=st.cur; const m=c&&_ssMat(c.matId); if(!m) return null; const q=_ssNum(c.qty); if(!(q>0)) return null; const cv=_storeConvertQty(m,q,c.unit); return cv.ok===false?null:cv.qty; }
+// issue only: how much of this material the unsent lines + the line being typed take out
+function _ssOutTake(st, matId, withCur){
+  let t=0; (st.lines||[]).forEach(l=>{ if(!l.sent && l.matId===matId){ const m=_ssMat(l.matId); const cv=m?_storeConvertQty(m,_ssNum(l.qty),l.unit):null; if(cv&&cv.ok!==false) t+=Number(cv.qty)||0; } });
+  if(withCur && st.cur && st.cur.matId===matId){ const b=_ssCurBase(st); if(b) t+=b; }
+  return t;
+}
+function _ssStockWarn(){
+  const el=document.getElementById('ss-stockwarn'); const st=_ss.matCtx==='out'?_ssOut:null; if(!el||!st||!st.cur) return;
+  const bal=_ssBal(st.pid, st.cur.matId), take=_ssOutTake(st, st.cur.matId, true);
+  el.style.display=(take>bal+0.0001)?'block':'none';
+}
+function _ssCurHTML(st, forOut){
+  const c=st.cur; if(!c) return '';
+  const m=_ssMat(c.matId); if(!m) return '';
+  const units=[m.baseUnit||m.unit||''].concat((m.altUnits||[]).map(a=>a.unit).filter(u=>u&&u!==m.baseUnit)).filter(Boolean);
+  const ub=units.map(u=>`<button type="button" onclick="_ssCurUnit('${_esc(u)}')" style="flex:1;height:50px;border-radius:12px;border:${c.unit===u?'none':'1px solid var(--border)'};background:${c.unit===u?'var(--white)':'transparent'};color:${c.unit===u?'var(--bg)':'var(--white)'};font-size:18px;font-weight:700">${_esc(u)}</button>`).join('');
+  const misc=_matIsMisc(m);
+  let stock='';
+  if(forOut){
+    const bal=Math.max(0,_ssBal(st.pid,c.matId)-_ssOutTake(st,c.matId,false));
+    stock=`<div style="font-size:16px;color:var(--muted)">${_st('stockHere')}: <b style="color:var(--white)">${_ssQty(bal)} ${_esc(m.baseUnit||'')}</b></div>
+      <div id="ss-stockwarn" style="display:none;padding:12px 14px;border-radius:14px;background:#FEF3F2;color:#912018;font-size:16px;font-weight:700;line-height:1.3">${_st('overStock')}</div>`;
+  }
+  return _ssCard(`<div style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:18px;font-weight:700">${_st('howMuch')} · ${_esc(m.name)}</div><span onclick="_ssDropCur()" style="color:var(--muted);font-size:15px;cursor:pointer">${_st('remove')}</span></div>
+      <input id="ss-qty" type="number" inputmode="decimal" value="${_esc(String(c.qty))}" oninput="_ssCurSet('qty',this.value)" style="width:100%;box-sizing:border-box;height:72px;border-radius:12px;border:2px solid #1F4E9C;background:var(--bg);color:var(--white);font-size:34px;font-weight:700;padding:0 16px">
+      ${units.length>1?`<div style="display:flex;gap:8px">${ub}</div>`:`<div style="font-size:16px;color:var(--muted)">${_esc(units[0]||'')}</div>`}
+      ${stock}
+      ${(!forOut||misc)?`<input type="text" value="${_esc(c.note||'')}" oninput="_ssCurSet('note',this.value)" placeholder="${misc?_st('remarkMisc'):_st('remark')}" style="width:100%;box-sizing:border-box;height:54px;border-radius:14px;border:1px solid var(--border);background:var(--bg);color:var(--white);font-size:17px;padding:0 14px">`:''}
+    </div>`, 'border-color:#1F4E9C');
+}
+function _ssDropCur(){ const st=_ssSt(); if(st){ st.cur=null; _ssRender(); } }
+function _ssPickerHTML(st, pid){
+  const usual=_ssUsualMats(pid);
+  const chips=usual.map(m=>`<button type="button" onclick="_ssPickMat('${m.id}')" style="height:58px;border-radius:14px;border:${st.cur&&st.cur.matId===m.id?'2px solid #166534':'1px solid var(--border)'};background:var(--bg2);color:var(--white);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;padding:0 4px"><span style="font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%">${_esc(m.name)}</span><span style="font-size:12px;color:var(--muted)">${_esc(m.baseUnit||'')}</span></button>`).join('');
+  return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+      <input id="ss-matq" type="search" value="${_esc(st.mq||'')}" oninput="_ssMatSearch(this.value)" placeholder="${_st('matSearch')}" autocomplete="off" style="width:100%;box-sizing:border-box;height:58px;border:none;background:transparent;color:var(--white);font-size:18px;padding:0 14px">
+      <div id="ss-matlist" style="max-height:300px;overflow:auto">${_ssMatListHTML()}</div></div>
+    ${usual.length?`<div style="font-size:13px;font-weight:700;letter-spacing:1px;color:var(--muted)">${_st('usual')}</div><div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">${chips}</div>`:''}
+    <div style="font-size:14px;color:#5B6472;display:flex;gap:8px;align-items:center;padding:0 4px">${_ssIco('phone','#5B6472',16)}${_st('matMissing')}</div>`;
+}
+// move the line being typed into the list; false = not valid (told why)
+function _ssTakeCur(st, forOut){
+  const c=st.cur; if(!c) return true;
+  const m=_ssMat(c.matId); if(!m){ st.cur=null; return true; }
+  const q=_ssNum(c.qty);
+  if(!(q>0)){ alert(_st('needQty')); return false; }
+  const cv=_storeConvertQty(m,q,c.unit); if(cv.ok===false){ alert(_storeBadUnits([{matId:m.id, entryQty:q, entryUnit:c.unit}])); return false; }
+  if(_matIsMisc(m) && !String(c.note||'').trim()){ alert(_st('remarkMisc')); return false; }
+  if(forOut){ const bal=_ssBal(st.pid,m.id), take=_ssOutTake(st,m.id,true); if(take>bal+0.0001){ alert(_st('overStock')); return false; } }
+  st.lines.push({matId:m.id, qty:q, unit:c.unit, note:String(c.note||'').trim(), recId:c.recId||uid(), sent:false});
+  st.cur=null; return true;
+}
+function _ssLinesHTML(st){
+  if(!st.lines.length) return '';
+  return _ssCard(st.lines.map((l,i)=>{ const m=_ssMat(l.matId);
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;${i?'border-top:1px solid var(--border)':''}">
+      <div style="flex:1;min-width:0"><div style="font-size:20px;font-weight:700">${_esc(m?m.name:'?')} · ${_ssQty(l.qty)} ${_esc(l.unit)}</div>${l.note?`<div style="font-size:14px;color:var(--muted)">${_esc(l.note)}</div>`:''}</div>
+      ${(l.sent||l.outOnSrv)?`<span style="color:#166534;font-weight:700">✓</span>`:`<span onclick="_ssDropLine(${i})" style="color:var(--muted);font-size:15px;cursor:pointer">${_st('remove')}</span>`}</div>`; }).join(''));
+}
+function _ssDropLine(i){ const st=_ssSt(); if(!st||!st.lines[i]||st.lines[i].sent||st.lines[i].outOnSrv) return; st.lines.splice(i,1); _ssRender(); }
+function _ssAddMore(){ const st=_ssSt(); if(!st) return; if(!st.cur){ alert(_st('needMat')); return; } if(_ssTakeCur(st, _ss.matCtx==='out')) _ssRender(); }
+// ---- generic one-record server read: object / null (not there) / undefined (could not check) ----
+async function _ssGet(path){
+  if(typeof FB_URL==='undefined'||typeof FB_KEY==='undefined') return undefined;
+  try{
+    const token=(typeof fbGetAuth==='function')?await fbGetAuth():null;
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),8000);
+    const r=await fetch(FB_URL+'/fuellog/'+path+'.json?auth='+(token||FB_KEY),{signal:ctrl.signal});
+    clearTimeout(t); if(!r.ok) return undefined;
+    const v=await r.json(); return (v&&typeof v==='object')?v:null;
+  }catch(e){ return undefined; }
+}
+function _ssUpsert(arr, rec){ const i=arr.findIndex(x=>x&&x.id===rec.id); if(i>=0) arr[i]=rec; else arr.push(rec); }
+function _ssWhen(r){ const t=Number(r&&r.ts)||0; if(!t) return ''; const d=new Date(t); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+
+// ================= माल आला =================
+function _ssInHTML(dash){
+  const p=_ssProj(); if(!p){ _ss.view='home'; return _ssRender(); }
+  const td=today();
+  const inc=_incomingTripsFor(p.id);
+  const incHTML=inc.map(t=>{
+    const lines=_tripLines(t); const from=(sites.find(s=>s.id===t.fromSiteId)||{}).name||PLANT_NAME;
+    const disputed=t.siteStatus==='disputed';
+    return `<div style="background:var(--bg2);border:2px solid ${disputed?'#B42318':'#E3E6EB'};border-radius:14px;overflow:hidden">
+      <div style="padding:12px 16px;background:${disputed?'#FEF3F2':'#F5F6F8'};color:${disputed?'#912018':'#374151'};font-size:14px;font-weight:600;display:flex;gap:8px;align-items:center;border-bottom:1px solid #EEF1F5">${_ssIco('truck',disputed?'#B42318':'#5B6472',20)}${_esc(from)}${t.vehicleName?' · '+_esc(t.vehicleName):''} · ${fmtD(t.date)}</div>
+      <div style="padding:14px 16px;display:flex;flex-direction:column;gap:8px">
+        ${lines.map(l=>`<div style="display:flex;justify-content:space-between;font-size:21px;font-weight:700"><span>${_esc(l.materialName)}</span><span>${_ssQty(l.qty)} ${_esc(l.unit)}</span></div>`).join('')}
+        ${disputed?`<div style="font-size:15px;color:#B42318;font-weight:700">${_st('disputedLbl')}${t.disputeNote?': '+_esc(t.disputeNote):''}</div>`:`<div style="font-size:14px;color:var(--muted)">${_st('inStockNote')}</div>`}
+        <div style="display:flex;gap:10px">
+          <button type="button" onclick="_ssAccept('${t.id}')" style="flex:2;height:50px;border-radius:12px;border:none;background:#1F4E9C;color:#fff;font-size:16px;font-weight:600">${_st('okRecv')}</button>
+          ${disputed?'':`<button type="button" onclick="_ssDispute('${t.id}')" style="flex:1;height:50px;border-radius:12px;border:1px solid #C9D2E3;background:#FFFFFF;color:#B42318;font-size:16px;font-weight:600">${_st('diff')}</button>`}
+        </div>${disputed?'':`<div style="font-size:13px;color:var(--muted)">${_st('diffNote')}</div>`}</div></div>`;
+  }).join('');
+  const _incIds=new Set(inc.map(t=>t.id));   // V102.43a: stock the trip added is shown once, in the card above, until confirmed
+  const todays=(materialInward||[]).filter(r=>r&&r.projectId===p.id&&r.date===td&&!(r.autoTrip&&_incIds.has(r.tripId))).sort((a,b)=>(b.ts||0)-(a.ts||0));
+  const rows=todays.map(r=>`<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:var(--bg2);border:1px solid var(--border)">
+      <div style="width:40px;height:40px;border-radius:12px;background:#E8F5EC;display:flex;align-items:center;justify-content:center">${_ssIco('check','#166534',20)}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:19px;font-weight:700">${_esc(_storeDispName(r))} · ${_ssQty(r.entryQty!=null?r.entryQty:r.qty)} ${_esc(r.entryUnit||r.unit||'')}</div>
+      <div style="font-size:14px;color:var(--muted)">${_esc(_storePartyName(r))}${_ssWhen(r)?' · '+_ssWhen(r):''}${(r.billPhotos&&r.billPhotos.length)?' · '+_st('photoYes'):''}${r.ratePending?' · '+_st('ratePend'):''}</div></div></div>`).join('');
+  dash.innerHTML=_ssHead(_st('maalIn'), p.name+' · '+fmtD(td), 'home')+_ssMsgHTML()+
+    `<div style="display:flex;flex-direction:column;gap:12px;padding:0 14px 24px">
+      ${inc.length?`<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:14px;font-weight:700;letter-spacing:1px;color:#1F4E9C">${_st('fromPlant')}</div>${_ssChip(inc.length+' '+_st('toCheck'),'#1F4E9C','#E8EFFB')}</div>${incHTML}`:''}
+      ${_ssBtn2('＋ '+_st('outside'), "_ssStartPur()")}
+      <div style="font-size:14px;font-weight:700;letter-spacing:1px;color:var(--muted);margin-top:6px">${_st('todayIn')}</div>
+      ${rows||`<div style="color:var(--muted);font-size:16px;padding:6px 2px">${_st('nothingYet')}</div>`}
+    </div>`;
+}
+async function _ssAccept(tripId){
+  if(!isSiteSup()) return;
+  const t=(trips||[]).find(x=>x.id===tripId); if(!t) return;
+  const srv=await _ssGet('trips/'+tripId);
+  if(srv===undefined){ _ss.msg='net'; return _ssRender(); }
+  if(srv===null){ alert(_st('tripGone')); _ss.msg=''; return _ssRender(); }   // never re-create a deleted trip
+  const fresh=(typeof _normalizeTrip==='function')?_normalizeTrip(Object.assign({}, srv, {id:tripId})):Object.assign({}, srv, {id:tripId});
+  if(srv.siteStatus==='accepted'){ _ssUpsert(trips, fresh); alert(_st('alreadyDone')); _ss.msg=''; return _ssRender(); }
+  // the office may have corrected the trip: the server copy replaces this phone's copy BEFORE anything is written
+  const sig=x=>JSON.stringify(_tripLines(x).map(l=>[l.materialId,Number(l.qty)||0,l.unit||'']))+'|'+(x.toSiteId||'');
+  const changed=sig(fresh)!==sig(t);
+  _ssUpsert(trips, fresh);
+  if(changed){ alert(_st('tripChanged')); _ss.msg=''; return _ssRender(); }
+  const keep=_storesProjectId; _storesProjectId=_ss.pid;
+  try{ await _acceptIncoming(tripId); } finally { _storesProjectId=keep; }
+  _ss.msg=''; _ssRender();
+}
+async function _ssDispute(tripId){
+  if(!isSiteSup()) return;
+  const t=(trips||[]).find(x=>x.id===tripId); if(!t) return;
+  const note=String(prompt(_st('whatDiff'))||'').trim(); if(!note) return;
+  const srv=await _ssGet('trips/'+tripId);
+  if(srv===undefined){ _ss.msg='net'; return _ssRender(); }
+  if(srv===null){ alert(_st('tripGone')); return _ssRender(); }   // never PATCH a trip that is not on the server
+  if(srv.siteStatus==='accepted'){ alert(_st('alreadyDone')); return _ssRender(); }
+  const patch={siteStatus:'disputed', disputeNote:note, disputedBy:(sess&&sess.name)||'', disputedTs:Date.now()};
+  const ok=await _fbMerge('trips/'+tripId, patch);          // only these fields — the trip itself is untouched
+  if(!ok){ _ss.msg='net'; return _ssRender(); }
+  _ssUpsert(trips, Object.assign({}, t, patch));
+  flash(_st('disputedLbl'),''); _ss.msg=''; _ssRender();
+}
+// ---- outside purchase (rate pending) ----
+function _ssStartPur(){ if(!_ssPur || _ssPur.pid!==_ss.pid){ _ssPur=_ssNewPur(_ss.pid); window._att.ssbill=[]; } _ss.matCtx='pur'; _ssGo('pur1'); }
+function _ssPurLocked(st){ return !!st && (st.lines.some(l=>l.sent) || st.payDone); }   // after a partial save the bill's vendor/no./date/cash can no longer change
+function _ssVendors(){ return (vendors||[]).filter(v=>v && !v.deleted && v.active!==false).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))); }
+function _ssVendList(){
+  const q=String((_ssPur&&_ssPur.vq)||'').toLowerCase().trim();
+  const pool=_ssVendors().filter(v=>!q||String(v.name||'').toLowerCase().includes(q)).slice(0,q?30:8);
+  if(!pool.length) return `<div style="padding:12px;color:var(--muted);font-size:16px">${_st('noMatch')}</div>`;
+  return pool.map(v=>`<button type="button" onclick="_ssPickVendor('${v.id}')" style="display:block;width:100%;text-align:left;padding:14px;border:none;border-bottom:1px solid var(--border);background:transparent;color:var(--white);font-size:19px;font-weight:700">${_esc(v.name)}</button>`).join('');
+}
+function _ssVendSearch(v){ if(!_ssPur) return; _ssPur.vq=v; const el=document.getElementById('ss-vendlist'); if(el) el.innerHTML=_ssVendList(); }
+function _ssPickVendor(id){ if(!_ssPur) return; _ssPur.vendorId=id; _ssPur.vq=''; _ssRender(); }
+function _ssPur1HTML(dash){
+  const st=_ssPur; const p=_ssProj(); if(!st||!p){ _ss.view='in'; return _ssRender(); }
+  const v=(vendors||[]).find(x=>x.id===st.vendorId);
+  const vend=v?`<div style="height:60px;border-radius:12px;border:2px solid #A7D7B5;background:rgba(22,163,74,0.08);display:flex;align-items:center;gap:10px;padding:0 14px;font-size:21px;font-weight:700"><span style="color:#166534">✓</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(v.name)}</span>${_ssPurLocked(st)?'':`<span onclick="_ssPur.vendorId='';_ssRender()" style="font-size:16px;color:#1F4E9C;cursor:pointer">${_st('change')}</span>`}</div>`
+    :`<div style="background:var(--bg);border:2px solid var(--border);border-radius:12px;overflow:hidden"><input type="search" value="${_esc(st.vq||'')}" oninput="_ssVendSearch(this.value)" placeholder="${_st('vendorSearch')}" autocomplete="off" style="width:100%;box-sizing:border-box;height:58px;border:none;background:transparent;color:var(--white);font-size:19px;padding:0 14px"><div id="ss-vendlist" style="max-height:280px;overflow:auto">${_ssVendList()}</div></div>`;
+  dash.innerHTML=_ssHead(_st('outside'), _st('newEntry'), 'in')+_ssSteps(1)+
+    `<div style="display:flex;flex-direction:column;gap:12px;padding:0 14px">
+      ${_ssCard(_ssLbl(_st('vendor'))+vend+`<div style="font-size:14px;color:var(--muted);margin-top:8px;display:flex;gap:8px;align-items:center">${_ssIco('phone','#5B6472',16)}${_st('vendorMissing')}</div>`)}
+      ${_ssCard(_ssLbl(_st('billNo'),_st('ifNone'))+(_ssPurLocked(st)?`<div style="font-size:22px;font-weight:700">${_esc(st.invNo||'—')}</div>`:_ssInp('ss-inv', st.invNo, "_ssPur.invNo=this.value", '', 'text')))}
+      ${_ssCard(_ssLbl(_st('billPhoto')+' <span style="color:#B42318">*</span>')+_ssPhotosHTML('ssbill','bills',true))}
+    </div>`+_ssBar('', _ssBigBtn(_st('next')+' ›', "_ssPur1Next()"));
+}
+function _ssPur1Next(){
+  const st=_ssPur; if(!st) return;
+  if(!st.vendorId){ alert(_st('needVendor')); return; }
+  const ph=window._att.ssbill||[];
+  if(!ph.some(p=>p.status==='ok'||p.status==='up')){ alert(_st('needPhoto')); return; }
+  _ssGo('pur2');
+}
+function _ssPur2HTML(dash){
+  const st=_ssPur; const p=_ssProj(); if(!st||!p){ _ss.view='in'; return _ssRender(); }
+  _ss.matCtx='pur';
+  const v=(vendors||[]).find(x=>x.id===st.vendorId);
+  const opt=(open,label,body,toggle)=>`<div style="border-top:1px solid var(--border);padding:12px 2px"><div onclick="${toggle}" style="display:flex;justify-content:space-between;font-size:18px;font-weight:600;cursor:pointer"><span>${label}</span><span style="color:var(--muted)">${open?'▾':'›'}</span></div>${open?`<div style="margin-top:10px">${body}</div>`:''}</div>`;
+  const extras=_ssPurLocked(st)?'':_ssCard(
+    opt(st.showCash||_ssNum(st.cash)>0, _st('cashPaid'), _ssInp('ss-cash', st.cash, "_ssPur.cash=this.value", '₹', 'number'), "_ssPur.showCash=!_ssPur.showCash;_ssRender()")+
+    opt(st.showDate||!!st.date, _st('oldDate'), `<input type="date" value="${_esc(st.date||today())}" max="${today()}" onchange="_ssPur.date=this.value" style="width:100%;box-sizing:border-box;height:58px;border-radius:14px;border:2px solid var(--border);background:var(--bg);color:var(--white);font-size:19px;padding:0 12px"><div style="font-size:14px;color:var(--muted);margin-top:6px">${_st('backdateNote')}</div>`, "_ssPur.showDate=!_ssPur.showDate;_ssRender()"),
+    'padding:2px 14px');
+  dash.innerHTML=_ssHead(_st('whichMat'), (v?v.name:'')+(st.invNo?' · '+st.invNo:''), 'pur1')+_ssSteps(2)+
+    `<div style="display:flex;flex-direction:column;gap:12px;padding:0 14px">
+      ${_ssLinesHTML(st)}${_ssCurHTML(st,false)}${_ssPickerHTML(st,p.id)}${extras}</div>`+
+    _ssBar(_ssBtn2('＋ '+_st('more'), "_ssAddMore()"), _ssBigBtn(_st('check')+' ›', "_ssPur2Next()"));
+}
+function _ssPur2Next(){
+  const st=_ssPur; if(!st) return;
+  if(!_ssTakeCur(st,false)) return;
+  if(!st.lines.length){ alert(_st('noLines')); return; }
+  _ssGo('pur3');
+}
+function _ssPur3HTML(dash){
+  const st=_ssPur; const p=_ssProj(); if(!st||!p){ _ss.view='in'; return _ssRender(); }
+  const v=(vendors||[]).find(x=>x.id===st.vendorId);
+  const ph=(window._att.ssbill||[]).filter(x=>x.status!=='fail').length;
+  const cash=_ssNum(st.cash);
+  const d=st.date||today();
+  dash.innerHTML=_ssHead(_st('check'), _st('isRight'), 'pur2')+_ssSteps(3)+_ssMsgHTML()+
+    `<div style="display:flex;flex-direction:column;gap:12px;padding:0 14px">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden">
+        <div style="padding:14px 16px;background:#F5F6F8;color:#374151"><div style="font-size:22px;font-weight:700">${_esc(v?v.name:'')}</div>
+          <div style="font-size:15px;font-weight:600">${st.invNo?_st('billNo')+' '+_esc(st.invNo)+' · ':''}${fmtD(d)}${ph?' · '+_st('photoYes')+' '+ph:''}</div></div>
+        <div style="padding:4px 16px 12px">${st.lines.map((l,i)=>{ const m=_ssMat(l.matId); return `<div style="padding:12px 0;${i?'border-top:1px solid var(--border)':''}"><div style="display:flex;justify-content:space-between;font-size:21px;font-weight:700"><span>${_esc(m?m.name:'?')}</span><span>${_ssQty(l.qty)} ${_esc(l.unit)}${l.sent?' <span style="color:#166534">✓</span>':''}</span></div>${l.note?`<div style="font-size:15px;color:var(--muted)">${_esc(l.note)}</div>`:''}</div>`; }).join('')}
+          ${cash>0?`<div style="display:flex;justify-content:space-between;padding:12px 0 0;border-top:1px solid var(--border);font-size:18px"><span>${_st('cashLbl')}</span><b style="font-size:21px">₹ ${cash.toLocaleString('en-IN')}</b></div>`:''}</div></div>
+      <div style="font-size:15px;color:var(--muted);padding:0 4px">ⓘ ${_st('officeRates')}</div></div>
+    <div class="ss2-bar" style="flex-direction:column">${_ssBigBtn(_ss.msg?_st('saveAgain'):_st('save'),"_ssSavePur()")}${st.lines.some(l=>l.sent)?'':_ssBtn2(_st('edit'),"_ssGo('pur2')",'var(--muted)')}</div>`;
+}
+async function _ssSavePur(){
+  if(!isSiteSup()) return;
+  const st=_ssPur; const p=_ssProj(); if(!st||!p||st.pid!==p.id) return;
+  // once part of the bill is on the server, its vendor / no. / date / cash are frozen (data, not only the screen)
+  if(!_ssPurLocked(st)) st.frozen={vendorId:st.vendorId, invNo:st.invNo, date:st.date||today(), cash:st.cash};
+  else Object.assign(st, {vendorId:st.frozen.vendorId, invNo:st.frozen.invNo, date:st.frozen.date, cash:st.frozen.cash});
+  const v=(vendors||[]).find(x=>x.id===st.vendorId); if(!v){ alert(_st('needVendor')); return _ssGo('pur1'); }
+  const ph=window._att.ssbill||[];
+  if(ph.some(x=>x.status==='up')){ alert(_st('photoWait')); return; }
+  const bp=ph.filter(x=>x.status==='ok').map(x=>({p:x.p, ct:x.ct, sz:x.sz, by:(sess&&sess.name)||'', ts:x.ts}));
+  if(!bp.length){ alert(_st('needPhoto')); return _ssGo('pur1'); }
+  if(!st.lines.length){ alert(_st('noLines')); return _ssGo('pur2'); }
+  if(!st.date) st.date=today();                  // frozen on the first attempt (retry after midnight keeps the day)
+  const dateVal=st.date;
+  if(isFutureDate(dateVal)){ alert(_st('future')); return; }
+  const cash=Math.round((_ssNum(st.cash)>0?_ssNum(st.cash):0)*100)/100;
+  const invNo=String(st.invNo||'').trim();
+  // 1) what does the server already have? (a retry after a partly-sent save)
+  const todo=st.lines.filter(l=>!l.sent);
+  const payId='pay_'+st.invId;
+  const chk=await Promise.all(todo.map(l=>_vlOnServer('materialInward/'+l.recId)).concat([cash>0&&!st.payDone?_vlOnServer('vendorTxns/'+payId):Promise.resolve(false)]));
+  if(chk.some(c=>c===null)){ _ss.msg='net'; return _ssRender(); }
+  const payOnSrv=chk.pop()===true;
+  const already=new Set(); todo.forEach((l,i)=>{ if(chk[i]===true) already.add(l.recId); });
+  // 2) send what is missing, exactly the saveGRN vendor-bill shape, rate pending
+  const jobs=[];
+  st.lines.filter(l=>!l.sent).forEach(l=>{
+    const mat=_ssMat(l.matId); if(!mat) return;
+    const conv=_storeConvertQty(mat, l.qty, l.unit); if(conv.ok===false) return;
+    const rec={ id:l.recId, projectId:p.id, siteId:p.siteId||'', materialId:mat.id, materialName:mat.name,
+      qty:conv.qty, unit:conv.unit, entryQty:l.qty, entryUnit:l.unit, baseUnit:conv.baseUnit,
+      date:dateVal, note:l.note||'', invoiceNo:invNo, invoiceId:st.invId, sourceType:'external', returnable:false,
+      loggedBy:(sess&&sess.userId)||'', loggedByName:(sess&&sess.name)||'', ts:Date.now(),
+      vendorId:v.id, fromSiteId:'', source:'vendor', sourceNote:v.name||'',
+      rate:0, amount:0, gstPct:0, gstAmount:0, invoiceAmount:0, ratePending:true, viaSite:true, billPhotos:bp };
+    _bdStamp(rec);
+    if(already.has(l.recId)){ l.sent=true; if(!(materialInward||[]).some(x=>x&&x.id===rec.id)) _ssUpsert(materialInward, rec); return; }   // reached the server earlier, answer was lost
+    jobs.push(_fbWrite('materialInward/'+rec.id, rec).then(ok=>{ if(ok!==false){ l.sent=true; _ssUpsert(materialInward, rec); } return ok; }));
+  });
+  if(cash>0 && !st.payDone){
+    const ptxn={ id:payId, vendorId:v.id, type:'payment', amount:cash, date:dateVal, srcId:st.invId, projectId:p.id,
+      note:'Paid with invoice'+(invNo?(' '+invNo):'')+' (site)', viaSite:true, ts:Date.now(), enteredBy:(sess&&sess.userId)||'', enteredByName:(sess&&sess.name)||'' };
+    if(payOnSrv){ st.payDone=true; vendorTxns=vendorTxns||[]; if(!vendorTxns.some(x=>x&&x.id===payId)) _ssUpsert(vendorTxns, ptxn); }
+    else jobs.push(_fbWrite('vendorTxns/'+payId, ptxn).then(ok=>{ if(ok!==false){ st.payDone=true; vendorTxns=vendorTxns||[]; _ssUpsert(vendorTxns, ptxn); } return ok; }));
+  }
+  const res=await Promise.all(jobs);
+  if(res.some(r=>r===false) || st.lines.some(l=>!l.sent) || (cash>0 && !st.payDone)){
+    _ss.msg=st.lines.some(l=>l.sent)?'part':'net'; return _ssRender();
+  }
+  _ssPur=null; window._att.ssbill=[];
+  flash(_st('saved'), v.name);
+  _ssGo('in');
+}
+
+// ================= माल गेला =================
+function _ssOutListHTML(dash){
+  const p=_ssProj(); if(!p){ _ss.view='home'; return _ssRender(); }
+  const td=today();
+  const ch=(mode,ico,t,sub)=>`<button type="button" onclick="_ssStartOut('${mode}')" style="display:flex;align-items:center;gap:14px;padding:16px;width:100%;text-align:left;border-radius:14px;background:var(--bg2);border:1px solid var(--border);color:var(--white)">
+      <div style="width:44px;height:44px;border-radius:12px;background:#E8EFFB;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_ssIco(ico,'#1F4E9C',22)}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:21px;font-weight:700;line-height:1.15">${t}</div><div style="font-size:15px;color:var(--muted)">${sub}</div></div><span style="color:var(--muted);font-size:22px">›</span></button>`;
+  const todays=(materialOutward||[]).filter(r=>r&&r.projectId===p.id&&r.date===td).sort((a,b)=>(b.ts||0)-(a.ts||0));
+  const rows=todays.map(r=>`<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:var(--bg2);border:1px solid var(--border)">
+      <div style="width:40px;height:40px;border-radius:12px;background:#E8EFFB;display:flex;align-items:center;justify-content:center">${_ssIco('out','#1F4E9C',20)}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:19px;font-weight:700">${_esc(_storeDispName(r))} · ${_ssQty(r.entryQty!=null?r.entryQty:r.qty)} ${_esc(r.entryUnit||r.unit||'')}</div>
+      <div style="font-size:14px;color:var(--muted)">${_ssOutWhere(r)}${_ssWhen(r)?' · '+_ssWhen(r):''}</div></div></div>`).join('');
+  dash.innerHTML=_ssHead(_st('maalOut'), p.name+' · '+fmtD(td), 'home')+
+    `<div style="display:flex;flex-direction:column;gap:12px;padding:0 14px 24px">
+      <div style="font-size:20px;font-weight:700">${_st('whereOut')}</div>
+      ${ch('consumed','work',_st('usedWork'),_st('usedWorkSub'))}
+      ${ch('transfer','truck',_st('sentSite'),_st('sentSiteSub'))}
+      ${ch('machine','wrench',_st('toMach'),_st('toMachSub'))}
+      <div style="font-size:14px;font-weight:700;letter-spacing:1px;color:var(--muted);margin-top:6px">${_st('todayOut')}</div>
+      ${rows||`<div style="color:var(--muted);font-size:16px;padding:6px 2px">${_st('nothingYet')}</div>`}</div>`;
+}
+function _ssOutWhere(r){
+  if(r.outReason==='transfer') return '→ '+_esc(_ssDestName(r.toSiteId));
+  if(r.outReason==='machine') return _esc(r.machineName||'');
+  if(r.outReason==='customer') return '→ '+_esc(r.customerName||'');
+  return _st('usedWork')+(r.boqDesc?' · '+_esc(r.boqDesc):'');
+}
+function _ssDestName(sid){ if(_isPlantLoc(sid)) return PLANT_NAME; return ((sites||[]).find(s=>s.id===sid)||{}).name||''; }
+function _ssStartOut(mode){
+  // a partly-saved issue is never thrown away: finish it first (its lines are already partly on the server)
+  if(_ssOut && _ssOut.pid===_ss.pid && _ssOut.lines.some(l=>!l.sent) && _ssOut.lines.some(l=>l.sent||l.outOnSrv)){
+    _ss.matCtx='out'; if(_ssOut.mode!==mode) alert(_st('finishFirst')); _ss=Object.assign({}, _ss, {view:'outC', msg:'part'}); _ssRender(); return;
+  }
+  if(!_ssOut || _ssOut.pid!==_ss.pid || _ssOut.mode!==mode || _ssOut.lines.some(l=>l.sent)){ _ssOut=_ssNewOut(_ss.pid, mode); window._att.ssout=[]; }
+  _ss.matCtx='out'; _ssGo('outE');
+}
+// destinations: the Plant + every other site that keeps a store (has a project) — same resolution as saveMIN
+function _ssDests(pid){
+  const p=projects.find(x=>x.id===pid); const here=p?p.siteId:'';
+  const pn=String(PLANT_NAME||'').trim().toLowerCase();
+  const out=[{id:PLANT_PID, name:PLANT_NAME}];
+  (sites||[]).forEach(s=>{
+    if(!s||s.id===here) return;
+    if(String(s.name||'').trim().toLowerCase()===pn) return;
+    const dp=(projects||[]).find(x=>x.siteId===s.id); if(!dp) return;
+    if((dp.status||'active')==='completed') return;
+    out.push({id:s.id, name:s.name||''});
+  });
+  return out;
+}
+function _ssBoqList(){
+  const st=_ssOut; if(!st) return '';
+  const q=String(st.bq||'').toLowerCase().trim(); if(!q) return '';
+  const pool=(_projBoq(st.pid)||[]).filter(b=>(String(b.itemNo||'')+' '+String(b.description||'')).toLowerCase().includes(q)).slice(0,25);
+  if(!pool.length) return `<div style="padding:12px;color:var(--muted);font-size:16px">${_st('noMatch')}</div>`;
+  return pool.map(b=>`<button type="button" onclick="_ssOut.boqId='${b.id}';_ssOut.bq='';_ssRender()" style="display:flex;gap:10px;width:100%;text-align:left;padding:12px;border:none;border-bottom:1px solid var(--border);background:transparent;color:var(--white)"><span style="min-width:36px;height:36px;border-radius:10px;background:var(--white);color:var(--bg);font-weight:700;display:flex;align-items:center;justify-content:center;font-size:15px">${_esc(b.itemNo||'')}</span><span style="font-size:16px;line-height:1.25">${_esc(String(b.description||'').slice(0,90))}</span></button>`).join('');
+}
+function _ssBoqSearch(v){ if(!_ssOut) return; _ssOut.bq=v; const el=document.getElementById('ss-boqlist'); if(el) el.innerHTML=_ssBoqList(); }
+function _ssMachList(){
+  const st=_ssOut; if(!st) return '';
+  const p=projects.find(x=>x.id===st.pid);
+  const here=new Set(_siteMachines((p&&p.siteId)||'').map(v=>v.id));
+  const q=String(st.hq||'').toLowerCase().trim();
+  let pool=(fleet||[]).filter(v=>v && v.active!==false);
+  if(q) pool=pool.filter(v=>String(v.name||'').toLowerCase().includes(q));
+  else pool=pool.filter(v=>here.has(v.id));
+  pool=pool.sort((a,b)=>(here.has(b.id)?1:0)-(here.has(a.id)?1:0)||String(a.name||'').localeCompare(String(b.name||''))).slice(0,30);
+  if(!pool.length) return `<div style="padding:12px;color:var(--muted);font-size:16px">${q?_st('noMatch'):_st('noMach')}</div>`;
+  return pool.map(v=>`<button type="button" onclick="_ssOut.machId='${v.id}';_ssOut.hq='';_ssRender()" style="display:flex;justify-content:space-between;width:100%;text-align:left;padding:14px;border:none;border-bottom:1px solid var(--border);background:transparent;color:var(--white);font-size:19px;font-weight:700"><span>${_esc(v.name)}</span>${here.has(v.id)?'':`<span style="font-size:13px;color:var(--muted)">${_esc(v.siteName||'')}</span>`}</button>`).join('');
+}
+function _ssMachSearch(v){ if(!_ssOut) return; _ssOut.hq=v; const el=document.getElementById('ss-machlist'); if(el) el.innerHTML=_ssMachList(); }
+function _ssPickedBox(txt, clear){ return `<div style="min-height:60px;border-radius:12px;border:2px solid #A7D7B5;background:rgba(22,163,74,0.08);display:flex;align-items:center;gap:10px;padding:8px 14px;font-size:18px;font-weight:700"><span style="color:#166534">✓</span><span style="flex:1;min-width:0">${txt}</span>${clear?`<span onclick="${clear}" style="font-size:16px;color:#1F4E9C;cursor:pointer;flex-shrink:0">${_st('change')}</span>`:''}</div>`; }
+function _ssSearchBox(id, val, oninput, ph, listId, listHTML){ return `<div style="background:var(--bg);border:2px solid var(--border);border-radius:12px;overflow:hidden"><input id="${id}" type="search" value="${_esc(val||'')}" oninput="${oninput}" placeholder="${ph}" autocomplete="off" style="width:100%;box-sizing:border-box;height:58px;border:none;background:transparent;color:var(--white);font-size:18px;padding:0 14px"><div id="${listId}" style="max-height:280px;overflow:auto">${listHTML}</div></div>`; }
+function _ssOutTopHTML(st){
+  const locked=st.lines.some(l=>l.sent||l.outOnSrv);
+  if(st.mode==='consumed'){
+    const b=st.boqId?(_projBoq(st.pid)||[]).find(x=>x.id===st.boqId):null;
+    return _ssCard(_ssLbl(_st('whichWork'),_st('optional'))+(b?_ssPickedBox('<span style="background:var(--white);color:var(--bg);border-radius:8px;padding:2px 8px;margin-right:6px">'+_esc(b.itemNo||'')+'</span>'+_esc(String(b.description||'').slice(0,60)), locked?'':"_ssOut.boqId='';_ssRender()")
+      :_ssSearchBox('ss-boqq', st.bq, "_ssBoqSearch(this.value)", _st('boqSearch'), 'ss-boqlist', _ssBoqList())));
+  }
+  if(st.mode==='transfer'){
+    if(st.toSiteId) return _ssCard(_ssLbl(_st('whereTo'))+_ssPickedBox(_esc(_ssDestName(st.toSiteId)), locked?'':"_ssOut.toSiteId='';_ssRender()"));
+    return _ssCard(_ssLbl(_st('whereTo'))+`<div style="display:flex;flex-direction:column;gap:8px">`+_ssDests(st.pid).map(d=>`<button type="button" onclick="_ssOut.toSiteId='${d.id}';_ssRender()" style="text-align:left;padding:16px;border-radius:12px;border:1px solid var(--border);background:var(--bg);color:var(--white);font-size:19px;font-weight:700">${_esc(d.name)}</button>`).join('')+`</div>`);
+  }
+  const m=st.machId?(fleet||[]).find(x=>x.id===st.machId):null;
+  return _ssCard(_ssLbl(_st('whichMach'))+(m?_ssPickedBox(_esc(m.name), locked?'':"_ssOut.machId='';_ssRender()")
+    :_ssSearchBox('ss-machq', st.hq, "_ssMachSearch(this.value)", _st('machSearch'), 'ss-machlist', _ssMachList())));
+}
+function _ssOutEHTML(dash){
+  const st=_ssOut; const p=_ssProj(); if(!st||!p||st.pid!==p.id){ _ss.view='out'; return _ssRender(); }
+  _ss.matCtx='out';
+  const title=st.mode==='transfer'?_st('sentSite'):st.mode==='machine'?_st('toMach'):_st('usedWork');
+  dash.innerHTML=_ssHead(title, _st('maalOut')+' · '+p.name, 'out')+
+    `<div style="display:flex;flex-direction:column;gap:12px;padding:0 14px">
+      ${_ssOutTopHTML(st)}${_ssLinesHTML(st)}${_ssCurHTML(st,true)}${_ssPickerHTML(st,p.id)}
+      ${_ssCard(_ssLbl(_st('photoOpt'))+_ssPhotosHTML('ssout','issues',false))}</div>`+
+    _ssBar(_ssBtn2('＋ '+_st('more'), "_ssAddMore()"), _ssBigBtn(_st('check')+' ›', "_ssOutNext()"));
+  _ssStockWarn();
+}
+function _ssOutNext(){
+  const st=_ssOut; if(!st) return;
+  if(st.mode==='transfer' && !st.toSiteId){ alert(_st('pickTo')); return; }
+  if(st.mode==='machine' && !st.machId){ alert(_st('pickMach')); return; }
+  if(!_ssTakeCur(st,true)) return;
+  if(!st.lines.length){ alert(_st('noLines')); return; }
+  _ssGo('outC');
+}
+function _ssOutCHTML(dash){
+  const st=_ssOut; const p=_ssProj(); if(!st||!p||st.pid!==p.id){ _ss.view='out'; return _ssRender(); }
+  let where='';
+  if(st.mode==='transfer') where='→ '+_esc(_ssDestName(st.toSiteId));
+  else if(st.mode==='machine') where=_st('toMach')+' · '+_esc(((fleet||[]).find(x=>x.id===st.machId)||{}).name||'');
+  else { const b=st.boqId?(_projBoq(st.pid)||[]).find(x=>x.id===st.boqId):null; where=_st('usedWork')+(b?' · '+_esc(b.itemNo||'')+' '+_esc(String(b.description||'').slice(0,50)):''); }
+  const ph=(window._att.ssout||[]).filter(x=>x.status!=='fail').length;
+  dash.innerHTML=_ssHead(_st('check'), _st('isRight'), 'outE')+_ssMsgHTML()+
+    `<div style="display:flex;flex-direction:column;gap:12px;padding:0 14px">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden">
+        <div style="padding:14px 16px;background:#F5F6F8;color:#111827;border-bottom:1px solid #EEF1F5"><div style="font-size:18px;font-weight:700">${where}</div><div style="font-size:14px;color:#5B6472">${_esc(p.name)} · ${fmtD(today())}${ph?' · '+_st('photoYes')+' '+ph:''}</div></div>
+        <div style="padding:4px 16px 12px">${st.lines.map((l,i)=>{ const m=_ssMat(l.matId); return `<div style="display:flex;justify-content:space-between;padding:12px 0;${i?'border-top:1px solid var(--border)':''};font-size:21px;font-weight:700"><span>${_esc(m?m.name:'?')}</span><span>${_ssQty(l.qty)} ${_esc(l.unit)}${l.sent?' <span style="color:#166534">✓</span>':''}</span></div>`; }).join('')}</div></div></div>
+    <div class="ss2-bar" style="flex-direction:column">${_ssBigBtn(_ss.msg?_st('saveAgain'):_st('save'),"_ssSaveOut()")}${st.lines.some(l=>l.sent||l.outOnSrv)?'':_ssBtn2(_st('edit'),"_ssGo('outE')",'var(--muted)')}</div>`;
+}
+async function _ssSaveOut(){
+  if(!isSiteSup()) return;
+  const st=_ssOut; const p=_ssProj(); if(!st||!p||st.pid!==p.id) return;
+  const pid=p.id, mode=st.mode;
+  if(!st.date) st.date=today();                  // frozen on the first attempt: a retry after midnight keeps the same day
+  let toSiteId='', machineId='', machineName='', boqItemId='', boqDesc='';
+  if(mode==='transfer'){
+    toSiteId=st.toSiteId; if(!toSiteId){ alert(_st('pickTo')); return _ssGo('outE'); }
+    const dest=_tripLocToStore(toSiteId); const destPid=dest?dest.projectId:(_isPlantLoc(toSiteId)?PLANT_PID:null);
+    if(!destPid || String(destPid)===String(pid)){ alert(_st('sameLoc')); return _ssGo('outE'); }
+  } else if(mode==='machine'){
+    const f=(fleet||[]).find(x=>x.id===st.machId); if(!f){ alert(_st('pickMach')); return _ssGo('outE'); }
+    machineId=f.id; machineName=f.name||'';
+  } else {
+    const b=st.boqId?(_projBoq(pid)||[]).find(x=>x.id===st.boqId):null;
+    if(b){ boqItemId=b.id; boqDesc='Item '+(b.itemNo||'')+' · '+(b.description||'').slice(0,60); }
+  }
+  if(!st.lines.length){ alert(_st('noLines')); return _ssGo('outE'); }
+  const ph=window._att.ssout||[];
+  if(ph.some(x=>x.status==='up')){ alert(_st('photoWait')); return; }
+  const att=ph.filter(x=>x.status==='ok').map(x=>({p:x.p, ct:x.ct, sz:x.sz, by:(sess&&sess.name)||'', ts:x.ts}));
+  // 1) what does the server already have? (issue record, and for a transfer its arrival record)
+  const todo=st.lines.filter(l=>!l.sent);
+  const paths=[]; todo.forEach(l=>{ paths.push('materialOutward/'+l.recId); if(mode==='transfer') paths.push('materialInward/xfer_'+l.recId); });
+  const chk=await Promise.all(paths.map(x=>_vlOnServer(x)));
+  if(chk.some(c=>c===null)){ _ss.msg='net'; return _ssRender(); }
+  const onSrv={}; paths.forEach((x,i)=>{ onSrv[x]=chk[i]===true; });
+  todo.forEach(l=>{ if(onSrv['materialOutward/'+l.recId]) l.outOnSrv=true; });
+  // 2) stock check for what is still to go — a site supervisor can never take stock below zero (as saveMIN)
+  const need={}; st.lines.filter(l=>!l.sent && !l.outOnSrv).forEach(l=>{ const m=_ssMat(l.matId); const cv=m?_storeConvertQty(m,l.qty,l.unit):null; if(cv&&cv.ok!==false) need[l.matId]=(need[l.matId]||0)+(Number(cv.qty)||0); });
+  for(const mid of Object.keys(need)){ if(need[mid]>_ssBal(pid,mid)+0.0001){ const m=_ssMat(mid); alert(_st('overStock')+'\n\n'+(m?m.name:'')+': '+_ssQty(Math.max(0,_ssBal(pid,mid)))+' '+((m&&m.baseUnit)||'')); return _ssGo('outE'); } }
+  // 3) send what is missing — exactly the saveMIN shapes
+  const td=st.date; const jobs=[];
+  st.lines.filter(l=>!l.sent).forEach(l=>{
+    const mat=_ssMat(l.matId); if(!mat) return;
+    const conv=_storeConvertQty(mat, l.qty, l.unit); if(conv.ok===false) return;
+    const rec={ id:l.recId, projectId:pid, siteId:p.siteId||'', materialId:mat.id, materialName:mat.name,
+      qty:conv.qty, unit:conv.unit, entryQty:l.qty, entryUnit:l.unit, baseUnit:conv.baseUnit,
+      date:td, note:'', outReason:mode, minId:st.minId, viaSite:true,
+      loggedBy:(sess&&sess.userId)||'', loggedByName:(sess&&sess.name)||'', ts:Date.now() };
+    if(mode==='transfer'){ rec.toSiteId=toSiteId; rec.boqItemId=''; rec.boqDesc=''; }
+    else if(mode==='machine'){ rec.toSiteId=''; rec.boqItemId=''; rec.boqDesc=''; rec.machineId=machineId; rec.machineName=machineName; }
+    else { rec.toSiteId=''; rec.boqItemId=boqItemId; rec.boqDesc=boqDesc; }
+    if(att.length) rec.att=att;
+    _bdStamp(rec);
+    const w=[];
+    if(!onSrv['materialOutward/'+l.recId]) w.push(_fbWrite('materialOutward/'+rec.id, rec).then(ok=>{ if(ok!==false){ l.outOnSrv=true; _ssUpsert(materialOutward, rec); } return ok; }));
+    else if(!(materialOutward||[]).some(x=>x&&x.id===rec.id)) _ssUpsert(materialOutward, rec);
+    if(mode==='transfer' && onSrv['materialInward/xfer_'+l.recId]){ if(!(materialInward||[]).some(x=>x&&x.id==='xfer_'+rec.id)){ const d0=_tripLocToStore(toSiteId)||(_isPlantLoc(toSiteId)?{projectId:PLANT_PID, siteId:PLANT_PID}:null); if(d0) _ssUpsert(materialInward,{id:'xfer_'+rec.id, projectId:d0.projectId, siteId:d0.siteId, materialId:rec.materialId, materialName:rec.materialName, qty:rec.qty, unit:rec.unit, entryQty:rec.entryQty, entryUnit:rec.entryUnit, baseUnit:rec.baseUnit, type:'inward', sourceType:'internal', fromSiteId:rec.siteId||'', vendorId:'', source:'site-transfer', returnable:false, date:rec.date, srcId:rec.id, viaSite:true, ts:Date.now()}); } }
+    else if(mode==='transfer'){
+      const dest=_tripLocToStore(toSiteId)||(_isPlantLoc(toSiteId)?{projectId:PLANT_PID, siteId:PLANT_PID}:null);
+      if(dest){
+        const inRec={ id:'xfer_'+rec.id, projectId:dest.projectId, siteId:dest.siteId,
+          materialId:rec.materialId, materialName:rec.materialName, qty:rec.qty, unit:rec.unit,
+          entryQty:rec.entryQty, entryUnit:rec.entryUnit, baseUnit:rec.baseUnit,
+          type:'inward', sourceType:'internal', fromSiteId:rec.siteId||'', vendorId:'',
+          source:'site-transfer', sourceNote:(_storeProjName?_storeProjName(pid):'')+' (transfer)',
+          returnable:false, date:rec.date, srcId:rec.id, viaSite:true,
+          note:'Auto: transfer in from '+(_storeProjName?_storeProjName(pid):'site'),
+          enteredBy:(sess&&sess.userId)||'', enteredByName:(sess&&sess.name)||'', ts:Date.now() };
+        w.push(_fbWrite('materialInward/'+inRec.id, inRec).then(ok=>{ if(ok!==false) _ssUpsert(materialInward, inRec); return ok; }));
+      }
+    }
+    jobs.push(Promise.all(w).then(r=>{ if(r.every(x=>x!==false)) l.sent=true; return r.every(x=>x!==false); }));
+  });
+  const res=await Promise.all(jobs);
+  if(res.some(r=>r===false) || st.lines.some(l=>!l.sent)){ _ss.msg=st.lines.some(l=>l.sent||l.outOnSrv)?'part':'net'; return _ssRender(); }
+  _ssOut=null; window._att.ssout=[];
+  flash(_st('saved'), '');
+  _ssGo('out');
+}
+
+// ================= RATES PENDING (owner / admin) =================
+// Site bills saved without rate/GST/total. The office fills them from the photo; only then is the
+// vendor's purchase entry made (same pur_<line id> scheme as saveGRN, so a re-try never doubles).
+function _rpBills(){
+  const by={};
+  (materialInward||[]).forEach(r=>{
+    if(!r || r.ratePending!==true || r.deleted) return;
+    const k=r.invoiceId||r.id;
+    const b=by[k]=by[k]||{invId:k, vendorId:r.vendorId, pid:r.projectId, date:r.date, invNo:r.invoiceNo||'', lines:[], photos:[], by:r.loggedByName||''};
+    b.lines.push(r);
+    (r.billPhotos||[]).forEach(ph=>{ if(ph&&ph.p&&!b.photos.some(x=>x.p===ph.p)) b.photos.push(ph); });
+  });
+  return Object.values(by).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
+}
+function _rpCan(){ return isOwner()||isAdmin(); }
+function _rpClose(){ const o=document.getElementById('rp-ov'); if(o) o.remove(); }
+function _rpShell(inner){
+  _rpClose();
+  const o=document.createElement('div'); o.id='rp-ov';
+  o.style.cssText='position:fixed;inset:0;z-index:9000;background:var(--bg);color:var(--white);overflow:auto;font-family:var(--fb)';
+  o.innerHTML=inner; document.body.appendChild(o); return o;
+}
+function _rpAge(d){ const n=Math.round((new Date(today()+'T00:00:00')-new Date(String(d||today())+'T00:00:00'))/86400000); return n<=0?'today':(n===1?'1 day':n+' days'); }
+function openRatesPending(){
+  if(!_rpCan()){ alert('Only the owner or admin can fill rates.'); return; }
+  const bills=_rpBills();
+  const rows=bills.map(b=>{ const v=(vendors||[]).find(x=>x.id===b.vendorId); const pn=_storeProjName?_storeProjName(b.pid):'';
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:14px">
+      <div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800">${_esc(v?v.name:'(vendor)')}${b.invNo?' · Bill '+_esc(b.invNo):''}</div>
+        <div style="font-size:12px;color:var(--muted)">${_esc(pn)} · ${fmtD(b.date)} · <span style="color:var(--red);font-weight:700">${_rpAge(b.date)}</span>${b.by?' · by '+_esc(b.by):''} · ${b.photos.length} photo${b.photos.length===1?'':'s'}</div>
+        <div style="font-size:13px;margin-top:2px">${b.lines.map(r=>_esc(_storeDispName(r))+' '+_ssQty(r.entryQty!=null?r.entryQty:r.qty)+' '+_esc(r.entryUnit||r.unit||'')).join(' · ')}</div></div>
+      <button type="button" onclick="_rpFill('${_esc(b.invId)}')" style="min-height:44px;padding:0 12px;border-radius:10px;border:none;background:var(--amber);color:#1a1205;font-size:12px;font-weight:800;line-height:1.1">Fill rate<br>GST · total</button></div>`; }).join('');
+  _rpShell(`<div style="padding:14px 16px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;position:sticky;top:0">
+      <button type="button" onclick="_rpClose()" style="min-height:40px;padding:0 12px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--white);font-size:14px">‹ Back</button>
+      <div style="flex:1"><div style="font-family:var(--fh);font-size:16px;color:var(--amber)">RATES PENDING · ${bills.length}</div><div style="font-size:11px;color:var(--muted)">Site bills saved without rate, GST and bill total. Fill them from the photo and the bill leaves this list.</div></div></div>
+    <div style="padding:14px;display:flex;flex-direction:column;gap:10px">${rows||'<div style="padding:30px;text-align:center;color:var(--muted)">Nothing pending.</div>'}</div>`);
+}
+let _rpCur=null;
+async function _rpFill(invId){
+  if(!_rpCan()) return;
+  const b=_rpBills().find(x=>x.invId===invId); if(!b){ openRatesPending(); return; }
+  // charges already on the server for this bill (from any phone) — only this bill's keys are downloaded
+  try{
+    if(typeof FB_URL!=='undefined'){
+      const token=(typeof fbGetAuth==='function')?await fbGetAuth():null; const pre='chg_'+invId+'_';
+      const r=await fetch(FB_URL+'/fuellog/vendorTxns.json?orderBy=%22%24key%22&startAt=%22'+encodeURIComponent(pre)+'%22&endAt=%22'+encodeURIComponent(pre+'\uf8ff')+'%22&auth='+(token||FB_KEY));
+      if(r.ok){ const v=await r.json(); if(v&&typeof v==='object'){ vendorTxns=vendorTxns||[]; Object.values(v).forEach(t=>{ if(t&&t.id&&String(t.id).indexOf(pre)===0) _ssUpsert(vendorTxns,t); }); } }
+    }
+  }catch(e){}
+  // charges already sent for this bill (a half-finished earlier save) come back with their own ids, so a re-try rewrites them
+  const prev=(vendorTxns||[]).filter(t=>t&&String(t.id||'').indexOf('chg_'+invId+'_')===0).map(t=>({cid:String(t.id).slice(('chg_'+invId+'_').length), category:t.category||GRN_CHG_CATS[0], desc:t.desc||'', amount:t.basicAmount!=null?t.basicAmount:t.amount, gstPct:t.gstPct||0, saved:true}));
+  _rpCur={invId, charges:prev, gst:{}, rate:{}, total:'', invNo:b.invNo||''};
+  _rpRender();
+}
+function _rpRender(){
+  const c=_rpCur; if(!c) return;
+  const b=_rpBills().find(x=>x.invId===c.invId); if(!b){ _rpCur=null; openRatesPending(); return; }
+  const v=(vendors||[]).find(x=>x.id===b.vendorId);
+  const gstOpts=g=>[0,5,12,18,28].map(x=>`<option value="${x}" ${Number(g)===x?'selected':''}>${x}%</option>`).join('');
+  const inp='width:100%;box-sizing:border-box;min-height:42px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--white);font-size:15px;padding:0 10px';
+  const lines=b.lines.map(r=>{ const rt=c.rate[r.id]!=null?c.rate[r.id]:''; const g=c.gst[r.id]!=null?c.gst[r.id]:0;
+    return `<div style="padding:10px 0;border-top:1px solid var(--border)"><div style="font-size:14px;font-weight:700">${_esc(_storeDispName(r))} · ${_ssQty(r.entryQty)} ${_esc(r.entryUnit||r.unit||'')}${r.note?` <span style="color:var(--muted);font-weight:500">· ${_esc(r.note)}</span>`:''}</div>
+      <div style="display:flex;gap:8px;margin-top:6px"><div style="flex:2"><div style="font-size:11px;color:var(--muted)">Rate ₹ per ${_esc(r.entryUnit||r.unit||'')} (before GST)</div><input type="number" inputmode="decimal" value="${_esc(String(rt))}" oninput="_rpCur.rate['${r.id}']=this.value;_rpSum()" style="${inp}"></div>
+      <div style="flex:1"><div style="font-size:11px;color:var(--muted)">GST</div><select onchange="_rpCur.gst['${r.id}']=this.value;_rpSum()" style="${inp}">${gstOpts(g)}</select></div></div></div>`; }).join('');
+  const chg=c.charges.map((x,i)=>x.saved?`<div style="padding:10px 0;border-top:1px solid var(--border);font-size:13px">✓ Already saved: <b>${_esc(x.category)}</b>${x.desc?' · '+_esc(x.desc):''} · ${_vlINR(Number(x.amount)||0)}${Number(x.gstPct)>0?' + GST '+_esc(String(x.gstPct))+'%':''} <span style="color:var(--muted)">(change it from the vendor page)</span></div>`:`<div style="padding:10px 0;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px">
+      <div style="display:flex;gap:8px"><select onchange="_rpCur.charges[${i}].category=this.value" style="${inp};flex:1">${GRN_CHG_CATS.map(k=>`<option ${x.category===k?'selected':''}>${_esc(k)}</option>`).join('')}</select>
+        <button type="button" onclick="_rpCur.charges.splice(${i},1);_rpRender()" style="min-height:42px;padding:0 10px;border-radius:8px;border:1px solid var(--red);background:transparent;color:var(--red)">✕</button></div>
+      <input type="text" value="${_esc(x.desc||'')}" placeholder="What for (e.g. unloading)" oninput="_rpCur.charges[${i}].desc=this.value" style="${inp}">
+      <div style="display:flex;gap:8px"><input type="number" inputmode="decimal" value="${_esc(String(x.amount||''))}" placeholder="Amount ₹ (before GST)" oninput="_rpCur.charges[${i}].amount=this.value;_rpSum()" style="${inp};flex:2"><select onchange="_rpCur.charges[${i}].gstPct=this.value;_rpSum()" style="${inp};flex:1">${gstOpts(x.gstPct||0)}</select></div></div>`).join('');
+  _rpShell(`<div style="padding:14px 16px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:2">
+      <button type="button" onclick="_rpCur=null;openRatesPending()" style="min-height:40px;padding:0 12px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--white);font-size:14px">‹ Back</button>
+      <div style="flex:1;min-width:0"><div style="font-family:var(--fh);font-size:15px;color:var(--amber)">${_esc(v?v.name:'(vendor)')}</div><div style="font-size:11px;color:var(--muted)">${_esc(_storeProjName?_storeProjName(b.pid):'')} · ${fmtD(b.date)}${b.by?' · entered by '+_esc(b.by):''}</div></div></div>
+    <div style="padding:14px;display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${b.photos.map((ph,i)=>`<button type="button" onclick="_rpPhoto('${_esc(c.invId)}',${i})" style="min-height:44px;padding:0 14px;border-radius:9px;border:1px solid var(--amber);background:transparent;color:var(--amber);font-weight:700">📄 Open photo ${i+1}</button>`).join('')||'<span style="color:var(--red)">No photo on this bill</span>'}</div>
+      <div><div style="font-size:11px;color:var(--muted)">Bill no. as printed (optional)</div><input type="text" value="${_esc(c.invNo)}" oninput="_rpCur.invNo=this.value" style="${inp}"></div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:11px;padding:0 12px 4px"><div style="font-size:12px;font-weight:700;color:var(--amber);padding:10px 0 4px">MATERIAL LINES</div>${lines}</div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:11px;padding:0 12px 10px"><div style="font-size:12px;font-weight:700;color:var(--amber);padding:10px 0 4px">EXTRA CHARGES ON THIS BILL (optional)</div>${chg}
+        <button type="button" onclick="_rpCur.charges.push({cid:uid(),category:GRN_CHG_CATS[0],desc:'',amount:'',gstPct:0});_rpRender()" style="margin-top:8px;min-height:40px;width:100%;border-radius:8px;border:1px dashed var(--amber);background:transparent;color:var(--amber);font-weight:700">＋ Add charge (transport, loading…)</button></div>
+      <div><div style="font-size:11px;color:var(--muted)">BILL TOTAL as printed (grand total incl. GST) *</div><input type="number" inputmode="decimal" value="${_esc(String(c.total||''))}" oninput="_rpCur.total=this.value;_rpSum()" style="${inp};font-size:18px;font-weight:800"></div>
+      <div id="rp-sum" style="font-size:13px;padding:10px 12px;border-radius:9px;background:var(--bg3)"></div>
+      <button type="button" id="rp-save" onclick="_rpSave()" style="min-height:52px;border-radius:10px;border:none;background:var(--amber);color:#1a1205;font-size:16px;font-weight:800">💾 SAVE RATES</button>
+    </div>`);
+  _rpSum();
+}
+function _rpCalc(){
+  const c=_rpCur; const b=_rpBills().find(x=>x.invId===(c&&c.invId)); if(!b) return null;
+  const r2=x=>Math.round(x*100)/100;
+  const lines=b.lines.map(r=>{ const rate=_ssNum(c.rate[r.id]); const g=Number(c.gst[r.id]||0)||0; const q=Number(r.entryQty)||0;
+    const amount=rate>0?r2(q*rate):0; const gstAmount=r2(amount*g/100); return {r, rate:rate>0?rate:0, gstPct:g, amount, gstAmount, invoiceAmount:r2(amount+gstAmount)}; });
+  c.charges.forEach(x=>{ if(!x.cid) x.cid=uid(); });   // every charge has its own id (never its position)
+  const charges=c.charges.map((x,i)=>{ const a=_ssNum(x.amount); const g=Number(x.gstPct||0)||0; const basic=a>0?r2(a):0; const ga=r2(basic*g/100); return {i, cid:x.cid, category:x.category||GRN_CHG_CATS[0], desc:String(x.desc||'').trim(), basic, gstPct:g, gst:ga, amount:r2(basic+ga)}; }).filter(x=>x.basic>0);
+  const filled=(materialInward||[]).filter(r=>r&&r.invoiceId===c.invId&&r.ratePending===false&&r.rateFilledTs).reduce((a,r)=>a+(Number(r.invoiceAmount)||0),0);   // lines of this bill filled in an earlier save
+  const sum=r2(lines.reduce((a,l)=>a+l.invoiceAmount,0)+filled+charges.reduce((a,x)=>a+x.amount,0));
+  const total=_ssNum(c.total);
+  return {b, lines, charges, sum, total:total>0?r2(total):0};
+}
+function _rpSum(){
+  const el=document.getElementById('rp-sum'); const k=_rpCalc(); if(!el||!k) return;
+  const diff=k.total?Math.round((k.total-k.sum)*100)/100:null;
+  el.innerHTML='Lines + charges (incl. GST): <b>'+_vlINR(k.sum)+'</b>'+(k.total?(' · Bill total '+_vlINR(k.total)+' · '+(Math.abs(diff)<=1?'<span style="color:var(--green);font-weight:700">matches</span>':'<span style="color:var(--red);font-weight:700">'+(diff>0?'short by ':'over by ')+_vlINR(Math.abs(diff))+'</span>')):'');
+}
+function _rpPhoto(invId, i){
+  const b=_rpBills().find(x=>x.invId===invId); const ph=b&&b.photos[i]; if(!ph) return;
+  const old=document.getElementById('bp-ov'); if(old) old.remove();
+  const o=document.createElement('div'); o.id='bp-ov';
+  o.style.cssText='position:fixed;inset:0;z-index:9100;background:rgba(0,0,0,.94);display:flex;flex-direction:column;color:#fff;font-family:var(--fb)';
+  o.innerHTML=`<div style="display:flex;justify-content:flex-end;padding:10px 14px"><button type="button" onclick="document.getElementById('bp-ov').remove()" style="min-height:40px;padding:0 14px;border-radius:8px;border:none;background:var(--amber);color:#1a1205;font-size:13px;font-weight:800">Close</button></div>
+    <div id="bp-body" style="flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;padding:8px;font-size:13px">Opening photo…</div>`;
+  document.body.appendChild(o);
+  _phUrl(ph.p).then(url=>{ const body=document.getElementById('bp-body'); if(!body) return;
+    if(/pdf/i.test(ph.ct||'')) body.innerHTML=`<a href="${url}" target="_blank" rel="noopener" style="color:var(--amber);font-size:15px;font-weight:700">Open the PDF ›</a>`;
+    else { body.innerHTML=''; const im=document.createElement('img'); im.alt='Bill photo'; im.style.cssText='max-width:100%;max-height:100%;object-fit:contain'; im.src=url; body.appendChild(im); }
+  }).catch(e=>{ const body=document.getElementById('bp-body'); if(body) body.textContent='Could not open the photo: '+String((e&&e.message)||e); });
+}
+async function _rpSave(){
+  if(!_rpCan()){ alert('Only the owner or admin can fill rates.'); return; }
+  const k=_rpCalc(); if(!k) return;
+  if(k.lines.some(l=>!(l.rate>0))){ alert('Enter a rate for every line.'); return; }
+  if(!(k.total>0)){ alert('Enter the BILL TOTAL as printed on the bill.'); return; }
+  if(Math.abs(k.total-k.sum)>1 && !confirm('Lines + charges come to '+_vlINR(k.sum)+' but the bill total is '+_vlINR(k.total)+'.\n\nSave anyway?')) return;
+  const btn=document.getElementById('rp-save'); if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
+  const done=m=>{ if(btn){ btn.disabled=false; btn.textContent='💾 SAVE RATES'; } if(m) alert(m); };
+  // 1) every line must really be on the server, and still pending there (never fill a line twice)
+  const srv=await Promise.all(k.lines.map(l=>_ssGet('materialInward/'+l.r.id)));
+  if(srv.some(x=>x===undefined)) return done('Could not reach the server — nothing saved. Try again.');
+  if(srv.some(x=>x===null)) return done('Some lines of this bill are not on the server yet. Tap ⟳ Refresh and try again — nothing was saved.');
+  // a line already filled on the server (by someone else, or an earlier half-finished save) is left as it is
+  k.lines.forEach((l,i)=>{ if(srv[i].ratePending!==true){ Object.assign(l.r, srv[i]); l.skip=true; } });
+  if(k.lines.every(l=>l.skip)){ _rpCur=null; done('Rates on this bill are already filled. Nothing was changed.'); openRatesPending(); return; }
+  k.lines=k.lines.filter(l=>!l.skip);
+  const b=k.b, invNo=String(_rpCur.invNo||'').trim();
+  const who={by:(sess&&sess.userId)||'', name:(sess&&sess.name)||''};
+  // 2) the vendor entries first (fixed ids: a re-try writes the same records, never doubles)
+  const txns=[];
+  k.lines.forEach(l=>{ const r=l.r, mat=_ssMat(r.materialId);
+    txns.push({ id:'pur_'+r.id, vendorId:r.vendorId, type:'purchase', amount:l.invoiceAmount, date:r.date, srcId:r.id, projectId:r.projectId,
+      basicAmount:l.amount, gstPct:l.gstPct, gstAmount:l.gstAmount,
+      note:((mat&&mat.name)||r.materialName||'')+(r.note?(': '+r.note):'')+' · '+r.qty+' '+r.unit+' @ ₹'+l.rate+(l.gstPct>0?(' · GST '+l.gstPct+'%'):'')+(invNo?(' · Inv '+invNo):'')+' (site bill)',
+      ts:Date.now(), enteredBy:who.by, enteredByName:who.name }); });
+  k.charges.forEach(x=>{ txns.push({ id:'chg_'+b.invId+'_'+x.cid, vendorId:b.vendorId, type:'purchase', kind:'service', amount:x.amount, basicAmount:x.basic, gstPct:x.gstPct, gstAmount:x.gst,
+      date:b.date, srcId:b.invId, projectId:b.pid, invoiceId:b.invId, invoiceNo:invNo, desc:x.desc||x.category, category:x.category, machineId:'', machineName:'',
+      note:'Service: '+(x.desc||x.category)+(x.gstPct>0?(' · GST '+x.gstPct+'%'):'')+(invNo?(' · Inv '+invNo):''), billPhotos:b.photos.slice(),
+      ts:Date.now(), enteredBy:who.by, enteredByName:who.name }); });
+  const tr=await Promise.all(txns.map(t=>_fbWrite('vendorTxns/'+t.id, t)));
+  vendorTxns=vendorTxns||[]; txns.forEach((t,i)=>{ if(tr[i]!==false) _ssUpsert(vendorTxns,t); });   // entries that DID reach the server are kept on this phone, so a re-try reloads them
+  if(tr.some(x=>x===false)) return done('Could not save the vendor entries — the bill stays in Rates pending. Try again (nothing will be doubled).');
+  vendorTxns=vendorTxns||[]; txns.forEach(t=>_ssUpsert(vendorTxns,t));
+  // 3) then the lines: rates + bill total, and off the pending list (field-only save)
+  const ts=Date.now();
+  const lr=await Promise.all(k.lines.map(l=>{ const patch={rate:l.rate, amount:l.amount, gstPct:l.gstPct, gstAmount:l.gstAmount, invoiceAmount:l.invoiceAmount,
+      invoiceNo:invNo, billTotal:k.total, billTotalBy:who.name, billTotalTs:ts, ratePending:false, rateFilledBy:who.by, rateFilledByName:who.name, rateFilledTs:ts};
+    return _fbMerge('materialInward/'+l.r.id, patch).then(ok=>{ if(ok!==false) Object.assign(l.r, patch); return ok; }); }));
+  if(lr.some(x=>x===false)) return done('The vendor entries are saved, but some lines did not update. Tap Fill again on this bill — nothing will be doubled.');
+  _rpCur=null; done('');
+  flash('RATES SAVED', (((vendors||[]).find(x=>x.id===b.vendorId)||{}).name||'')+' · '+_vlINR(k.sum));
+  openRatesPending();
+  try{ if(typeof renderHome==='function') renderHome(); }catch(e){}
+}
+// =================== END V102.43 STAGE 2 ===================
 // =================== END V102.42 SITE SUPERVISOR SCREEN ===================
 
 function renderOpsTab(el){
@@ -14793,6 +15596,8 @@ function _plSummary(projectId, from, to, boqItemId){
   if(rev.total<=0 && cost>0) warnings.unshift('No work done recorded in this period, so revenue reads zero. This is a measurement gap, not a loss.');
   else if(cost>0 && rev.total>0 && rev.total<cost*0.5) warnings.unshift('Recorded work done looks low against costs — check whether execution has been entered for the whole period.');
   if(lab.skipped.length) warnings.push(lab.skipped.length+' subcontract line(s) skipped: contract unit does not match the BOQ unit.');
+  { const _rpL=(materialInward||[]).filter(r=>r&&r.ratePending===true&&!r.deleted&&r.projectId===projectId&&_plIn(r.date, from, to)).length;   // V102.43
+    if(_rpL) warnings.push(_rpL+' site bill line(s) still waiting for rates (Home \u2192 Rates pending) \u2014 material on them may be missing or under-valued here.'); }
   if(mac.noRate && mac.noRate.length) warnings.push('Machines with hours but no \u20b9/hr rate (counted as \u20b90): '+mac.noRate.map(function(x){ return x.name+' '+_plQty(x.hours)+' hrs'; }).join(', ')+'. Set the rate in Fleet.');   // V102.42
   // Material head = materials consumed + invoice service charges, shown as TWO lines under one
   // head (same pattern as own-gangs/subcontract under Labour), so the summary stays at 3 heads.
@@ -24262,7 +25067,7 @@ const FB_KEY = 'AIzaSyB44pKu7YTc-Q_6GLC3mlaEBPJm3d3odPc';
 // V102.18 SECURITY STEP 4: the shared master account (and its password) was REMOVED from the app.
 // Each device signs in with its own account (see 'Set up this device'). Old master sign-in passes are wiped below.
 try{ localStorage.removeItem('fb_auth'); localStorage.removeItem('fb_refresh'); }catch(e){}
-const APP_VERSION = 'V102.42'; // bump this on every deploy
+const APP_VERSION = 'V102.44'; // bump this on every deploy
 
 // All keys we sync to Firebase
 const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords','trips','customers','materials','staff','staffMusters','pumpPayments','projects','boqItems','workEntries','subcontractors','subContracts','dailyReports','gangs','dailyLabour','royalty','materialInward','materialOutward','vendors','vendorTxns','paverLabour','gangLedger','rmcProd','siteWatch','machineRates'];
