@@ -1,4 +1,4 @@
-<!-- FuelLog PWA | Version: V102.44 | Date: 2026-11-19 | V102.44 SITE SUPERVISOR SCREENS — CORPORATE LOOK (approved mockup V2, 19 Nov): light background, white cards, one corporate blue, Noto Sans Devanagari for Marathi, line icons (no emoji), small status tags, home as one task list, main buttons fixed above the bottom menu; always light for site supervisors (class ss2 on the home area, removed for other roles). Fixes: a Plant delivery waiting for confirmation shows once (not again in today's list); "material not in the list? call the admin" hint; readable ticks/colours. LOOK ONLY: no change to saving, records, sync, rules, office screens or Rates pending. | PREVIOUS: V102.43 | V102.43 SITE SUPERVISOR SCREEN STAGE 2: माल आला = confirm Plant/site deliveries (existing Accept; difference = field-only PATCH on the trip) + outside purchase in 3 steps (vendor + bill no. optional + bill photo compulsory -> materials -> check) saved like saveGRN with rate 0 and ratePending:true, no vendor purchase entry until the office fills rates; cash paid on the spot = pay_<invoiceId> as today. माल गेला = used in work (BOQ optional) / sent to another site or Plant (xfer_ arrival as saveMIN) / given to a machine, never below site stock. Every line gets its id when added; Save checks the server line by line and sends only what is missing (no doubles); no network = refused, everything kept on screen. RATES PENDING (owner/admin): Home card + screen; fill rate/GST per line, optional extra charges, bill total; vendor entries written first with fixed ids (pur_<line>, chg_<invoice>_<n>), then lines PATCHed (ratePending:false). P&L warns on pending lines. DATA SAFETY REVIEW V2: new fields only (ratePending, viaSite, rateFilledBy/ByName/Ts); per-record writes and field-only PATCHes; no sync, rules, MERGE_KEYS or Fast Refresh change. | PREVIOUS: V102.42 | V102.42 SITE SUPERVISOR SCREEN STAGE 1: new Marathi/English Home for site supervisors (5 buttons); मशीन = opening/closing readings onto today's DPR, saved per machine on the server copy (_dprMachMergeSave) — office DPR save uses the same safe merge; हजेरी = Site Staff attendance, fixed record id sm-<staff>-<date>, server checked first, owner-only lock kept; no-network = save refused, typed values kept; machine ₹/hr rates (new machineRates collection, owner-only, per-record) copied onto DPR lines; P&L warns machines with hours but no rate; L1/L2 vendor tidies. | PREVIOUS: V102.41 | V102.41 VENDOR LEDGER LOCK: managers, site supervisors and drivers no longer see vendor amounts — Store → Vendors and the Vendors screen show names/phone only (no due/advance, no TOTAL DUE summary); openVendor() and show('scr-vendor-detail') refuse with Not allowed. recordLumpSumPayment/applyLumpSumPayment now require canTripEnter() (owner/admin/manager — unchanged for them). No sync/storage change. | PREVIOUS: V102.40 | V102.40 QUICK LOCK: Reports → Financial and Project hidden and refused (screen, PDF/print, WhatsApp) for managers, site supervisors and drivers; owners + admins keep Financial; Project P&L stays owner-only. Record vendor payment = owner/admin only (button hidden, _vpOpen/_vpSave refuse). "Amount paid" boxes on bill/inward entry unchanged. Projects module closed to managers (and drivers): More menu hides FILE TODAY'S DPR, PROJECTS, LABOUR CONTRACTORS; show() refuses the 7 project/DPR/work/labour screens; openDPRPicker/startDPR/openProject/openDPRForEdit/openWorkEntry/openGangLedger refuse; store Back no longer opens the project page for them. Store, Paver, RMC unchanged. No sync/storage change. | PREVIOUS: V102.39 | V102.39 USERS SAVED ONE PERSON AT A TIME: every users save first reads the server shape (keys only). Old shape (positions 0..n) = saves work exactly as before (whole list). After the owner presses Health check > Convert users list (checks + backup file + read-back), each save writes ONLY that person (add = one record, edit/PIN = only the changed fields, remove = one record). A whole-list send of users is refused in _fbWrite; old queued users saves are handled safely; Restore writes the users list keyed by id. Health check shows the users-list shape. | V102.38 PHOTOS IN MORE PLACES (same photo store as V102.37; entries keep only a short link in a new field `att`): store ISSUE / TRANSFER (one set per issue, lines tied by new field minId), TRIPS (slip photo), VENDOR PAYMENT (proof), FUEL PURCHASE and DIRECT PUMP FILL (bill). Each has a photo box on the entry form (optional, up to 4 photos or a PDF; a failed photo never blocks the entry), tiles on the list (downloaded only on tap), add-later (owner/admin; trips also manager; field-only PATCH after checking the record is on the server) and Remove (owner; link taken off + attLog, file stays). DATA SAFETY REVIEW V2: new fields only (att, attLog, minId); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.37 Date: 2026-11-15 | V102.37 BILL PHOTO (photo store): a purchase bill (GRN, vendor source) can carry up to 4 photos or a PDF. The file is made small on the phone and sent to the separate Firebase photo store (fuellog/bills/YYYY-MM/...); the entry keeps only a short link (billPhotos on the bill's materialInward lines and service-charge vendorTxns), so sync never carries photos. Vendor page: view (downloaded only on tap), Add bill photo to a saved bill (owner/admin, field-only PATCH after checking the records are on the server), Remove photo (owner; takes the link off + billPhotoLog, the file stays in the store). A failed photo never blocks the bill. DATA SAFETY REVIEW V2: new fields only (billPhotos, billPhotoLog); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.36 Date: 2026-11-15 | V102.36 HEALTH CHECK COUNTS CORRECTED (read-only page, nothing saved): 'Ledger entries with no bill' no longer counts service-only bills (repair/labour bills with no material are valid) and a 'paid with bill' payment is fine when its bill has service charges; 'Bills with no bill total' counts only bills dated 05/11/2026 or later (when the total became compulsory). | V102.35 Date: 2026-11-14 | V102.35 (includes V102.32-V102.34): (1) GST KEPT ON EDIT: editing a single purchase line recalculates GST and the vendor entry is rebuilt GST-inclusive like a new bill (was basic only). (2) CLEAN BILL DELETE: deleting the last line of a bill offers to remove that bill's 'Paid with invoice' payment and service charges. (3) RECORD PAYMENT SCREEN: date, amount, paid by, ref, for bill, note; owner can edit; delete = owner/admin only and checked against the server. (4) HEALTH CHECK (More > System, owner): bills not matching, stock below zero, ledger entries with no bill, saves that did not reach the server, bills with no total - read-only. (5) DAILY BACKUP: on the owner's laptop the first full download of the day is also saved as a backup file (no extra download). (6) SLIM FILE: version history moved to FuelLog_Version_History.txt; unused old work-entry screen and old one-time clean-up call removed. DATA SAFETY REVIEW V2: new fields on vendor payment records only (mode, ref, forBillNo, edited*); per-record saves/deletes only; no rules, sync, MERGE_KEYS or Fast Refresh change. Earlier history: see FuelLog_Version_History.txt -->
+<!-- FuelLog PWA | Version: V102.45 | Date: 2026-11-19 | V102.45 SITE SUPERVISOR काम (WORK DONE, Stage 3): new Marathi-first work screen for site sups — measured work (BOQ item + gang + nos×L×B×D with जोड/वजा, compulsory remark per measurement, rate locked if agreed else optional → 'rate pending' filled by the office from Rates pending) and daily wages (type × count × wage, wage compulsory). Same dailyLabour records; only new stored items: pieceRow.ratePending and record.viaSite. Guards: old DPR edit keeps pending lines, gang ledger / BOQ recon / Site Watch never price a pending line, P&L warns. | V102.44 SITE SUPERVISOR SCREENS — CORPORATE LOOK (approved mockup V2, 19 Nov): light background, white cards, one corporate blue, Noto Sans Devanagari for Marathi, line icons (no emoji), small status tags, home as one task list, main buttons fixed above the bottom menu; always light for site supervisors (class ss2 on the home area, removed for other roles). Fixes: a Plant delivery waiting for confirmation shows once (not again in today's list); "material not in the list? call the admin" hint; readable ticks/colours. LOOK ONLY: no change to saving, records, sync, rules, office screens or Rates pending. | PREVIOUS: V102.43 | V102.43 SITE SUPERVISOR SCREEN STAGE 2: माल आला = confirm Plant/site deliveries (existing Accept; difference = field-only PATCH on the trip) + outside purchase in 3 steps (vendor + bill no. optional + bill photo compulsory -> materials -> check) saved like saveGRN with rate 0 and ratePending:true, no vendor purchase entry until the office fills rates; cash paid on the spot = pay_<invoiceId> as today. माल गेला = used in work (BOQ optional) / sent to another site or Plant (xfer_ arrival as saveMIN) / given to a machine, never below site stock. Every line gets its id when added; Save checks the server line by line and sends only what is missing (no doubles); no network = refused, everything kept on screen. RATES PENDING (owner/admin): Home card + screen; fill rate/GST per line, optional extra charges, bill total; vendor entries written first with fixed ids (pur_<line>, chg_<invoice>_<n>), then lines PATCHed (ratePending:false). P&L warns on pending lines. DATA SAFETY REVIEW V2: new fields only (ratePending, viaSite, rateFilledBy/ByName/Ts); per-record writes and field-only PATCHes; no sync, rules, MERGE_KEYS or Fast Refresh change. | PREVIOUS: V102.42 | V102.42 SITE SUPERVISOR SCREEN STAGE 1: new Marathi/English Home for site supervisors (5 buttons); मशीन = opening/closing readings onto today's DPR, saved per machine on the server copy (_dprMachMergeSave) — office DPR save uses the same safe merge; हजेरी = Site Staff attendance, fixed record id sm-<staff>-<date>, server checked first, owner-only lock kept; no-network = save refused, typed values kept; machine ₹/hr rates (new machineRates collection, owner-only, per-record) copied onto DPR lines; P&L warns machines with hours but no rate; L1/L2 vendor tidies. | PREVIOUS: V102.41 | V102.41 VENDOR LEDGER LOCK: managers, site supervisors and drivers no longer see vendor amounts — Store → Vendors and the Vendors screen show names/phone only (no due/advance, no TOTAL DUE summary); openVendor() and show('scr-vendor-detail') refuse with Not allowed. recordLumpSumPayment/applyLumpSumPayment now require canTripEnter() (owner/admin/manager — unchanged for them). No sync/storage change. | PREVIOUS: V102.40 | V102.40 QUICK LOCK: Reports → Financial and Project hidden and refused (screen, PDF/print, WhatsApp) for managers, site supervisors and drivers; owners + admins keep Financial; Project P&L stays owner-only. Record vendor payment = owner/admin only (button hidden, _vpOpen/_vpSave refuse). "Amount paid" boxes on bill/inward entry unchanged. Projects module closed to managers (and drivers): More menu hides FILE TODAY'S DPR, PROJECTS, LABOUR CONTRACTORS; show() refuses the 7 project/DPR/work/labour screens; openDPRPicker/startDPR/openProject/openDPRForEdit/openWorkEntry/openGangLedger refuse; store Back no longer opens the project page for them. Store, Paver, RMC unchanged. No sync/storage change. | PREVIOUS: V102.39 | V102.39 USERS SAVED ONE PERSON AT A TIME: every users save first reads the server shape (keys only). Old shape (positions 0..n) = saves work exactly as before (whole list). After the owner presses Health check > Convert users list (checks + backup file + read-back), each save writes ONLY that person (add = one record, edit/PIN = only the changed fields, remove = one record). A whole-list send of users is refused in _fbWrite; old queued users saves are handled safely; Restore writes the users list keyed by id. Health check shows the users-list shape. | V102.38 PHOTOS IN MORE PLACES (same photo store as V102.37; entries keep only a short link in a new field `att`): store ISSUE / TRANSFER (one set per issue, lines tied by new field minId), TRIPS (slip photo), VENDOR PAYMENT (proof), FUEL PURCHASE and DIRECT PUMP FILL (bill). Each has a photo box on the entry form (optional, up to 4 photos or a PDF; a failed photo never blocks the entry), tiles on the list (downloaded only on tap), add-later (owner/admin; trips also manager; field-only PATCH after checking the record is on the server) and Remove (owner; link taken off + attLog, file stays). DATA SAFETY REVIEW V2: new fields only (att, attLog, minId); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.37 Date: 2026-11-15 | V102.37 BILL PHOTO (photo store): a purchase bill (GRN, vendor source) can carry up to 4 photos or a PDF. The file is made small on the phone and sent to the separate Firebase photo store (fuellog/bills/YYYY-MM/...); the entry keeps only a short link (billPhotos on the bill's materialInward lines and service-charge vendorTxns), so sync never carries photos. Vendor page: view (downloaded only on tap), Add bill photo to a saved bill (owner/admin, field-only PATCH after checking the records are on the server), Remove photo (owner; takes the link off + billPhotoLog, the file stays in the store). A failed photo never blocks the bill. DATA SAFETY REVIEW V2: new fields only (billPhotos, billPhotoLog); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.36 Date: 2026-11-15 | V102.36 HEALTH CHECK COUNTS CORRECTED (read-only page, nothing saved): 'Ledger entries with no bill' no longer counts service-only bills (repair/labour bills with no material are valid) and a 'paid with bill' payment is fine when its bill has service charges; 'Bills with no bill total' counts only bills dated 05/11/2026 or later (when the total became compulsory). | V102.35 Date: 2026-11-14 | V102.35 (includes V102.32-V102.34): (1) GST KEPT ON EDIT: editing a single purchase line recalculates GST and the vendor entry is rebuilt GST-inclusive like a new bill (was basic only). (2) CLEAN BILL DELETE: deleting the last line of a bill offers to remove that bill's 'Paid with invoice' payment and service charges. (3) RECORD PAYMENT SCREEN: date, amount, paid by, ref, for bill, note; owner can edit; delete = owner/admin only and checked against the server. (4) HEALTH CHECK (More > System, owner): bills not matching, stock below zero, ledger entries with no bill, saves that did not reach the server, bills with no total - read-only. (5) DAILY BACKUP: on the owner's laptop the first full download of the day is also saved as a backup file (no extra download). (6) SLIM FILE: version history moved to FuelLog_Version_History.txt; unused old work-entry screen and old one-time clean-up call removed. DATA SAFETY REVIEW V2: new fields on vendor payment records only (mode, ref, forBillNo, edited*); per-record saves/deletes only; no rules, sync, MERGE_KEYS or Fast Refresh change. Earlier history: see FuelLog_Version_History.txt -->
 <!-- FuelLog PWA | Version: V99.86 | Date: 2026-08-05 | V99.86 BOQ PROGRESS SOURCE SPLIT (step 3 of 3, display only): since V99.85 the progress figure is fed by TWO sources -- standalone Work Done entries and linked DPR gang lines -- and nothing on screen said which. New _doneSplitHTML(itemId,unit) renders a muted sub-line under the progress bar, e.g. '20 sqm Work Done + 70.51 sqm (link) gang work'. PURPOSE IS DETECTION, not decoration: if the same physical work is ever entered through BOTH paths the total is silently too high and an inflated percentage just looks like good progress, whereas a visibly wrong breakdown is catchable. Returns '' when no gang work contributes, so rows fed purely by Work Done entries render EXACTLY as before -- the extra line only appears where there is something to explain. Applied at both BOQ progress render sites (project BOQ list and the DPR-side list); the work-entry form header was left alone as it is a single-item entry context, not a review view. Values rounded to 2dp (13.099219... shows as 13.1) and the unit is _esc'd. CORRECTION to the earlier plan: step 3 was described as 'add the BOQ unit to the progress row' -- on inspection the unit was ALREADY rendered there (both progress rows have shown '<qty> <unit> done' since well before this work), so that step was redundant and the source split was built instead. DATA SAFETY: display only. No write path, no schema change, no collection touched, no calculation altered -- _itemDone, _itemPct and _itemLabourDone are read and re-presented, never modified. -->
 <!-- FuelLog PWA | Version: V99.85 | Date: 2026-08-05 | V99.85 LINKED WORK NOW FEEDS BOQ PROGRESS (step 2 of 3, completes the badge's promise): _itemDone previously summed workEntries ONLY, so a DPR work line flagged '(link) linked -- feeds BOQ progress' paid the gang but contributed ZERO progress. New _itemLabourDone(boqItemId) sums linked dailyLabour pieceRows and converts labour units to BOQ units by DIVIDING by convPerBoqUnit (which means labour-units-per-one-BOQ-unit, e.g. 10.764 sqft in 1 sqm). Direction verified against live data before building: item unit sqm, labourUnit sqft, conv 10.764 -- 141 sqft = 13.10 sqm, not 1517. Multiplying would have inflated progress ~116x and looked merely like a large number. STRICT: only rows explicitly stored linked:true count; legacy rows predating V99.84 carry no flag and are deliberately NOT re-derived from the current engagement, since a later rate edit would then silently move historical progress -- re-saving such an entry backfills the flag and it counts from then on. GUARDS: conv<=0/missing/non-numeric skips the row (never divides by zero, never yields Infinity/NaN), MISC and blank item ids excluded, malformed records tolerated. Pending (unapproved backdated) entries excluded via _appr, consistent with V99.58. DOUBLE-COUNT PRE-CHECKED on live data: zero item+date pairs appear in both workEntries and a labour line, so nothing is counted twice; the overlap check should be re-run before any bulk backfill. AFFECTS: _itemPct and the executed-value total (execVal = done x rate), both of which will legitimately RISE for linked items -- they were understated before. DATA SAFETY: read/compute path only. No write path, no schema change, no collection touched, no record created/edited/deleted/migrated; only which numbers are DERIVED at render time. Worst case of a wrong factor is a visibly wrong percentage, never data loss. Step 3 (unit-label display on progress rows) still open. -->
 <!-- FuelLog PWA | Version: V99.84 | Date: 2026-08-05 | V99.84 LINKED-WORK PERSISTENCE (step 1 of 3): saveLabEntry now stores linked + convPerBoqUnit on every saved pieceRow instead of discarding them (previously computed live via _labLineRate but never written to Firebase). editLabEntry trusts the stored linked flag for entries saved under this fix, and only falls back to a fresh gang-rate lookup for legacy rows that predate it -- and that fallback never touches the historical rate/unit that was actually paid. This does NOT yet change BOQ progress calculation (_itemDone still reads workEntries only) -- that is step 2, pending an overlap check on live data. -->
@@ -4093,6 +4093,15 @@ function renderDashboard(dash,alerts){
       if(moreBadge) moreBadge.style.display='none';
     }
   }
+  // V102.45: measured labour lines waiting for rates (owner/admin)
+  if(isOwner()||isAdmin()){
+    const _rlN=(typeof _rpLabour==='function')?_rpLabour().length:0;
+    if(_rlN>0) alertHtml+=`<div class="dash-alert" style="background:rgba(255,179,0,.07);border:2px solid var(--amber);cursor:pointer" onclick="openRatesPending()">
+        <div class="dash-alert-row"><div style="font-size:24px">👷</div>
+          <div style="flex:1"><div style="font-family:var(--fh);font-size:14px;color:var(--amber)">${_rlN} LABOUR LINE${_rlN>1?'S':''} · RATES PENDING</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">Work measured on site without a rate · Tap to fill</div></div>
+          <div style="color:var(--amber);font-size:18px">›</div></div></div>`;
+  }
   // V102.43: site bills waiting for rates (owner/admin)
   if(isOwner()||isAdmin()){
     const _rpN=(typeof _rpBills==='function')?_rpBills().length:0;
@@ -4246,6 +4255,10 @@ function renderSiteSupHome(dash, alerts){
   if(_ss.view==='out') return _ssOutListHTML(dash);
   if(_ss.view==='outE') return _ssOutEHTML(dash);
   if(_ss.view==='outC') return _ssOutCHTML(dash);
+  // V102.45 Stage 3
+  if(_ss.view==='kaam') return _ssKaamHTML(dash);
+  if(_ss.view==='kaamM') return _ssKMeasHTML(dash);
+  if(_ss.view==='kaamW') return _ssKWagesHTML(dash);
   _ss.view='home';
   return _ssHomeHTML(dash, list);
 }
@@ -4300,7 +4313,7 @@ function _ssHomeHTML(dash, list){
         ${row('in',_st('maalIn'),_st('inSub'),inStat,"_ssGo('in')")}
         ${row('out',_st('maalOut'),_st('outSub'),outStat,"_ssGo('out')")}
         ${row('users',_st('hajeri'),_st('hajSub'),hjStat,"_ssGo('hajeri')")}
-        ${row('work',_st('kaam'),_st('kaamSub'),kStat,"_ssOpenWork()",true)}
+        ${row('work',_st('kaam'),_st('kaamSub'),kStat,"_ssStartKaam()",true)}
       </div>
     </div>`;
 }
@@ -5126,6 +5139,7 @@ function _rpAge(d){ const n=Math.round((new Date(today()+'T00:00:00')-new Date(S
 function openRatesPending(){
   if(!_rpCan()){ alert('Only the owner or admin can fill rates.'); return; }
   const bills=_rpBills();
+  const labN=(typeof _rpLabour==='function')?_rpLabour().length:0;   // V102.45
   const rows=bills.map(b=>{ const v=(vendors||[]).find(x=>x.id===b.vendorId); const pn=_storeProjName?_storeProjName(b.pid):'';
     return `<div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:14px">
       <div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800">${_esc(v?v.name:'(vendor)')}${b.invNo?' · Bill '+_esc(b.invNo):''}</div>
@@ -5134,8 +5148,8 @@ function openRatesPending(){
       <button type="button" onclick="_rpFill('${_esc(b.invId)}')" style="min-height:44px;padding:0 12px;border-radius:10px;border:none;background:var(--amber);color:#1a1205;font-size:12px;font-weight:800;line-height:1.1">Fill rate<br>GST · total</button></div>`; }).join('');
   _rpShell(`<div style="padding:14px 16px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;position:sticky;top:0">
       <button type="button" onclick="_rpClose()" style="min-height:40px;padding:0 12px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--white);font-size:14px">‹ Back</button>
-      <div style="flex:1"><div style="font-family:var(--fh);font-size:16px;color:var(--amber)">RATES PENDING · ${bills.length}</div><div style="font-size:11px;color:var(--muted)">Site bills saved without rate, GST and bill total. Fill them from the photo and the bill leaves this list.</div></div></div>
-    <div style="padding:14px;display:flex;flex-direction:column;gap:10px">${rows||'<div style="padding:30px;text-align:center;color:var(--muted)">Nothing pending.</div>'}</div>`);
+      <div style="flex:1"><div style="font-family:var(--fh);font-size:16px;color:var(--amber)">RATES PENDING · ${bills.length+labN}</div><div style="font-size:11px;color:var(--muted)">Site bills saved without rate, GST and bill total, and labour work measured on site without a rate. Fill them and they leave this list.</div></div></div>
+    <div style="padding:14px;display:flex;flex-direction:column;gap:10px">${(bills.length&&labN)?'<div style="font-size:12px;font-weight:700;color:var(--amber);padding:2px 2px 0">SITE BILLS</div>':''}${rows}${labN?'<div style="font-size:12px;font-weight:700;color:var(--amber);padding:8px 2px 0">LABOUR WORK (rate not given on site)</div>'+_rpLabRowsHTML():''}${(rows||labN)?'':'<div style="padding:30px;text-align:center;color:var(--muted)">Nothing pending.</div>'}</div>`);
 }
 let _rpCur=null;
 async function _rpFill(invId){
@@ -5259,6 +5273,469 @@ async function _rpSave(){
   try{ if(typeof renderHome==='function') renderHome(); }catch(e){}
 }
 // =================== END V102.43 STAGE 2 ===================
+// =================== V102.45 STAGE 3 — काम (work done) ===================
+// Site supervisor work entry, two ways a labour contractor is paid:
+//   मोजमापाचे काम — one BOQ item + one gang + measurements (nos × L × B × D, जोड/वजा) × rate
+//   रोजंदारी      — one gang + rows of worker type × count × daily wage (wage compulsory)
+// Saves into the SAME dailyLabour records as the DPR Work Done step: one record per save, one gang.
+// The only NEW stored items: pieceRow.ratePending:true (a measured line saved without a rate — the
+// office fills it from Rates pending) and record.viaSite:true. Daily-wage rows are stored exactly as
+// today. A वजा measurement is stored the way the DPR screen stores it: a leading "-" in the nos box.
+// Server first: a save that does not reach the server is refused and everything stays on screen.
+// An edit is made on a FRESH SERVER COPY: only the fields this screen owns are replaced, so a line
+// remark or a rate the office filled is never lost. Nothing here deletes anything.
+Object.assign(_SS_T,{
+  measWork:['मोजमापाचे काम','Measured work'], measSub:['BOQ आयटम · माप · कोणी केले','BOQ item · measurement · who did it'],
+  wages:['रोजंदारी','Daily wages'], wagesSub:['मजूर · संख्या · मजुरी','Workers · count · wage'],
+  todayWork:['आज नोंदवलेले काम','Work recorded today'],
+  rateDue:['दर बाकी','Rate pending'], rateOk:['दर भरला','Rate filled'],
+  editNote:['चुकीची नोंद बदलता येते · काढून टाकणे फक्त मालक','A wrong entry can be changed · only the owner can delete'],
+  whoDid:['कोणी केले','Who did it'], contractor:['ठेकेदार','Contractor'], ownLab:['स्वतःचे मजूर','Own labour'],
+  gangMissing:['ठेकेदार यादीत नाही? मालकाला फोन करा','Contractor not in the list? Call the owner'],
+  noGangs:['या साईटवर कोणताही ठेकेदार जोडलेला नाही','No contractor is engaged on this site'],
+  whichItem:['कोणते काम? (BOQ आयटम)','Which work? (BOQ item)'],
+  misc:['इतर काम (BOQ बाहेरचे)','Other work (not in BOQ)'],
+  meas:['माप','Measurement'], addM:['जोड','Add'], dedM:['वजा','Deduct'],
+  nos:['नग','Nos'], len:['लांबी','Length'], wid:['रुंदी','Breadth'], dep:['खोली','Depth'],
+  measWhat:['हे माप कशाचे? (शेरा)','What is this measurement? (remark)'],
+  measWhatPh:['उदा. Room 3 भिंत / दरवाजा वजा','e.g. Room 3 wall / door deducted'],
+  moreMeas:['आणखी माप','Another measurement'],
+  totalNet:['एकूण (वजा धरून)','Total (after deductions)'],
+  rateOpt:['दर ₹','Rate ₹'], rateHint:['माहीत नसेल तर रिकामे ठेवा — ऑफिस भरेल','Leave blank if not known — the office will fill it'],
+  agreedRate:['ठरलेला दर · बदलता येत नाही','Agreed rate · cannot be changed'],
+  officeRate:['ऑफिसने भरलेला दर · बदलता येत नाही','Rate filled by the office · cannot be changed'],
+  wType:['मजूर प्रकार','Worker type'], wCount:['संख्या','Count'], wWage:['मजुरी ₹ / दिवस','Wage ₹ / day'],
+  wTypePh:['उदा. पुरुष','e.g. Male'], moreType:['आणखी प्रकार','Another type'],
+  workers:['मजूर','workers'], total:['एकूण','Total'],
+  wHint:['प्रकार लिहा (उदा. पुरुष, महिला, मिस्त्री) · संख्या आणि मजुरी भरणे आवश्यक','Write the type (e.g. Male, Female, Mason) · count and wage are required'],
+  onWhich:['कोणत्या कामावर?','On which work?'], wRemPh:['शेरा (ऐच्छिक) — उदा. पाया साफसफाई','Remark (optional) — e.g. foundation cleaning'],
+  kNeedItem:['कोणते काम ते निवडा.','Pick which work.'],
+  kNeedGang:['कोणी केले ते निवडा.','Pick who did it.'],
+  kNeedMeas:['किमान एक माप टाका (आकड्यांसह).','Enter at least one measurement (with numbers).'],
+  kNeedRem:['प्रत्येक मापासाठी "हे माप कशाचे?" लिहा.','Write "what is this measurement?" for every measurement.'],
+  kBadNum:['मापात फक्त शून्यापेक्षा मोठे आकडे टाका.','Use only numbers above zero in a measurement.'],
+  kNegTotal:['वजा मापापेक्षा जास्त आहे — एकूण शून्यापेक्षा जास्त हवे.','Deductions are more than the work — the total must be above zero.'],
+  kBadRate:['दर बरोबर टाका किंवा रिकामा ठेवा.','Enter a valid rate or leave it blank.'],
+  kNeedRow:['किमान एक मजूर प्रकार टाका.','Enter at least one worker type.'],
+  kRowBad:['प्रत्येक ओळीत प्रकार, संख्या आणि मजुरी भरा.','Fill type, count and wage on every row.'],
+  kCountBad:['संख्या पूर्ण आकडा हवी (उदा. 6).','Count must be a whole number (e.g. 6).'],
+  kWageBad:['मजुरी शून्यापेक्षा जास्त हवी.','The wage must be above zero.'],
+  kNotYours:['ही नोंद दुसऱ्याने केली आहे. बदल हवा असल्यास ऑफिसला फोन करा.','Someone else made this entry. Call the office to change it.'],
+  kGone:['ही नोंद ऑफिसने काढली आहे.','The office has removed this entry.'],
+  kChanged:['ऑफिसने ही नोंद बदलली आहे. ती इथून बदलता येणार नाही — ऑफिसला फोन करा.','The office has changed this entry. It cannot be changed here — call the office.']
+});
+let _ssK=null;
+const _SSK_INP='width:100%;min-width:0;box-sizing:border-box;height:50px;border-radius:10px;border:1px solid #C9D2E3;background:#FFFFFF;color:#111827;font-size:19px;font-weight:600;text-align:center;padding:0 4px';
+function _ssKNew(pid, mode){ return {pid, mode, recId:uid(), editId:null, date:'', boqId:'', bq:'', gangId:'', srv:null,
+  lines:[{desc:'',nos:'',l:'',b:'',d:'',ded:false}], open:0, rate:'', rows:[{label:'',count:'',rate:''}], wBoq:'', wbq:'', wRem:''}; }
+function _ssKGangName(id){ if(id==='__own') return _st('ownLab'); const g=_gang(id); return g?g.name:'—'; }
+// contractors engaged on this project (closed engagements left out) — site sups never add gangs
+function _ssKGangs(pid){
+  const eng=new Set(_glEngagements(pid).filter(e=>e&&e.status!=='closed').map(e=>e.gangId));
+  return (gangs||[]).filter(g=>g&&eng.has(g.id)).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
+}
+function _ssKItem(id){ return (id&&id!==MISC_BOQ)?((boqItems||[]).find(x=>x.id===id)||null):null; }
+function _ssKItemTxt(id){ if(id===MISC_BOQ) return _st('misc'); const it=_ssKItem(id); return it?('Item '+(it.itemNo||'')+' · '+String(it.description||'').slice(0,60)):'—'; }
+// the gang's agreed rate for this item on this date (same lookup as the DPR Work Done step)
+function _ssKAgreed(st){
+  if(!st||!st.boqId||st.boqId===MISC_BOQ||!st.gangId||st.gangId==='__own') return null;
+  const rr=_gangRateOn(_glEngId(st.gangId, st.pid), st.boqId, st.date||today());
+  if(!rr||!(Number(rr.rate)>0)) return null;
+  const it=_ssKItem(st.boqId);
+  return {rate:Number(rr.rate), unit:rr.labourUnit||(it?it.unit:'')||'', linked:!!rr.linked, conv:Number(rr.convPerBoqUnit)||0};
+}
+// a rate the office filled on the line being edited — kept only while item and gang stay the same
+// a rate is the office's when the office filled it, or when anyone other than this site sup has since saved the entry
+function _ssKOfficeRate(rec, r){ return !!(rec && r && r.ratePending!==true && Number(r.rate)>0 && (r.rateFilledTs || (rec.editedBy && rec.editedBy!==((sess&&sess.userId)||'')))); }
+function _ssKOffice(st){ const s=st&&st.srv; return (s&&s.boqId===st.boqId&&s.gangId===st.gangId)?s:null; }
+function _ssKUnit(st){ const o=_ssKOffice(st); if(o) return o.unit; const a=_ssKAgreed(st); if(a) return a.unit; const it=_ssKItem(st.boqId); return (it&&it.unit)||''; }
+function _ssKNumOk(s){ s=String(s==null?'':s).trim(); return s==='' || (/^\d*\.?\d+$/.test(s) && parseFloat(s)>0); }
+// screen measurement → stored measurement (deduction = leading "-" in nos, as the DPR screen stores it)
+function _ssKMeas(x){ const t=v=>String(v==null?'':v).trim();
+  const m={desc:t(x.desc), nos:t(x.nos), l:t(x.l), b:t(x.b), d:t(x.d)};
+  if(x.ded && (m.nos||m.l||m.b||m.d)) m.nos='-'+(m.nos||'1');
+  return m; }
+function _ssKFromMeas(m){ const s=v=>String(v==null?'':v).trim().replace(/^-\s*/,'');
+  return {desc:String(m.desc||''), nos:s(m.nos), l:s(m.l), b:s(m.b), d:s(m.d), ded:_measIsDed(m)}; }
+function _ssKHasNum(x){ return !!(String(x.nos||'').trim()||String(x.l||'').trim()||String(x.b||'').trim()||String(x.d||'').trim()); }
+function _ssKQty(st){ return _pieceQty({measurements:st.lines.filter(_ssKHasNum).map(_ssKMeas)}); }
+function _ssKFmt(n){ return (Math.round((Number(n)||0)*1000)/1000).toLocaleString('en-IN'); }
+// today's DPR: adopt the server's, or create it (same steps as the Stage 1 machine save). null = refuse.
+async function _ssKTodayDPR(p){
+  const td=today();
+  let dpr=_findDPR(p.id,td); if(dpr) return dpr;
+  const id=_dprKey(p.id,td);
+  const remote=await _dprRemoteGet(id);
+  if(remote===undefined) return null;
+  if(remote && typeof remote==='object'){ dpr=Object.assign({},remote,{id}); dailyReports.push(dpr); return dpr; }
+  dpr={id, projectId:p.id, siteId:p.siteId||'', date:td, status:'draft', machinery:[], labour:[],
+       loggedBy:sess.userId, loggedByName:sess.name, ts:Date.now()};
+  _bdStamp(dpr);
+  const ok=await _dprCreateWrite(dpr);
+  if(ok===false) return null;
+  dailyReports.push(dpr); return dpr;
+}
+function _ssKToday(pid){ const td=today(); return (dailyLabour||[]).filter(e=>e&&!e.deleted&&e.projectId===pid&&e.date===td).sort((a,b)=>(Number(a.ts)||0)-(Number(b.ts)||0)); }
+// a site sup may change only his own screen's single-purpose entries
+function _ssKKind(e){
+  if(!e) return '';
+  const pr=e.pieceRows||[], rw=e.rows||[];
+  if(pr.length===1 && !rw.length) return 'meas';
+  if(!pr.length && rw.length) return 'wage';
+  return '';
+}
+function _ssKMine(e){ return !!(e && e.viaSite===true && e.enteredBy===((sess&&sess.userId)||'') && _ssKKind(e)); }
+function _ssStartKaam(){ _ssGo('kaam'); }
+function _ssKStart(mode){
+  if(!_ssK || _ssK.pid!==_ss.pid || _ssK.mode!==mode || _ssK.editId) _ssK=_ssKNew(_ss.pid, mode);
+  _ssGo(mode==='meas'?'kaamM':'kaamW');
+}
+function _ssKEdit(id){
+  const e=(dailyLabour||[]).find(x=>x&&x.id===id);
+  if(!_ssKMine(e)){ alert(_st('kNotYours')); return; }
+  const st=_ssKNew(e.projectId, _ssKKind(e)); st.editId=e.id; st.recId=e.id; st.date=e.date||''; st.gangId=e.gangId||'';
+  if(st.mode==='meas'){
+    const r=e.pieceRows[0]||{};
+    st.boqId=r.boqItemId||'';
+    st.lines=(r.measurements||[]).map(_ssKFromMeas); if(!st.lines.length) st.lines=[{desc:'',nos:'',l:'',b:'',d:'',ded:false}];
+    st.open=-1;
+    if(_ssKOfficeRate(e, r)) st.srv={boqId:st.boqId, gangId:st.gangId, rate:Number(r.rate), unit:r.unit||''};
+    else if(r.ratePending!==true && Number(r.rate)>0 && !_ssKAgreed(st)) st.rate=String(r.rate);
+  } else {
+    st.rows=(e.rows||[]).map(w=>({label:String(w.label||''), count:String(w.count==null?'':w.count), rate:String(w.rate==null?'':w.rate)}));
+    st.wBoq=e.wageBoqId||''; st.wRem=e.wageRemark||'';
+  }
+  _ssK=st; _ssGo(st.mode==='meas'?'kaamM':'kaamW');
+}
+// ---- the काम list ----
+function _ssKaamHTML(dash){
+  const p=_ssProj(); if(!p){ _ss.view='home'; return _ssRender(); }
+  const list=_ssKToday(p.id);
+  const big=(ico,label,sub,onclick)=>`<button type="button" onclick="${onclick}" style="display:flex;align-items:center;gap:14px;padding:14px 16px;width:100%;text-align:left;background:#FFFFFF;border:1px solid #E3E6EB;border-radius:14px;color:#111827">
+      <div style="width:44px;height:44px;border-radius:12px;background:#E8EFFB;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_ssIco(ico,'#1F4E9C',22)}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:18px;font-weight:600">${label}</div><div style="font-size:14px;color:#5B6472">${sub}</div></div>${_ssIco('chev','#9AA3AF',18)}</button>`;
+  const rows=list.map((e,i)=>{
+    const kind=_ssKKind(e); const pr=e.pieceRows||[], rw=e.rows||[];
+    let title='', sub='', tag='';
+    if(pr.length){
+      const r=pr[0]; const it=_ssKItem(r.boqItemId);
+      title=(r.boqItemId===MISC_BOQ)?_st('misc'):(it?('Item '+(it.itemNo||'')+' · '+String(it.description||'').slice(0,40)):'—');
+      if(pr.length>1) title+=' +'+(pr.length-1);
+      const pend=pr.some(x=>x&&x.ratePending===true);
+      sub=_ssKGangName(e.gangId)+' · '+_ssKFmt(r.qty)+' '+(r.unit||'')+(pend?'':' · ₹ '+(Number(e.totalAmount)||0).toLocaleString('en-IN'));
+      tag=pend?_ssTag(_st('rateDue'),'warn'):_ssTag(_st('rateOk'),'done');
+    } else {
+      const n=rw.reduce((a,w)=>a+(Number(w.count)||0),0);
+      title=_st('wages')+' · '+n+' '+_st('workers');
+      sub=_ssKGangName(e.gangId)+' · ₹ '+(Number(e.totalAmount)||0).toLocaleString('en-IN');
+      tag=_ssTag(_st('rateOk'),'done');
+    }
+    const ico=pr.length?'work':'users';
+    const ed=_ssKMine(e)?`<button type="button" onclick="_ssKEdit('${_esc(e.id)}')" style="background:none;border:none;color:#1F4E9C;font-size:15px;font-weight:600;min-height:44px;padding:0 4px">${_st('change')}</button>`:'';
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;${i?'border-top:1px solid #EEF1F5':''}">
+      <div style="width:40px;height:40px;border-radius:10px;background:#E8EFFB;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_ssIco(ico,'#1F4E9C',22)}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:600;overflow-wrap:anywhere">${_esc(title)}</div><div style="font-size:13px;color:#5B6472">${_esc(sub)}</div></div>${tag}${ed}</div>`;
+  }).join('');
+  dash.innerHTML=_ssHead(_st('kaam'), p.name+' · '+fmtD(today()), 'home')+
+    `<div style="display:flex;flex-direction:column;gap:14px;padding:0 16px 20px">
+      ${big('work',_st('measWork'),_st('measSub'),"_ssKStart('meas')")}
+      ${big('users',_st('wages'),_st('wagesSub'),"_ssKStart('wage')")}
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 4px 0"><span style="font-size:13px;font-weight:600;color:#5B6472;letter-spacing:0.4px">${_st('todayWork')}</span><span style="font-size:15px;font-weight:700">${list.length} ${_st('entries')}</span></div>
+      ${list.length?`<div style="background:#FFFFFF;border:1px solid #E3E6EB;border-radius:14px;overflow:hidden">${rows}</div>`:`<div style="padding:18px;text-align:center;color:#5B6472;font-size:15px">${_st('nothingToday')}</div>`}
+      <div style="display:flex;gap:8px;align-items:center;padding:4px;font-size:13px;color:#5B6472">${_ssIco('lock','#5B6472',16)}${_st('editNote')}</div>
+    </div>`;
+}
+// ---- BOQ item search (measured work item, or the optional item on wages) ----
+function _ssKBoqList(which){
+  const st=_ssK; if(!st) return '';
+  const q=String(which==='w'?st.wbq:st.bq||'').toLowerCase().trim(); if(!q) return '';
+  const pool=(_projBoq(st.pid)||[]).filter(b=>(String(b.itemNo||'')+' '+String(b.description||'')).toLowerCase().includes(q)).slice(0,25);
+  if(!pool.length) return `<div style="padding:12px;color:var(--muted);font-size:16px">${_st('noMatch')}</div>`;
+  return pool.map(b=>`<button type="button" onclick="_ssKPickItem('${which}','${_esc(b.id)}')" style="display:flex;gap:10px;width:100%;text-align:left;padding:12px;border:none;border-bottom:1px solid var(--border);background:transparent;color:var(--white)"><span style="min-width:36px;height:30px;border-radius:8px;background:#EEF1F5;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 6px;flex-shrink:0">${_esc(b.itemNo||'')}</span><span style="font-size:16px;font-weight:600;line-height:1.3">${_esc(String(b.description||'').slice(0,90))}<span style="color:var(--muted);font-weight:400"> · ${_esc(b.unit||'')}</span></span></button>`).join('');
+}
+function _ssKBoqSearch(which, v){ if(!_ssK) return; if(which==='w') _ssK.wbq=v; else _ssK.bq=v; const el=document.getElementById(which==='w'?'ss-kwlist':'ss-kblist'); if(el) el.innerHTML=_ssKBoqList(which); }
+function _ssKPickItem(which, id){ if(!_ssK) return; if(which==='w'){ _ssK.wBoq=id; _ssK.wbq=''; } else { _ssK.boqId=id; _ssK.bq=''; } _ssRender(); }
+function _ssKItemCard(which){
+  const st=_ssK; const id=which==='w'?st.wBoq:st.boqId;
+  const clear=which==='w'?"_ssK.wBoq='';_ssRender()":"_ssK.boqId='';_ssRender()";
+  if(id){
+    const it=_ssKItem(id);
+    const no=id===MISC_BOQ?'—':(it?(it.itemNo||''):'?');
+    const tx=id===MISC_BOQ?_st('misc'):(it?String(it.description||'').slice(0,70):'—');
+    return `<div style="min-height:48px;border-radius:10px;border:1px solid #C9D2E3;display:flex;align-items:center;gap:10px;padding:8px 14px;box-sizing:border-box"><span style="min-width:30px;height:30px;border-radius:8px;background:#EEF1F5;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 6px">${_esc(no)}</span><span style="flex:1;min-width:0;font-size:15px;font-weight:600;line-height:1.3">${_esc(tx)}</span><button type="button" onclick="${clear}" style="background:none;border:none;color:#1F4E9C;font-size:15px;font-weight:600;min-height:44px">${_st('change')}</button></div>`;
+  }
+  return _ssSearchBox(which==='w'?'ss-kwq':'ss-kbq', which==='w'?st.wbq:st.bq, "_ssKBoqSearch('"+which+"',this.value)", _st('boqSearch'), which==='w'?'ss-kwlist':'ss-kblist', _ssKBoqList(which))+
+    `<button type="button" onclick="_ssKPickItem('${which}','${MISC_BOQ}')" style="margin-top:8px;width:100%;min-height:46px;border-radius:10px;border:1px dashed #C9D2E3;background:#FFFFFF;color:#374151;font-size:15px;font-weight:600">${_st('misc')}</button>`;
+}
+function _ssKGangPick(single){
+  const st=_ssK; const gl=_ssKGangs(st.pid);
+  const b=(id,nm)=>{ const on=st.gangId===id; return `<button type="button" onclick="_ssK.gangId='${_esc(id)}';_ssRender()" style="min-height:46px;border-radius:10px;border:${on?'2px solid #1F4E9C':'1px solid #C9D2E3'};background:${on?'#E8EFFB':'#FFFFFF'};color:${on?'#1F4E9C':'#111827'};font-size:15px;font-weight:600;padding:4px 8px;line-height:1.2">${_esc(nm)}</button>`; };
+  if(single && st.gangId) return `<div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;color:#5B6472">${_st('whoDid')}</span><span style="flex:1;font-size:15px;font-weight:600">${_esc(_ssKGangName(st.gangId))}</span><button type="button" onclick="_ssK.gangId='';_ssRender()" style="background:none;border:none;color:#1F4E9C;font-size:15px;font-weight:600;min-height:44px">${_st('change')}</button></div>`;
+  // an entry being edited keeps its gang even if the engagement has since closed
+  const extra=(st.gangId && st.gangId!=='__own' && !gl.some(g=>g.id===st.gangId))?b(st.gangId,_ssKGangName(st.gangId)):'';
+  return `${single?`<div style="font-size:13px;color:#5B6472">${_st('whoDid')}</div>`:''}
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">${gl.map(g=>b(g.id,g.name||'')).join('')}${extra}${b('__own',_st('ownLab'))}</div>
+    ${gl.length?'':`<div style="font-size:13px;color:#5B6472">${_st('noGangs')}</div>`}`;
+}
+function _ssKHint(){ return `<div style="display:flex;align-items:center;gap:6px;font-size:13px;color:#5B6472">${_ssIco('phone','#5B6472',14)}${_st('gangMissing')}</div>`; }
+const _ssKCard=(inner,extra)=>`<div style="background:#FFFFFF;border:1px solid #E3E6EB;border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;${extra||''}">${inner}</div>`;
+// ---- मोजमापाचे काम ----
+function _ssKSet(j,k,v){ const st=_ssK; if(!st||!st.lines[j]) return; st.lines[j][k]=v; _ssKLive(); }
+function _ssKLive(){
+  const st=_ssK; if(!st) return; const u=_ssKUnit(st);
+  st.lines.forEach((x,j)=>{ const el=document.getElementById('ss-kmq-'+j); if(el){ const q=_ssKHasNum(x)?_measLineQty(_ssKMeas(x)):0; el.textContent='= '+(x.ded&&q?'− ':'')+_ssKFmt(Math.abs(q))+' '+u; } });
+  const q=_ssKQty(st);
+  const t=document.getElementById('ss-ktot'); if(t) t.textContent=_ssKFmt(q)+' '+u;
+  const a=document.getElementById('ss-kamt'); if(a){ const o=_ssKOffice(st), ag=_ssKAgreed(st); const r=o?o.rate:(ag?ag.rate:_ssNum(st.rate)); a.textContent=(r>0&&q>0)?('= ₹ '+(Math.round(q*r*100)/100).toLocaleString('en-IN')):''; }
+}
+function _ssKOpen(j){ if(!_ssK) return; _ssK.open=j; _ssRender(); }
+function _ssKDed(j,v){ if(!_ssK||!_ssK.lines[j]) return; _ssK.lines[j].ded=!!v; _ssRender(); }
+function _ssKAddMeas(){ if(!_ssK) return; _ssK.lines.push({desc:'',nos:'',l:'',b:'',d:'',ded:false}); _ssK.open=_ssK.lines.length-1; _ssRender(); }
+function _ssKDropMeas(j){ if(!_ssK||_ssK.lines.length<2) return; _ssK.lines.splice(j,1); _ssK.open=-1; _ssRender(); }
+function _ssKMeasHTML(dash){
+  const st=_ssK; const p=_ssProj(); if(!st||!p||st.pid!==p.id||st.mode!=='meas'){ _ss.view='kaam'; return _ssRender(); }
+  const u=_ssKUnit(st);
+  const box=(j,k,lbl,val)=>`<div style="min-width:0"><label for="ss-k${k}-${j}" style="display:block;font-size:12px;font-weight:600;color:#5B6472;text-align:center;padding-bottom:4px">${lbl}</label><input id="ss-k${k}-${j}" type="text" inputmode="decimal" value="${_esc(val)}" oninput="_ssKSet(${j},'${k}',this.value)" autocomplete="off" style="${_SSK_INP}"></div>`;
+  const x_=`<span style="font-size:15px;color:#9AA3AF;padding-top:22px">×</span>`;
+  const meas=st.lines.map((x,j)=>{
+    const q=_ssKHasNum(x)?_measLineQty(_ssKMeas(x)):0;
+    const qtxt='= '+(x.ded&&q?'− ':'')+_ssKFmt(Math.abs(q))+' '+_esc(u);
+    if(j!==st.open){
+      const f=[x.nos,x.l,x.b,x.d].map(v=>String(v||'').trim()||'—').join(' × ');
+      return `<button type="button" onclick="_ssKOpen(${j})" style="display:flex;align-items:center;gap:10px;padding:11px 16px;width:100%;text-align:left;background:#FFFFFF;border:none;border-top:${j?'1px solid #EEF1F5':'none'};color:#111827">
+        <div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:600">${_st('meas')} ${j+1}${x.desc?` <span style="font-weight:400;color:#5B6472">· ${_esc(x.desc)}</span>`:''}${x.ded?` <span style="color:#B42318;font-weight:700">· ${_st('dedM')}</span>`:''}</div><div style="font-size:13px;color:#5B6472">${_esc(f)}</div></div>
+        <span style="font-size:16px;font-weight:700;color:${x.ded?'#B42318':'#111827'}">${x.ded&&q?'− ':''}${_ssKFmt(Math.abs(q))} ${_esc(u)}</span>${_ssIco('chev','#9AA3AF',18)}</button>`;
+    }
+    const tg=(on,lbl,v,red)=>`<button type="button" onclick="_ssKDed(${j},${v})" style="border:none;border-radius:8px;padding:6px 14px;font-size:14px;font-weight:600;min-height:36px;background:${on?(red?'#B42318':'#FFFFFF'):'transparent'};color:${on?(red?'#FFFFFF':'#111827'):'#5B6472'};${on&&!red?'box-shadow:0 1px 2px rgba(17,24,39,0.12)':''}">${lbl}</button>`;
+    return `<div style="background:#FFFFFF;border:${x.ded?'2px solid #B42318':'2px solid #1F4E9C'};border-radius:14px;padding:12px 16px;display:flex;flex-direction:column;gap:10px;margin:${j?'8px':'0'} 0 0">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span style="font-size:15px;font-weight:600">${_st('meas')} ${j+1}</span>
+        <div style="display:flex;align-items:center;gap:10px">${st.lines.length>1?`<button type="button" onclick="_ssKDropMeas(${j})" style="background:none;border:none;color:#5B6472;font-size:14px;min-height:36px">${_st('remove')}</button>`:''}
+        <div style="display:flex;background:#EEF1F5;border-radius:10px;padding:3px">${tg(!x.ded,_st('addM'),false,false)}${tg(x.ded,_st('dedM'),true,true)}</div></div></div>
+      <div style="display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;gap:4px">${box(j,'nos',_st('nos'),x.nos)}${x_}${box(j,'l',_st('len'),x.l)}${x_}${box(j,'b',_st('wid'),x.b)}${x_}${box(j,'d',_st('dep'),x.d)}</div>
+      <div><label for="ss-kdesc-${j}" style="display:block;font-size:12px;font-weight:600;color:#5B6472;padding-bottom:4px">${_st('measWhat')}</label>
+        <input id="ss-kdesc-${j}" type="text" value="${_esc(x.desc)}" oninput="_ssKSet(${j},'desc',this.value)" placeholder="${_esc(_st('measWhatPh'))}" autocomplete="off" style="width:100%;box-sizing:border-box;min-height:46px;border-radius:10px;border:1px solid #C9D2E3;background:#FFFFFF;color:#111827;font-size:16px;padding:0 14px"></div>
+      <div id="ss-kmq-${j}" style="text-align:right;font-size:17px;font-weight:700;color:${x.ded?'#B42318':'#111827'}">${qtxt}</div></div>`;
+  });
+  const closed=meas.filter((h,j)=>j!==st.open), opened=st.open>=0&&st.open<st.lines.length?meas[st.open]:'';
+  const q=_ssKQty(st);
+  const off=_ssKOffice(st), ag=off?null:_ssKAgreed(st);
+  const lockR=off||ag;
+  const rateBlock=lockR?`<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600">${_st('rateOpt')}</div><div style="font-size:12px;color:#5B6472">${off?_st('officeRate'):_st('agreedRate')}</div></div><div style="display:flex;align-items:center;gap:6px;height:46px;padding:0 12px;border-radius:10px;border:1px solid #E3E6EB;background:#F5F6F8;font-size:17px;font-weight:600">₹${_esc(String(lockR.rate))} / ${_esc(lockR.unit||u)} ${_ssIco('lock','#9AA3AF',16)}</div></div>`
+    :`<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0"><label for="ss-krate" style="font-size:14px;font-weight:600">${_st('rateOpt')} <span style="font-weight:400;color:#5B6472">· ${_st('optional')}</span></label><div style="font-size:12px;color:#5B6472;line-height:1.3">${_st('rateHint')}</div></div>
+      <input id="ss-krate" type="text" inputmode="decimal" value="${_esc(st.rate)}" oninput="_ssK.rate=this.value;_ssKLive()" placeholder="₹" autocomplete="off" style="width:110px;height:46px;box-sizing:border-box;border-radius:10px;border:1px solid #C9D2E3;background:#FFFFFF;color:#111827;font-size:17px;font-weight:600;padding:0 12px"></div>`;
+  const r=off?off.rate:(ag?ag.rate:_ssNum(st.rate));
+  dash.innerHTML=_ssHead(_st('measWork'), _st('kaam')+' · '+p.name, 'kaam')+_ssMsgHTML()+
+    `<div style="display:flex;flex-direction:column;gap:12px;padding:0 16px">
+      ${_ssKCard(`<div style="font-size:15px;font-weight:600;color:#374151">${_st('whichItem')}</div>${_ssKItemCard('m')}<div style="height:1px;background:#EEF1F5"></div>${_ssKGangPick(true)}${_ssKHint()}`)}
+      ${closed.length?`<div style="background:#FFFFFF;border:1px solid #E3E6EB;border-radius:14px;overflow:hidden">${closed.join('')}</div>`:''}
+      ${opened}
+      <button type="button" onclick="_ssKAddMeas()" style="height:46px;border-radius:12px;border:1px dashed #9DB0D3;background:#F7F9FD;color:#1F4E9C;font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">${_ssIco('plus','#1F4E9C',20)}${_st('moreMeas')}</button>
+      ${_ssKCard(`<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:14px;color:#5B6472">${_st('totalNet')}</span><span id="ss-ktot" style="font-size:24px;font-weight:700">${_ssKFmt(q)} ${_esc(u)}</span></div>
+        <div style="height:1px;background:#EEF1F5"></div>${rateBlock}<div id="ss-kamt" style="text-align:right;font-size:16px;font-weight:700;color:#1F4E9C">${(r>0&&q>0)?('= ₹ '+(Math.round(q*r*100)/100).toLocaleString('en-IN')):''}</div>`)}
+    </div>`+
+    `<div class="ss2-bar">${_ssBigBtn(_ss.msg?_st('saveAgain'):_st('save'),"_ssKSaveMeas()")}</div>`;
+}
+let _ssKBusy=false;
+async function _ssKSaveMeas(){
+  if(!isSiteSup() || _ssKBusy) return;
+  const st=_ssK; const p=_ssProj(); if(!st||!p||st.pid!==p.id||st.mode!=='meas') return;
+  if(!st.boqId){ alert(_st('kNeedItem')); return; }
+  if(!st.gangId){ alert(_st('kNeedGang')); return; }
+  const used=st.lines.filter(x=>_ssKHasNum(x)||String(x.desc||'').trim());
+  if(!used.length || used.some(x=>!_ssKHasNum(x))){ alert(_st('kNeedMeas')); return; }
+  if(used.some(x=>![x.nos,x.l,x.b,x.d].every(_ssKNumOk))){ alert(_st('kBadNum')); return; }
+  if(used.some(x=>!String(x.desc||'').trim())){ alert(_st('kNeedRem')); return; }
+  const meas=used.map(_ssKMeas);
+  const qty=_pieceQty({measurements:meas});
+  if(!(qty>0)){ alert(_st('kNegTotal')); return; }
+  const typedRaw=String(st.rate||'').trim(); const typedOk=_ssKNumOk(typedRaw); const typed=(typedRaw&&typedOk)?parseFloat(typedRaw):0;
+  if(typedRaw && !typedOk && !(_ssKOffice(st)||_ssKAgreed(st))){ alert(_st('kBadRate')); return; }
+  _ssKBusy=true;
+  try{
+    const me=(sess&&sess.userId)||'', myName=(sess&&sess.name)||'';
+    const refuse=()=>{ _ss.msg='net'; _ssRender(); };
+    let base=null;
+    if(st.editId){
+      const srv=await _ssGet('dailyLabour/'+st.editId);
+      if(srv===undefined) return refuse();
+      if(srv===null || srv.deleted){ alert(_st('kGone')); _ssK=null; return _ssGo('kaam'); }
+      if(srv.enteredBy!==me || srv.viaSite!==true || _ssKKind(srv)!=='meas'){ alert(_st('kChanged')); _ssK=null; return _ssGo('kaam'); }
+      base=Object.assign({}, srv, {id:st.editId});
+    }
+    const dpr=base?null:await _ssKTodayDPR(p);
+    if(!base && !dpr) return refuse();
+    if(!st.date) st.date=base?(base.date||today()):dpr.date;
+    const old=base?Object.assign({}, base.pieceRows[0]||{}):{};
+    const it=_ssKItem(st.boqId);
+    // rate: a rate the office filled (same item + gang, read from the server copy) > the gang's agreed rate > typed > pending
+    const offOk=!!(base && _ssKOfficeRate(base, old) && old.boqItemId===st.boqId && base.gangId===st.gangId);
+    const ag=_ssKAgreed(st);
+    let rate=0, unit='', linked=false, conv=0, pend=false;
+    if(offOk){ rate=Number(old.rate); unit=old.unit||''; linked=old.linked===true; conv=Number(old.convPerBoqUnit)||0; }
+    else if(ag){ rate=ag.rate; unit=ag.unit; linked=ag.linked; conv=ag.conv; }
+    else { if(typedRaw && !typedOk){ alert(_st('kBadRate')); return; } unit=(it&&it.unit)||''; if(typed>0) rate=typed; else pend=true; }
+    const line=Object.assign({}, old, {boqItemId:st.boqId, unit, measurements:meas, qty, rate,
+      amount:Math.round(qty*rate*100)/100, linked, convPerBoqUnit:conv});
+    if(line.remark==null) line.remark='';            // a line remark typed by the office is carried through unchanged
+    if(pend) line.ratePending=true; else if(line.ratePending===true) line.ratePending=false;
+    if(!offOk){ delete line.rateFilledBy; delete line.rateFilledByName; delete line.rateFilledTs; }
+    let rec;
+    if(base){
+      rec=Object.assign({}, base, {gangId:st.gangId, pieceRows:[line], rows:[], totalAmount:line.amount,
+        editedBy:me, editedByName:myName, editedTs:Date.now()});
+    } else {
+      rec={ id:st.recId, projectId:p.id, dprId:dpr.id, gangId:st.gangId, date:dpr.date,
+        rows:[], pieceRows:[line], totalAmount:line.amount, wageBoqId:'', wageRemark:'', allocations:[],
+        enteredBy:me, enteredByName:myName, ts:Date.now(), viaSite:true };
+    }
+    const ok=await _fbWrite('dailyLabour/'+rec.id, rec);
+    if(ok===false) return refuse();
+    dailyLabour=dailyLabour||[]; _clearTombstone('dailyLabour',rec.id); _ssUpsert(dailyLabour, rec);
+    _ssK=null; flash(_st('saved'), _ssKItemTxt(line.boqItemId));
+    _ssGo('kaam');
+  } finally { _ssKBusy=false; }
+}
+// ---- रोजंदारी ----
+function _ssKRowSet(i,k,v){ const st=_ssK; if(!st||!st.rows[i]) return; st.rows[i][k]=v; _ssKWLive(); }
+function _ssKWTot(st){ let n=0,t=0; st.rows.forEach(r=>{ const c=_ssNum(r.count), w=_ssNum(r.rate); if(c>0) n+=c; if(c>0&&w>0) t+=c*w; }); return {n, t:Math.round(t*100)/100}; }
+function _ssKWLive(){ const st=_ssK; if(!st) return; const k=_ssKWTot(st); const el=document.getElementById('ss-wtot'); if(el) el.textContent='₹ '+k.t.toLocaleString('en-IN'); const n=document.getElementById('ss-wn'); if(n) n.textContent=_ssKFmt(k.n)+' '+_st('workers')+' · '+_st('total'); }
+function _ssKAddRow(){ if(!_ssK) return; _ssK.rows.push({label:'',count:'',rate:''}); _ssRender(); }
+function _ssKDropRow(i){ if(!_ssK||_ssK.rows.length<2) return; _ssK.rows.splice(i,1); _ssRender(); }
+function _ssKWagesHTML(dash){
+  const st=_ssK; const p=_ssProj(); if(!st||!p||st.pid!==p.id||st.mode!=='wage'){ _ss.view='kaam'; return _ssRender(); }
+  const labels=(typeof _labLineLabels==='function')?_labLineLabels():[];
+  const inp=(i,k,val,mode,ph,align)=>`<input id="ss-w${k}-${i}" type="text" ${mode?`inputmode="${mode}"`:''} ${k==='label'?'list="ss-wlabels"':''} value="${_esc(val)}" oninput="_ssKRowSet(${i},'${k}',this.value)" placeholder="${_esc(ph||'')}" aria-label="${_esc(k==='label'?_st('wType'):k==='count'?_st('wCount'):_st('wWage'))} ${i+1}" autocomplete="off" style="${_SSK_INP};font-size:17px;${align?'text-align:left;padding:0 12px':''}">`;
+  const rows=st.rows.map((r,i)=>`<div style="display:flex;gap:8px;align-items:center">
+      <div style="flex:1.5 1 0;min-width:0">${inp(i,'label',r.label,'',_st('wTypePh'),true)}</div>
+      <div style="flex:1 1 0;min-width:0">${inp(i,'count',r.count,'numeric','')}</div>
+      <div style="flex:1.2 1 0;min-width:0">${inp(i,'rate',r.rate,'decimal','₹')}</div>
+      ${st.rows.length>1?`<button type="button" onclick="_ssKDropRow(${i})" aria-label="${_st('remove')}" style="width:36px;height:44px;border:none;background:none;color:#5B6472;font-size:18px;flex-shrink:0">×</button>`:''}</div>`).join('');
+  const k=_ssKWTot(st);
+  dash.innerHTML=_ssHead(_st('wages'), _st('kaam')+' · '+p.name, 'kaam')+_ssMsgHTML()+
+    `<datalist id="ss-wlabels">${labels.map(l=>`<option value="${_esc(l)}">`).join('')}</datalist>
+    <div style="display:flex;flex-direction:column;gap:12px;padding:0 16px">
+      ${_ssKCard(`<div style="font-size:15px;font-weight:600;color:#374151">${_st('contractor')}</div>${_ssKGangPick(false)}${_ssKHint()}`)}
+      ${_ssKCard(`<div style="display:flex;gap:8px;font-size:12px;font-weight:600;color:#5B6472"><span style="flex:1.5 1 0">${_st('wType')}</span><span style="flex:1 1 0;text-align:center">${_st('wCount')}</span><span style="flex:1.2 1 0;text-align:center">${_st('wWage')}</span>${st.rows.length>1?'<span style="width:36px"></span>':''}</div>
+        ${rows}
+        <button type="button" onclick="_ssKAddRow()" style="height:44px;border-radius:12px;border:1px dashed #9DB0D3;background:#F7F9FD;color:#1F4E9C;font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">${_ssIco('plus','#1F4E9C',20)}${_st('moreType')}</button>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding-top:10px;border-top:1px solid #EEF1F5"><span id="ss-wn" style="font-size:14px;color:#5B6472">${_ssKFmt(k.n)} ${_st('workers')} · ${_st('total')}</span><span id="ss-wtot" style="font-size:24px;font-weight:700;color:#1F4E9C">₹ ${k.t.toLocaleString('en-IN')}</span></div>
+        <div style="display:flex;align-items:flex-start;gap:6px;font-size:13px;color:#5B6472;line-height:1.4">${_ssIco('info','#5B6472',16)}${_st('wHint')}</div>`)}
+      ${_ssKCard(`<div style="font-size:15px;font-weight:600">${_st('onWhich')} <span style="font-weight:400;color:#5B6472">· ${_st('optional')}</span></div>${_ssKItemCard('w')}
+        <input id="ss-wrem" type="text" value="${_esc(st.wRem)}" oninput="_ssK.wRem=this.value" placeholder="${_esc(_st('wRemPh'))}" aria-label="${_esc(_st('remark'))}" autocomplete="off" style="width:100%;box-sizing:border-box;height:46px;border-radius:10px;border:1px solid #C9D2E3;background:#FFFFFF;color:#111827;font-size:15px;padding:0 14px">`)}
+    </div>`+
+    `<div class="ss2-bar">${_ssBigBtn(_ss.msg?_st('saveAgain'):_st('save'),"_ssKSaveWages()")}</div>`;
+}
+async function _ssKSaveWages(){
+  if(!isSiteSup() || _ssKBusy) return;
+  const st=_ssK; const p=_ssProj(); if(!st||!p||st.pid!==p.id||st.mode!=='wage') return;
+  if(!st.gangId){ alert(_st('kNeedGang')); return; }
+  const t=v=>String(v==null?'':v).trim();
+  const used=st.rows.filter(r=>t(r.label)||t(r.count)||t(r.rate));
+  if(!used.length){ alert(_st('kNeedRow')); return; }
+  if(used.some(r=>!t(r.label)||!t(r.count)||!t(r.rate))){ alert(_st('kRowBad')); return; }
+  if(used.some(r=>!/^\d+$/.test(t(r.count)) || !(parseInt(t(r.count),10)>0))){ alert(_st('kCountBad')); return; }
+  if(used.some(r=>!(/^\d*\.?\d+$/.test(t(r.rate)) && parseFloat(t(r.rate))>0))){ alert(_st('kWageBad')); return; }
+  const rows=used.map(r=>({label:t(r.label), count:parseInt(t(r.count),10), rate:parseFloat(t(r.rate))}));
+  const wageTot=Math.round(rows.reduce((a,r)=>a+r.count*r.rate,0)*100)/100;
+  _ssKBusy=true;
+  try{
+    const me=(sess&&sess.userId)||'', myName=(sess&&sess.name)||'';
+    const refuse=()=>{ _ss.msg='net'; _ssRender(); };
+    let base=null;
+    if(st.editId){
+      const srv=await _ssGet('dailyLabour/'+st.editId);
+      if(srv===undefined) return refuse();
+      if(srv===null || srv.deleted){ alert(_st('kGone')); _ssK=null; return _ssGo('kaam'); }
+      if(srv.enteredBy!==me || srv.viaSite!==true || _ssKKind(srv)!=='wage'){ alert(_st('kChanged')); _ssK=null; return _ssGo('kaam'); }
+      base=Object.assign({}, srv, {id:st.editId});
+    }
+    const dpr=base?null:await _ssKTodayDPR(p);
+    if(!base && !dpr) return refuse();
+    const wageBoqId=String(st.wBoq||''), wageRemark=t(st.wRem);
+    let rec;
+    if(base){
+      rec=Object.assign({}, base, {gangId:st.gangId, rows, pieceRows:[], totalAmount:wageTot, wageBoqId, wageRemark,
+        editedBy:me, editedByName:myName, editedTs:Date.now()});
+    } else {
+      rec={ id:st.recId, projectId:p.id, dprId:dpr.id, gangId:st.gangId, date:dpr.date,
+        rows, pieceRows:[], totalAmount:wageTot, wageBoqId, wageRemark, allocations:[],
+        enteredBy:me, enteredByName:myName, ts:Date.now(), viaSite:true };
+    }
+    const ok=await _fbWrite('dailyLabour/'+rec.id, rec);
+    if(ok===false) return refuse();
+    dailyLabour=dailyLabour||[]; _clearTombstone('dailyLabour',rec.id); _ssUpsert(dailyLabour, rec);
+    _ssK=null; flash(_st('saved'), '₹ '+wageTot.toLocaleString('en-IN'));
+    _ssGo('kaam');
+  } finally { _ssKBusy=false; }
+}
+// ---- office: labour lines waiting for a rate (owner / admin), shown inside Rates pending ----
+function _rpLabour(){
+  const out=[];
+  (dailyLabour||[]).forEach(e=>{ if(!e||e.deleted) return; (e.pieceRows||[]).forEach((r,i)=>{ if(r&&r.ratePending===true) out.push({e,i,r}); }); });
+  return out.sort((a,b)=>String(a.e.date||'').localeCompare(String(b.e.date||'')));
+}
+function _rpLabRowsHTML(){
+  return _rpLabour().map(({e,i,r})=>{ const pn=_storeProjName?_storeProjName(e.projectId):'';
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:14px">
+      <div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800">${_esc(_ssKGangName(e.gangId))} · ${_esc(_labItemLabel(r.boqItemId))}</div>
+        <div style="font-size:12px;color:var(--muted)">${_esc(pn)} · ${fmtD(e.date)} · <span style="color:var(--red);font-weight:700">${_rpAge(e.date)}</span>${e.enteredByName?' · by '+_esc(e.enteredByName):''}</div>
+        <div style="font-size:13px;margin-top:2px">${_ssKFmt(r.qty)} ${_esc(r.unit||'')}${(r.measurements||[]).length?' · '+(r.measurements||[]).map(m=>_esc(m.desc||'')).filter(Boolean).join(' · '):''}</div></div>
+      <button type="button" onclick="_rpLabFill('${_esc(e.id)}',${i})" style="min-height:44px;padding:0 12px;border-radius:10px;border:none;background:var(--amber);color:#1a1205;font-size:12px;font-weight:800">Fill rate</button></div>`; }).join('');
+}
+function _rpLabFill(recId, i){
+  if(!_rpCan()) return;
+  const e=(dailyLabour||[]).find(x=>x&&x.id===recId); const r=e&&(e.pieceRows||[])[i];
+  if(!r||r.ratePending!==true){ openRatesPending(); return; }
+  const rr=(e.gangId&&e.gangId!=='__own'&&r.boqItemId!==MISC_BOQ)?_gangRateOn(_glEngId(e.gangId,e.projectId), r.boqItemId, e.date):null;
+  const inp='width:100%;box-sizing:border-box;min-height:46px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--white);font-size:18px;font-weight:800;padding:0 10px';
+  const meas=(r.measurements||[]).map(m=>{ const q=_measLineQty(m); return `<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--border);font-size:13px"><span>${_esc(m.desc||'—')}<span style="color:var(--muted)"> · ${_esc([m.nos,m.l,m.b,m.d].map(v=>String(v||'').trim()||'—').join(' × '))}</span></span><b style="color:${q<0?'var(--red)':'var(--white)'}">${q<0?'− ':''}${_ssKFmt(Math.abs(q))}</b></div>`; }).join('');
+  _rpShell(`<div style="padding:14px 16px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:2">
+      <button type="button" onclick="openRatesPending()" style="min-height:40px;padding:0 12px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--white);font-size:14px">‹ Back</button>
+      <div style="flex:1;min-width:0"><div style="font-family:var(--fh);font-size:15px;color:var(--amber)">${_esc(_ssKGangName(e.gangId))}</div><div style="font-size:11px;color:var(--muted)">${_esc(_storeProjName?_storeProjName(e.projectId):'')} · ${fmtD(e.date)}${e.enteredByName?' · entered by '+_esc(e.enteredByName):''}</div></div></div>
+    <div style="padding:14px;display:flex;flex-direction:column;gap:12px">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:11px;padding:0 12px 4px"><div style="font-size:12px;font-weight:700;color:var(--amber);padding:10px 0 4px">${_esc(_labItemLabel(r.boqItemId))}</div>${meas}
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border);font-size:15px;font-weight:800"><span>Total</span><span>${_ssKFmt(r.qty)} ${_esc(r.unit||'')}</span></div></div>
+      ${rr?`<div style="font-size:13px;color:var(--muted)">Agreed rate on this contractor's card: <b style="color:var(--white)">₹${_esc(String(rr.rate))} / ${_esc(rr.labourUnit||r.unit||'')}</b></div>`:''}
+      <div><div style="font-size:11px;color:var(--muted)">Rate ₹ per ${_esc(r.unit||'unit')} *</div><input id="rp-lab-rate" type="number" inputmode="decimal" value="${rr?_esc(String(rr.rate)):''}" style="${inp}"></div>
+      <button type="button" id="rp-lab-save" onclick="_rpLabSave('${_esc(recId)}',${i})" style="min-height:52px;border-radius:10px;border:none;background:var(--amber);color:#1a1205;font-size:16px;font-weight:800">💾 SAVE RATE</button>
+    </div>`);
+}
+async function _rpLabSave(recId, i){
+  if(!_rpCan()){ alert('Only the owner or admin can fill rates.'); return; }
+  const rate=_ssNum((document.getElementById('rp-lab-rate')||{}).value);
+  if(!(rate>0)){ alert('Enter the rate.'); return; }
+  const loc=(dailyLabour||[]).find(x=>x&&x.id===recId); const want=loc&&(loc.pieceRows||[])[i];
+  const btn=document.getElementById('rp-lab-save'); if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
+  const done=m=>{ if(btn){ btn.disabled=false; btn.textContent='💾 SAVE RATE'; } if(m) alert(m); };
+  // the line is filled on a fresh server copy, and only if it is still the same pending line (never filled twice)
+  const srv=await _ssGet('dailyLabour/'+recId);
+  if(srv===undefined) return done('Could not reach the server — nothing saved. Try again.');
+  if(srv===null || srv.deleted){ done('This entry is no longer on the server. Nothing was saved.'); openRatesPending(); return; }
+  const line=(srv.pieceRows||[])[i];
+  if(!line || line.ratePending!==true || !want || String(line.boqItemId||'')!==String(want.boqItemId||'')){
+    _ssUpsert(dailyLabour, Object.assign({}, srv, {id:recId}));
+    done('This line was already filled or changed on another phone. Nothing was saved — check the list again.'); openRatesPending(); return;
+  }
+  const qty=Number(line.qty)||_pieceQty(line);
+  const who={by:(sess&&sess.userId)||'', name:(sess&&sess.name)||''};
+  const nl=Object.assign({}, line, {rate, amount:Math.round(qty*rate*100)/100, ratePending:false, rateFilledBy:who.by, rateFilledByName:who.name, rateFilledTs:Date.now()});
+  // counts in BOQ progress only when it is exactly this contractor's linked card rate and unit (V102.9 rule)
+  const rr=(srv.gangId&&srv.gangId!=='__own'&&line.boqItemId!==MISC_BOQ)?_gangRateOn(_glEngId(srv.gangId,srv.projectId), line.boqItemId, srv.date):null;
+  const it=(boqItems||[]).find(x=>x.id===line.boqItemId);
+  if(rr && rr.linked===true && Number(rr.convPerBoqUnit)>0 && Math.abs(rate-(Number(rr.rate)||0))<0.005
+     && String(line.unit||'').trim().toLowerCase()===String(rr.labourUnit||(it?it.unit:'')||'').trim().toLowerCase()){ nl.linked=true; nl.convPerBoqUnit=Number(rr.convPerBoqUnit); }
+  const pr=(srv.pieceRows||[]).map((x,k)=>k===i?nl:x);
+  const total=Math.round(((srv.rows||[]).reduce((a,w)=>a+(Number(w.count)||0)*(Number(w.rate)||0),0)+pr.reduce((a,x)=>a+(Number(x&&x.amount)||0),0))*100)/100;
+  const rec=Object.assign({}, srv, {id:recId, pieceRows:pr, totalAmount:total});
+  const ok=await _fbWrite('dailyLabour/'+recId, rec);
+  if(ok===false) return done('Could not save — the line stays in Rates pending. Try again (nothing will be doubled).');
+  dailyLabour=dailyLabour||[]; _ssUpsert(dailyLabour, rec);
+  done('');
+  flash('RATE SAVED', _ssKGangName(rec.gangId)+' · ₹'+nl.amount.toLocaleString('en-IN'));
+  openRatesPending();
+  try{ if(typeof renderHome==='function') renderHome(); }catch(e){}
+}
+// =================== END V102.45 STAGE 3 ===================
 // =================== END V102.42 SITE SUPERVISOR SCREEN ===================
 
 function renderOpsTab(el){
@@ -15598,6 +16075,8 @@ function _plSummary(projectId, from, to, boqItemId){
   if(lab.skipped.length) warnings.push(lab.skipped.length+' subcontract line(s) skipped: contract unit does not match the BOQ unit.');
   { const _rpL=(materialInward||[]).filter(r=>r&&r.ratePending===true&&!r.deleted&&r.projectId===projectId&&_plIn(r.date, from, to)).length;   // V102.43
     if(_rpL) warnings.push(_rpL+' site bill line(s) still waiting for rates (Home \u2192 Rates pending) \u2014 material on them may be missing or under-valued here.'); }
+  { let _rlL=0; (dailyLabour||[]).forEach(e=>{ if(e&&!e.deleted&&e.projectId===projectId&&_plIn(e.date, from, to)) (e.pieceRows||[]).forEach(r=>{ if(r&&r.ratePending===true) _rlL++; }); });   // V102.45
+    if(_rlL) warnings.push(_rlL+' labour work line(s) still waiting for rates (Home \u2192 Rates pending) \u2014 counted as \u20b90 in labour until the office fills the rate.'); }
   if(mac.noRate && mac.noRate.length) warnings.push('Machines with hours but no \u20b9/hr rate (counted as \u20b90): '+mac.noRate.map(function(x){ return x.name+' '+_plQty(x.hours)+' hrs'; }).join(', ')+'. Set the rate in Fleet.');   // V102.42
   // Material head = materials consumed + invoice service charges, shown as TWO lines under one
   // head (same pattern as own-gangs/subcontract under Labour), so the summary stays at 3 heads.
@@ -21620,7 +22099,7 @@ function _swCompute(){
   // 2) contractor work lines not counted (no linked rate card)
   const lab={};
   _appr(dailyLabour).forEach(e=>{ if(!e||!pids.includes(e.projectId)) return;
-    (e.pieceRows||[]).forEach(r=>{ if(!r||!r.boqItemId||r.boqItemId===MISC_BOQ||!r.gangId||r.gangId==='__own'||!((Number(r.qty)||0)>0)) return;
+    (e.pieceRows||[]).forEach(r=>{ if(!r||r.ratePending===true||!r.boqItemId||r.boqItemId===MISC_BOQ||!r.gangId||r.gangId==='__own'||!((Number(r.qty)||0)>0)) return;   // V102.45: pending lines live in Rates pending
       if(r.linked===true&&Number(r.convPerBoqUnit)>0) return;
       const rr=_gangRateOn(_glEngId(r.gangId,e.projectId), r.boqItemId, e.date);
       if(rr&&rr.linked===false) return;                // rate deliberately "not convertible" — counted separately by design
@@ -22833,6 +23312,7 @@ function _glEarned(gangId,projectId){
   (dailyLabour||[]).filter(e=>e&&e.gangId===gangId&&e.projectId===projectId&&!e.pendingApproval).forEach(e=>{
     (e.rows||[]).forEach(r=>{ total += (Number(r.count)||0)*(Number(r.rate)||0); });
     (e.pieceRows||[]).forEach(r=>{
+      if(r && r.ratePending===true) return;   // V102.45: rate not given yet — ₹0 until the office fills it
       const qty=Number(r.totalQty)||Number(r.qty)||0;
       let rate=Number(r.rate)||0;
       if(!rate){ const rr=_gangRateOn(engId, r.boqItemId, e.date); rate=rr?(Number(rr.rate)||0):0; }
@@ -23254,7 +23734,7 @@ function _glBoqRecon(projectId, boqItemId){
       const qty=Number(r.totalQty)||Number(r.qty)||0; if(!qty) return;
       const engId=_glEngId(e.gangId,projectId);
       const rr=_gangRateOn(engId,boqItemId,e.date);
-      let rate=Number(r.rate)||0; if(!rate) rate=rr?(Number(rr.rate)||0):0;
+      let rate=Number(r.rate)||0; if(!rate && r.ratePending!==true) rate=rr?(Number(rr.rate)||0):0;   // V102.45
       const linked = rr ? (rr.linked!==false) : true;
       const conv = rr && Number(rr.convPerBoqUnit)>0 ? Number(rr.convPerBoqUnit) : 1;
       const unit = (rr&&rr.labourUnit) || (r.unit||'');
@@ -23703,7 +24183,10 @@ function editLabEntry(id){
       meas=[{nos:(r.qty!=null&&r.qty!=='')?String(r.qty):'',l:'',b:'',d:''}];
     }
     return {boqItemId:r.boqItemId||'',gangId:e.gangId||'',unit:r.unit||'',measurements:meas,rate:r.rate,remark:r.remark||'',
-            _linked:(r.linked!=null)?!!r.linked:undefined, _conv:(r.convPerBoqUnit!=null)?Number(r.convPerBoqUnit):undefined};
+            _linked:(r.linked!=null)?!!r.linked:undefined, _conv:(r.convPerBoqUnit!=null)?Number(r.convPerBoqUnit):undefined,
+            _pend:r.ratePending===true,
+            _fill:(r.ratePending===false&&r.rateFilledTs)?{by:r.rateFilledBy||'',name:r.rateFilledByName||'',ts:r.rateFilledTs,rate:Number(r.rate)||0}:null,
+            _orig:Number(r.rate)||0};   // V102.45: a site line saved without a rate must survive an office edit
   });
   // V99.84: legacy rows saved before linked/convPerBoqUnit existed carry no _linked flag —
   // best-effort backfill from the gang's CURRENT rate row so save doesn't wipe it to false.
@@ -23764,10 +24247,18 @@ function saveLabEntry(){
       const qty=_pieceQty({measurements});
       return {gangId:String(r.gangId||''), boqItemId:String(r.boqItemId||''), unit:String(r.unit||'').trim(),
               measurements, qty, rate:Number(r.rate)||0, remark:String(r.remark||'').trim(),
-              linked:!!r._linked, convPerBoqUnit:Number(r._conv)||0};
+              linked:!!r._linked, convPerBoqUnit:Number(r._conv)||0, _pend:r._pend===true, _fill:r._fill||null, _orig:(r._orig!=null?Number(r._orig):null)};
     })
-    .filter(r=>r.boqItemId && r.qty>0 && r.rate>0)
-    .map(r=>({...r, amount:Math.round(r.qty*r.rate*100)/100}));
+    .filter(r=>r.boqItemId && r.qty>0 && (r.rate>0 || r._pend))   // V102.45: a pending site line is kept, never dropped
+    .map(r=>{ const o={...r, amount:Math.round(r.qty*r.rate*100)/100}; const pend=o._pend; delete o._pend; const fill=o._fill; delete o._fill; const orig=o._orig; delete o._orig;
+      if(pend && !(o.rate>0)) o.ratePending=true;
+      else if(pend){ o.ratePending=false; o.rateFilledBy=(sess&&sess.userId)||''; o.rateFilledByName=(sess&&sess.name)||''; o.rateFilledTs=Date.now(); }
+      else if(fill && o.rate>0){ o.ratePending=false;   // V102.45: who filled the rate survives an office re-save; a changed rate is stamped to the person changing it
+        if(Math.abs(o.rate-fill.rate)<0.005){ o.rateFilledBy=fill.by; o.rateFilledByName=fill.name; o.rateFilledTs=fill.ts; }
+        else { o.rateFilledBy=(sess&&sess.userId)||''; o.rateFilledByName=(sess&&sess.name)||''; o.rateFilledTs=Date.now(); } }
+      else if(_labEditId && orig!=null && o.rate>0 && Math.abs(o.rate-orig)>=0.005){ o.ratePending=false;   // V102.45: a rate corrected here is marked as set by the office, so a site sup cannot type over it later
+        o.rateFilledBy=(sess&&sess.userId)||''; o.rateFilledByName=(sess&&sess.name)||''; o.rateFilledTs=Date.now(); }
+      return o; });
 
   // V100.11: a work line's qty is multiplied by the gang's rate to decide what they are owed,
   // so a line whose deductions exceed its measured work would quietly REDUCE a contractor's
@@ -25067,7 +25558,7 @@ const FB_KEY = 'AIzaSyB44pKu7YTc-Q_6GLC3mlaEBPJm3d3odPc';
 // V102.18 SECURITY STEP 4: the shared master account (and its password) was REMOVED from the app.
 // Each device signs in with its own account (see 'Set up this device'). Old master sign-in passes are wiped below.
 try{ localStorage.removeItem('fb_auth'); localStorage.removeItem('fb_refresh'); }catch(e){}
-const APP_VERSION = 'V102.44'; // bump this on every deploy
+const APP_VERSION = 'V102.45'; // bump this on every deploy
 
 // All keys we sync to Firebase
 const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords','trips','customers','materials','staff','staffMusters','pumpPayments','projects','boqItems','workEntries','subcontractors','subContracts','dailyReports','gangs','dailyLabour','royalty','materialInward','materialOutward','vendors','vendorTxns','paverLabour','gangLedger','rmcProd','siteWatch','machineRates'];
