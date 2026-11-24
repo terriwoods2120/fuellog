@@ -1,4 +1,4 @@
-<!-- FuelLog PWA | Version: V102.48 | Date: 2026-11-20 | V102.48 FAST REFRESH FIX: the one-time cement relabel (nos -> Bag) now carries the Firebase save time so every phone picks it up; accepting a cement delivery saves the unit as Bag straight away (cement only, quantity unchanged); phones that switched Fast Refresh off by themselves after a difference switch it back on once, and phones still on rebuild their copy once (one full download each). | V102.47 SELF-CHECK NAMES THE RECORDS: when the daily Fast Refresh self-check finds a difference it now lists up to 20 record ids, which fields differ (short values, phone vs Firebase) and the server times, in the device report and the owner's All devices table. No business record is written. | V102.46 DPR PDF FOR SITE SUPS + STOCK TABLE: site sup Home gets 'आजचा DPR PDF' (same exportDPRPDF as the office, today's DPR at his site; no DPR today = message, none created). DPR PDF gets section 4 'Stock at site' (opening / received / used-sent / closing, read-only from approved materialInward/Outward, base units). Per-project material list (owner/admin, project screen) stored as ONE record siteWatch/dprstock-<projectId> (type 'dprStock'), written one record at a time; empty list = Track-stock materials with stock or movement at the site. No material's tracksStock changes. | V102.45 SITE SUPERVISOR काम (WORK DONE, Stage 3): new Marathi-first work screen for site sups — measured work (BOQ item + gang + nos×L×B×D with जोड/वजा, compulsory remark per measurement, rate locked if agreed else optional → 'rate pending' filled by the office from Rates pending) and daily wages (type × count × wage, wage compulsory). Same dailyLabour records; only new stored items: pieceRow.ratePending and record.viaSite. Guards: old DPR edit keeps pending lines, gang ledger / BOQ recon / Site Watch never price a pending line, P&L warns. | V102.44 SITE SUPERVISOR SCREENS — CORPORATE LOOK (approved mockup V2, 19 Nov): light background, white cards, one corporate blue, Noto Sans Devanagari for Marathi, line icons (no emoji), small status tags, home as one task list, main buttons fixed above the bottom menu; always light for site supervisors (class ss2 on the home area, removed for other roles). Fixes: a Plant delivery waiting for confirmation shows once (not again in today's list); "material not in the list? call the admin" hint; readable ticks/colours. LOOK ONLY: no change to saving, records, sync, rules, office screens or Rates pending. | PREVIOUS: V102.43 | V102.43 SITE SUPERVISOR SCREEN STAGE 2: माल आला = confirm Plant/site deliveries (existing Accept; difference = field-only PATCH on the trip) + outside purchase in 3 steps (vendor + bill no. optional + bill photo compulsory -> materials -> check) saved like saveGRN with rate 0 and ratePending:true, no vendor purchase entry until the office fills rates; cash paid on the spot = pay_<invoiceId> as today. माल गेला = used in work (BOQ optional) / sent to another site or Plant (xfer_ arrival as saveMIN) / given to a machine, never below site stock. Every line gets its id when added; Save checks the server line by line and sends only what is missing (no doubles); no network = refused, everything kept on screen. RATES PENDING (owner/admin): Home card + screen; fill rate/GST per line, optional extra charges, bill total; vendor entries written first with fixed ids (pur_<line>, chg_<invoice>_<n>), then lines PATCHed (ratePending:false). P&L warns on pending lines. DATA SAFETY REVIEW V2: new fields only (ratePending, viaSite, rateFilledBy/ByName/Ts); per-record writes and field-only PATCHes; no sync, rules, MERGE_KEYS or Fast Refresh change. | PREVIOUS: V102.42 | V102.42 SITE SUPERVISOR SCREEN STAGE 1: new Marathi/English Home for site supervisors (5 buttons); मशीन = opening/closing readings onto today's DPR, saved per machine on the server copy (_dprMachMergeSave) — office DPR save uses the same safe merge; हजेरी = Site Staff attendance, fixed record id sm-<staff>-<date>, server checked first, owner-only lock kept; no-network = save refused, typed values kept; machine ₹/hr rates (new machineRates collection, owner-only, per-record) copied onto DPR lines; P&L warns machines with hours but no rate; L1/L2 vendor tidies. | PREVIOUS: V102.41 | V102.41 VENDOR LEDGER LOCK: managers, site supervisors and drivers no longer see vendor amounts — Store → Vendors and the Vendors screen show names/phone only (no due/advance, no TOTAL DUE summary); openVendor() and show('scr-vendor-detail') refuse with Not allowed. recordLumpSumPayment/applyLumpSumPayment now require canTripEnter() (owner/admin/manager — unchanged for them). No sync/storage change. | PREVIOUS: V102.40 | V102.40 QUICK LOCK: Reports → Financial and Project hidden and refused (screen, PDF/print, WhatsApp) for managers, site supervisors and drivers; owners + admins keep Financial; Project P&L stays owner-only. Record vendor payment = owner/admin only (button hidden, _vpOpen/_vpSave refuse). "Amount paid" boxes on bill/inward entry unchanged. Projects module closed to managers (and drivers): More menu hides FILE TODAY'S DPR, PROJECTS, LABOUR CONTRACTORS; show() refuses the 7 project/DPR/work/labour screens; openDPRPicker/startDPR/openProject/openDPRForEdit/openWorkEntry/openGangLedger refuse; store Back no longer opens the project page for them. Store, Paver, RMC unchanged. No sync/storage change. | PREVIOUS: V102.39 | V102.39 USERS SAVED ONE PERSON AT A TIME: every users save first reads the server shape (keys only). Old shape (positions 0..n) = saves work exactly as before (whole list). After the owner presses Health check > Convert users list (checks + backup file + read-back), each save writes ONLY that person (add = one record, edit/PIN = only the changed fields, remove = one record). A whole-list send of users is refused in _fbWrite; old queued users saves are handled safely; Restore writes the users list keyed by id. Health check shows the users-list shape. | V102.38 PHOTOS IN MORE PLACES (same photo store as V102.37; entries keep only a short link in a new field `att`): store ISSUE / TRANSFER (one set per issue, lines tied by new field minId), TRIPS (slip photo), VENDOR PAYMENT (proof), FUEL PURCHASE and DIRECT PUMP FILL (bill). Each has a photo box on the entry form (optional, up to 4 photos or a PDF; a failed photo never blocks the entry), tiles on the list (downloaded only on tap), add-later (owner/admin; trips also manager; field-only PATCH after checking the record is on the server) and Remove (owner; link taken off + attLog, file stays). DATA SAFETY REVIEW V2: new fields only (att, attLog, minId); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.37 Date: 2026-11-15 | V102.37 BILL PHOTO (photo store): a purchase bill (GRN, vendor source) can carry up to 4 photos or a PDF. The file is made small on the phone and sent to the separate Firebase photo store (fuellog/bills/YYYY-MM/...); the entry keeps only a short link (billPhotos on the bill's materialInward lines and service-charge vendorTxns), so sync never carries photos. Vendor page: view (downloaded only on tap), Add bill photo to a saved bill (owner/admin, field-only PATCH after checking the records are on the server), Remove photo (owner; takes the link off + billPhotoLog, the file stays in the store). A failed photo never blocks the bill. DATA SAFETY REVIEW V2: new fields only (billPhotos, billPhotoLog); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.36 Date: 2026-11-15 | V102.36 HEALTH CHECK COUNTS CORRECTED (read-only page, nothing saved): 'Ledger entries with no bill' no longer counts service-only bills (repair/labour bills with no material are valid) and a 'paid with bill' payment is fine when its bill has service charges; 'Bills with no bill total' counts only bills dated 05/11/2026 or later (when the total became compulsory). | V102.35 Date: 2026-11-14 | V102.35 (includes V102.32-V102.34): (1) GST KEPT ON EDIT: editing a single purchase line recalculates GST and the vendor entry is rebuilt GST-inclusive like a new bill (was basic only). (2) CLEAN BILL DELETE: deleting the last line of a bill offers to remove that bill's 'Paid with invoice' payment and service charges. (3) RECORD PAYMENT SCREEN: date, amount, paid by, ref, for bill, note; owner can edit; delete = owner/admin only and checked against the server. (4) HEALTH CHECK (More > System, owner): bills not matching, stock below zero, ledger entries with no bill, saves that did not reach the server, bills with no total - read-only. (5) DAILY BACKUP: on the owner's laptop the first full download of the day is also saved as a backup file (no extra download). (6) SLIM FILE: version history moved to FuelLog_Version_History.txt; unused old work-entry screen and old one-time clean-up call removed. DATA SAFETY REVIEW V2: new fields on vendor payment records only (mode, ref, forBillNo, edited*); per-record saves/deletes only; no rules, sync, MERGE_KEYS or Fast Refresh change. Earlier history: see FuelLog_Version_History.txt -->
+<!-- FuelLog PWA | Version: V102.51 | Date: 2026-11-24 | V102.51 SITE SUP REPAIR CHARGE + QUIET LISTS: on 'Given to a machine' a site supervisor can add the repair / service charge (vendor, amount, GST, bill photo) - saved as the office's service charge tagged to that machine so it shows in the Job Card; material is optional so a repair alone can be saved; the machine and vendor search lists now open only after typing; auto-logout also forgets the last tab. | V102.50 SITE SUP SERVICE CHARGE + CLEAN-UP: a site supervisor can add service charges (freight, unloading, repair, testing, other) on a bought-outside bill - category from a dropdown, amount and GST from the bill - saved as the same vendor-ledger charge the office makes (fixed id, never doubled on retry); the six 'Usual at this site' quick-pick boxes are gone from material in / material out (search stays); the bottom Home/More bar is hidden for site supervisors (logout stays in the top bar). | V102.49 SITE SUP FIXES: after logout and login as site supervisor the owner's last tab no longer shows (the remembered tab is reset at logout and a site sup is always sent to Home or More); the site sup DPR PDF button now creates today's empty DPR record when only material or attendance was entered, instead of saying nothing was entered (same safe create as the work entry; nothing existing is changed). | V102.48 FAST REFRESH FIX: the one-time cement relabel (nos -> Bag) now carries the Firebase save time so every phone picks it up; accepting a cement delivery saves the unit as Bag straight away (cement only, quantity unchanged); phones that switched Fast Refresh off by themselves after a difference switch it back on once, and phones still on rebuild their copy once (one full download each). | V102.47 SELF-CHECK NAMES THE RECORDS: when the daily Fast Refresh self-check finds a difference it now lists up to 20 record ids, which fields differ (short values, phone vs Firebase) and the server times, in the device report and the owner's All devices table. No business record is written. | V102.46 DPR PDF FOR SITE SUPS + STOCK TABLE: site sup Home gets 'आजचा DPR PDF' (same exportDPRPDF as the office, today's DPR at his site; no DPR today = message, none created). DPR PDF gets section 4 'Stock at site' (opening / received / used-sent / closing, read-only from approved materialInward/Outward, base units). Per-project material list (owner/admin, project screen) stored as ONE record siteWatch/dprstock-<projectId> (type 'dprStock'), written one record at a time; empty list = Track-stock materials with stock or movement at the site. No material's tracksStock changes. | V102.45 SITE SUPERVISOR काम (WORK DONE, Stage 3): new Marathi-first work screen for site sups — measured work (BOQ item + gang + nos×L×B×D with जोड/वजा, compulsory remark per measurement, rate locked if agreed else optional → 'rate pending' filled by the office from Rates pending) and daily wages (type × count × wage, wage compulsory). Same dailyLabour records; only new stored items: pieceRow.ratePending and record.viaSite. Guards: old DPR edit keeps pending lines, gang ledger / BOQ recon / Site Watch never price a pending line, P&L warns. | V102.44 SITE SUPERVISOR SCREENS — CORPORATE LOOK (approved mockup V2, 19 Nov): light background, white cards, one corporate blue, Noto Sans Devanagari for Marathi, line icons (no emoji), small status tags, home as one task list, main buttons fixed above the bottom menu; always light for site supervisors (class ss2 on the home area, removed for other roles). Fixes: a Plant delivery waiting for confirmation shows once (not again in today's list); "material not in the list? call the admin" hint; readable ticks/colours. LOOK ONLY: no change to saving, records, sync, rules, office screens or Rates pending. | PREVIOUS: V102.43 | V102.43 SITE SUPERVISOR SCREEN STAGE 2: माल आला = confirm Plant/site deliveries (existing Accept; difference = field-only PATCH on the trip) + outside purchase in 3 steps (vendor + bill no. optional + bill photo compulsory -> materials -> check) saved like saveGRN with rate 0 and ratePending:true, no vendor purchase entry until the office fills rates; cash paid on the spot = pay_<invoiceId> as today. माल गेला = used in work (BOQ optional) / sent to another site or Plant (xfer_ arrival as saveMIN) / given to a machine, never below site stock. Every line gets its id when added; Save checks the server line by line and sends only what is missing (no doubles); no network = refused, everything kept on screen. RATES PENDING (owner/admin): Home card + screen; fill rate/GST per line, optional extra charges, bill total; vendor entries written first with fixed ids (pur_<line>, chg_<invoice>_<n>), then lines PATCHed (ratePending:false). P&L warns on pending lines. DATA SAFETY REVIEW V2: new fields only (ratePending, viaSite, rateFilledBy/ByName/Ts); per-record writes and field-only PATCHes; no sync, rules, MERGE_KEYS or Fast Refresh change. | PREVIOUS: V102.42 | V102.42 SITE SUPERVISOR SCREEN STAGE 1: new Marathi/English Home for site supervisors (5 buttons); मशीन = opening/closing readings onto today's DPR, saved per machine on the server copy (_dprMachMergeSave) — office DPR save uses the same safe merge; हजेरी = Site Staff attendance, fixed record id sm-<staff>-<date>, server checked first, owner-only lock kept; no-network = save refused, typed values kept; machine ₹/hr rates (new machineRates collection, owner-only, per-record) copied onto DPR lines; P&L warns machines with hours but no rate; L1/L2 vendor tidies. | PREVIOUS: V102.41 | V102.41 VENDOR LEDGER LOCK: managers, site supervisors and drivers no longer see vendor amounts — Store → Vendors and the Vendors screen show names/phone only (no due/advance, no TOTAL DUE summary); openVendor() and show('scr-vendor-detail') refuse with Not allowed. recordLumpSumPayment/applyLumpSumPayment now require canTripEnter() (owner/admin/manager — unchanged for them). No sync/storage change. | PREVIOUS: V102.40 | V102.40 QUICK LOCK: Reports → Financial and Project hidden and refused (screen, PDF/print, WhatsApp) for managers, site supervisors and drivers; owners + admins keep Financial; Project P&L stays owner-only. Record vendor payment = owner/admin only (button hidden, _vpOpen/_vpSave refuse). "Amount paid" boxes on bill/inward entry unchanged. Projects module closed to managers (and drivers): More menu hides FILE TODAY'S DPR, PROJECTS, LABOUR CONTRACTORS; show() refuses the 7 project/DPR/work/labour screens; openDPRPicker/startDPR/openProject/openDPRForEdit/openWorkEntry/openGangLedger refuse; store Back no longer opens the project page for them. Store, Paver, RMC unchanged. No sync/storage change. | PREVIOUS: V102.39 | V102.39 USERS SAVED ONE PERSON AT A TIME: every users save first reads the server shape (keys only). Old shape (positions 0..n) = saves work exactly as before (whole list). After the owner presses Health check > Convert users list (checks + backup file + read-back), each save writes ONLY that person (add = one record, edit/PIN = only the changed fields, remove = one record). A whole-list send of users is refused in _fbWrite; old queued users saves are handled safely; Restore writes the users list keyed by id. Health check shows the users-list shape. | V102.38 PHOTOS IN MORE PLACES (same photo store as V102.37; entries keep only a short link in a new field `att`): store ISSUE / TRANSFER (one set per issue, lines tied by new field minId), TRIPS (slip photo), VENDOR PAYMENT (proof), FUEL PURCHASE and DIRECT PUMP FILL (bill). Each has a photo box on the entry form (optional, up to 4 photos or a PDF; a failed photo never blocks the entry), tiles on the list (downloaded only on tap), add-later (owner/admin; trips also manager; field-only PATCH after checking the record is on the server) and Remove (owner; link taken off + attLog, file stays). DATA SAFETY REVIEW V2: new fields only (att, attLog, minId); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.37 Date: 2026-11-15 | V102.37 BILL PHOTO (photo store): a purchase bill (GRN, vendor source) can carry up to 4 photos or a PDF. The file is made small on the phone and sent to the separate Firebase photo store (fuellog/bills/YYYY-MM/...); the entry keeps only a short link (billPhotos on the bill's materialInward lines and service-charge vendorTxns), so sync never carries photos. Vendor page: view (downloaded only on tap), Add bill photo to a saved bill (owner/admin, field-only PATCH after checking the records are on the server), Remove photo (owner; takes the link off + billPhotoLog, the file stays in the store). A failed photo never blocks the bill. DATA SAFETY REVIEW V2: new fields only (billPhotos, billPhotoLog); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.36 Date: 2026-11-15 | V102.36 HEALTH CHECK COUNTS CORRECTED (read-only page, nothing saved): 'Ledger entries with no bill' no longer counts service-only bills (repair/labour bills with no material are valid) and a 'paid with bill' payment is fine when its bill has service charges; 'Bills with no bill total' counts only bills dated 05/11/2026 or later (when the total became compulsory). | V102.35 Date: 2026-11-14 | V102.35 (includes V102.32-V102.34): (1) GST KEPT ON EDIT: editing a single purchase line recalculates GST and the vendor entry is rebuilt GST-inclusive like a new bill (was basic only). (2) CLEAN BILL DELETE: deleting the last line of a bill offers to remove that bill's 'Paid with invoice' payment and service charges. (3) RECORD PAYMENT SCREEN: date, amount, paid by, ref, for bill, note; owner can edit; delete = owner/admin only and checked against the server. (4) HEALTH CHECK (More > System, owner): bills not matching, stock below zero, ledger entries with no bill, saves that did not reach the server, bills with no total - read-only. (5) DAILY BACKUP: on the owner's laptop the first full download of the day is also saved as a backup file (no extra download). (6) SLIM FILE: version history moved to FuelLog_Version_History.txt; unused old work-entry screen and old one-time clean-up call removed. DATA SAFETY REVIEW V2: new fields on vendor payment records only (mode, ref, forBillNo, edited*); per-record saves/deletes only; no rules, sync, MERGE_KEYS or Fast Refresh change. Earlier history: see FuelLog_Version_History.txt -->
 <!-- FuelLog PWA | Version: V99.86 | Date: 2026-08-05 | V99.86 BOQ PROGRESS SOURCE SPLIT (step 3 of 3, display only): since V99.85 the progress figure is fed by TWO sources -- standalone Work Done entries and linked DPR gang lines -- and nothing on screen said which. New _doneSplitHTML(itemId,unit) renders a muted sub-line under the progress bar, e.g. '20 sqm Work Done + 70.51 sqm (link) gang work'. PURPOSE IS DETECTION, not decoration: if the same physical work is ever entered through BOTH paths the total is silently too high and an inflated percentage just looks like good progress, whereas a visibly wrong breakdown is catchable. Returns '' when no gang work contributes, so rows fed purely by Work Done entries render EXACTLY as before -- the extra line only appears where there is something to explain. Applied at both BOQ progress render sites (project BOQ list and the DPR-side list); the work-entry form header was left alone as it is a single-item entry context, not a review view. Values rounded to 2dp (13.099219... shows as 13.1) and the unit is _esc'd. CORRECTION to the earlier plan: step 3 was described as 'add the BOQ unit to the progress row' -- on inspection the unit was ALREADY rendered there (both progress rows have shown '<qty> <unit> done' since well before this work), so that step was redundant and the source split was built instead. DATA SAFETY: display only. No write path, no schema change, no collection touched, no calculation altered -- _itemDone, _itemPct and _itemLabourDone are read and re-presented, never modified. -->
 <!-- FuelLog PWA | Version: V99.85 | Date: 2026-08-05 | V99.85 LINKED WORK NOW FEEDS BOQ PROGRESS (step 2 of 3, completes the badge's promise): _itemDone previously summed workEntries ONLY, so a DPR work line flagged '(link) linked -- feeds BOQ progress' paid the gang but contributed ZERO progress. New _itemLabourDone(boqItemId) sums linked dailyLabour pieceRows and converts labour units to BOQ units by DIVIDING by convPerBoqUnit (which means labour-units-per-one-BOQ-unit, e.g. 10.764 sqft in 1 sqm). Direction verified against live data before building: item unit sqm, labourUnit sqft, conv 10.764 -- 141 sqft = 13.10 sqm, not 1517. Multiplying would have inflated progress ~116x and looked merely like a large number. STRICT: only rows explicitly stored linked:true count; legacy rows predating V99.84 carry no flag and are deliberately NOT re-derived from the current engagement, since a later rate edit would then silently move historical progress -- re-saving such an entry backfills the flag and it counts from then on. GUARDS: conv<=0/missing/non-numeric skips the row (never divides by zero, never yields Infinity/NaN), MISC and blank item ids excluded, malformed records tolerated. Pending (unapproved backdated) entries excluded via _appr, consistent with V99.58. DOUBLE-COUNT PRE-CHECKED on live data: zero item+date pairs appear in both workEntries and a labour line, so nothing is counted twice; the overlap check should be re-run before any bulk backfill. AFFECTS: _itemPct and the executed-value total (execVal = done x rate), both of which will legitimately RISE for linked items -- they were understated before. DATA SAFETY: read/compute path only. No write path, no schema change, no collection touched, no record created/edited/deleted/migrated; only which numbers are DERIVED at render time. Worst case of a wrong factor is a visibly wrong percentage, never data loss. Step 3 (unit-label display on progress rows) still open. -->
 <!-- FuelLog PWA | Version: V99.84 | Date: 2026-08-05 | V99.84 LINKED-WORK PERSISTENCE (step 1 of 3): saveLabEntry now stores linked + convPerBoqUnit on every saved pieceRow instead of discarding them (previously computed live via _labLineRate but never written to Firebase). editLabEntry trusts the stored linked flag for entries saved under this fix, and only falls back to a fresh gang-rate lookup for legacy rows that predate it -- and that fallback never touches the historical rate/unit that was actually paid. This does NOT yet change BOQ progress calculation (_itemDone still reads workEntries only) -- that is step 2, pending an overlap check on live data. -->
@@ -3312,6 +3312,9 @@ async function logout(){
   try { await refreshData(); } catch(e){}
   sess=null; pinBuf='';
   saveSession(null);
+  // V102.49: forget the last open bottom tab so the next person to log in starts on Home
+  _bnavTab='home';
+  ['home','ops','trips','reports','more'].forEach(t=>{ const b=document.getElementById('bnav-'+t); if(b) b.classList.toggle('active',t==='home'); });
   show('scr-login'); initLogin();
 }
 
@@ -3838,6 +3841,8 @@ function renderHome(){
   const reportsBtn=document.getElementById('bnav-reports');
   // Drivers/operators don't see trips, reports, or more
   const isSiteSup = sess.role==='sitesup';
+  // V102.50: a site supervisor has no bottom Home/More bar (every other role keeps it)
+  { const _nav=document.getElementById('main-bnav'); if(_nav) _nav.style.display=isSiteSup?'none':''; const _sh=document.getElementById('scr-home'); if(_sh) _sh.style.paddingBottom=isSiteSup?'0':'56px'; }
   const opsBtn=document.getElementById('bnav-ops');
   if(tripsBtn) tripsBtn.style.display=(isDriver()||isOperator()||isSiteSup) ? 'none' : '';
   if(opsBtn)   opsBtn.style.display=(isDriver()||isOperator()||isSiteSup) ? 'none' : '';
@@ -3845,6 +3850,8 @@ function renderHome(){
   if(reportsBtn) reportsBtn.style.display=(isDriver()||isSiteSup)?'none':'';
   // Render active tab
   const tab=_bnavTab||'home';
+  // V102.49: a site supervisor only has Home and More - never draw another user's leftover tab
+  if(isSiteSup && tab!=='home'){ bnavTab('home'); renderHomePendingPill(); return; }
   bnavRender(tab);
   // V48: Refresh pending approval pill
   renderHomePendingPill();
@@ -3853,7 +3860,7 @@ function renderHome(){
 let _bnavTab='home';
 function bnavTab(tab){
   // Site supervisors only have home + more
-  if(sess&&sess.role==='sitesup' && ['ops','trips','reports'].includes(tab)) tab='home';
+  if(sess&&sess.role==='sitesup' && ['ops','trips','reports','more'].includes(tab)) tab='home';
   _bnavTab=tab;
   // Update active state
   ['home','ops','trips','reports','more'].forEach(t=>{
@@ -4562,6 +4569,12 @@ Object.assign(_SS_T,{
   usual:['या साईटवर नेहमीचा माल','Usual at this site'], howMuch:['किती?','How much?'],
   remark:['शेरा (ऐच्छिक)','Remark (optional)'], remarkMisc:['काय घेतले ते लिहा (जरूरी)','Write what was bought (required)'],
   cashPaid:['वेंडरला रोख पैसे दिले? (₹)','Cash paid to vendor? (₹)'], oldDate:['जुनी तारीख?','Earlier date?'],
+  chgLbl:['इतर खर्च (बिलावर असल्यास)','Other charges (if on the bill)'], chgPick:['निवडा','Choose'], chgNote:['थोडक्यात (पर्यायी)','Short note (optional)'],
+  chgAmt:['रक्कम ₹ (GST आधी)','Amount ₹ (before GST)'], chgGstPick:['GST निवडा','Choose GST'], chgTot:['बिलावर एकूण','Total on bill'], chgKeep:['ठेवा','Keep'],
+  chgNeedCat:['खर्चाचा प्रकार निवडा.','Choose what the charge is for.'], chgNeedAmt:['रक्कम टाका.','Enter the amount.'], chgNeedGst:['GST निवडा (नसल्यास 0%).','Choose GST (0% if none).'],
+  chgWhat:['कशाचा खर्च?','What is the charge for?'],
+  repLbl:['दुरुस्ती / सर्व्हिस खर्च','Repair / service charge'], repVend:['कोणी काम केले? (वेंडर)','Who did the work? (vendor)'], repVendSearch:['वेंडरचे नाव लिहा','Type the vendor name'],
+  repNeedVend:['वेंडर निवडा.','Choose the vendor.'], repNeedPhoto:['बिलाचा फोटो घ्या.','Take the bill photo.'],
   more:['आणखी','Add more'], isRight:['बरोबर आहे का?','Is it right?'],
   officeRates:['दर, GST आणि बिलाची एकूण रक्कम ऑफिस फोटोवरून भरेल','The office fills rates, GST and the bill total from the photo'],
   edit:['बदल करा','Edit'], cashLbl:['वेंडरला रोख दिले','Cash paid to vendor'],
@@ -4597,8 +4610,8 @@ Object.assign(_SS_T,{
   finishFirst:['आधीची नोंद अर्धवट राहिली आहे. आधी ती पुन्हा जतन करा.','The earlier entry is only partly saved. Save it again first.']
 });
 let _ssPur=null, _ssOut=null;
-function _ssNewPur(pid){ return {pid, vendorId:'', vq:'', invNo:'', date:'', showDate:false, cash:'', showCash:false, invId:uid(), lines:[], cur:null, mq:'', payDone:false}; }
-function _ssNewOut(pid, mode){ return {pid, mode, boqId:'', bq:'', toSiteId:'', machId:'', hq:'', lines:[], cur:null, mq:'', minId:uid()}; }
+function _ssNewPur(pid){ return {pid, vendorId:'', vq:'', invNo:'', date:'', showDate:false, cash:'', showCash:false, invId:uid(), lines:[], cur:null, mq:'', payDone:false, charges:[], showChg:false, chg:{cat:'',desc:'',amt:'',gst:''}}; }
+function _ssNewOut(pid, mode){ return {pid, mode, boqId:'', bq:'', toSiteId:'', machId:'', hq:'', lines:[], cur:null, mq:'', minId:uid(), rep:{open:false, vendorId:'', vq:'', desc:'', amt:'', gst:'', cid:uid(), inv:uid(), sent:false}}; }
 function _ssMat(id){ return (materials||[]).find(m=>m.id===id)||null; }
 function _ssQty(n){ const v=Math.round((Number(n)||0)*1000)/1000; return v.toLocaleString('en-IN'); }
 function _ssNum(v){ const n=parseFloat(String(v==null?'':v).replace(/[,₹\s]/g,'')); return isFinite(n)?n:NaN; }
@@ -4703,12 +4716,9 @@ function _ssCurHTML(st, forOut){
 }
 function _ssDropCur(){ const st=_ssSt(); if(st){ st.cur=null; _ssRender(); } }
 function _ssPickerHTML(st, pid){
-  const usual=_ssUsualMats(pid);
-  const chips=usual.map(m=>`<button type="button" onclick="_ssPickMat('${m.id}')" style="height:58px;border-radius:14px;border:${st.cur&&st.cur.matId===m.id?'2px solid #166534':'1px solid var(--border)'};background:var(--bg2);color:var(--white);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;padding:0 4px"><span style="font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%">${_esc(m.name)}</span><span style="font-size:12px;color:var(--muted)">${_esc(m.baseUnit||'')}</span></button>`).join('');
   return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden">
       <input id="ss-matq" type="search" value="${_esc(st.mq||'')}" oninput="_ssMatSearch(this.value)" placeholder="${_st('matSearch')}" autocomplete="off" style="width:100%;box-sizing:border-box;height:58px;border:none;background:transparent;color:var(--white);font-size:18px;padding:0 14px">
       <div id="ss-matlist" style="max-height:300px;overflow:auto">${_ssMatListHTML()}</div></div>
-    ${usual.length?`<div style="font-size:13px;font-weight:700;letter-spacing:1px;color:var(--muted)">${_st('usual')}</div><div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">${chips}</div>`:''}
     <div style="font-size:14px;color:#5B6472;display:flex;gap:8px;align-items:center;padding:0 4px">${_ssIco('phone','#5B6472',16)}${_st('matMissing')}</div>`;
 }
 // move the line being typed into the list; false = not valid (told why)
@@ -4811,11 +4821,12 @@ async function _ssDispute(tripId){
 }
 // ---- outside purchase (rate pending) ----
 function _ssStartPur(){ if(!_ssPur || _ssPur.pid!==_ss.pid){ _ssPur=_ssNewPur(_ss.pid); window._att.ssbill=[]; } _ss.matCtx='pur'; _ssGo('pur1'); }
-function _ssPurLocked(st){ return !!st && (st.lines.some(l=>l.sent) || st.payDone); }   // after a partial save the bill's vendor/no./date/cash can no longer change
+function _ssPurLocked(st){ return !!st && (st.lines.some(l=>l.sent) || st.payDone || (st.charges||[]).some(c=>c.sent)); }   // after a partial save the bill's vendor/no./date/cash can no longer change
 function _ssVendors(){ return (vendors||[]).filter(v=>v && !v.deleted && v.active!==false).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))); }
 function _ssVendList(){
   const q=String((_ssPur&&_ssPur.vq)||'').toLowerCase().trim();
-  const pool=_ssVendors().filter(v=>!q||String(v.name||'').toLowerCase().includes(q)).slice(0,q?30:8);
+  if(!q) return '';   // V102.51: the list opens only when something is typed
+  const pool=_ssVendors().filter(v=>String(v.name||'').toLowerCase().includes(q)).slice(0,30);
   if(!pool.length) return `<div style="padding:12px;color:var(--muted);font-size:16px">${_st('noMatch')}</div>`;
   return pool.map(v=>`<button type="button" onclick="_ssPickVendor('${v.id}')" style="display:block;width:100%;text-align:left;padding:14px;border:none;border-bottom:1px solid var(--border);background:transparent;color:var(--white);font-size:19px;font-weight:700">${_esc(v.name)}</button>`).join('');
 }
@@ -4840,6 +4851,53 @@ function _ssPur1Next(){
   if(!ph.some(p=>p.status==='ok'||p.status==='up')){ alert(_st('needPhoto')); return; }
   _ssGo('pur2');
 }
+// ---- V102.50: site sup service charge (same vendor-ledger record the office writes: kind:'service', id chg_<invoiceId>_<chargeId>) ----
+const _SS_CHG_MR=['वाहतूक','चढवणे / उतरवणे','मशीन दुरुस्ती / सर्व्हिस','टेस्टिंग / तपासणी','इतर'];
+function _ssChgCat(cat){ const i=GRN_CHG_CATS.indexOf(cat); return (i>=0 && _ssLang()!=='en')?_SS_CHG_MR[i]:cat; }
+function _ssChgMath(amt, gst){ const b=Math.round((Number(amt)||0)*100)/100; const g=Number(gst)||0; const ga=Math.round(b*g)/100; return {basic:b, gst:ga, total:Math.round((b+ga)*100)/100}; }
+function _ssChgToggle(){ const st=_ssPur; if(!st||_ssPurLocked(st)) return; st.showChg=!st.showChg; _ssRender(); }
+function _ssChgSet(k, v){
+  const st=_ssPur; if(!st) return;
+  st.chg=st.chg||{cat:'',desc:'',amt:'',gst:''}; st.chg[k]=v;
+  const el=document.getElementById('ss-chg-tot');
+  if(el){ const m=_ssChgMath(_ssNum(st.chg.amt), st.chg.gst); el.textContent='₹ '+m.total.toLocaleString('en-IN'); }
+}
+function _ssChgAdd(){
+  const st=_ssPur; if(!st||_ssPurLocked(st)) return;
+  const d=st.chg||{}; const amt=_ssNum(d.amt);
+  if(!d.cat){ alert(_st('chgNeedCat')); return; }
+  if(!(amt>0)){ alert(_st('chgNeedAmt')); return; }
+  if(d.gst===''||d.gst==null){ alert(_st('chgNeedGst')); return; }
+  st.charges=st.charges||[];
+  st.charges.push({cid:uid(), category:d.cat, desc:(String(d.desc||'').trim()||d.cat), amount:Math.round(amt*100)/100, gstPct:Number(d.gst)||0, sent:false});
+  st.chg={cat:'',desc:'',amt:'',gst:''}; st.showChg=false; _ssRender();
+}
+function _ssChgDrop(i){ const st=_ssPur; if(!st||_ssPurLocked(st)) return; const c=(st.charges||[])[i]; if(!c||c.sent) return; st.charges.splice(i,1); _ssRender(); }
+function _ssChgListHTML(st, canDrop){
+  return (st.charges||[]).map((c,i)=>{ const m=_ssChgMath(c.amount, c.gstPct);
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--border)"><div style="flex:1;min-width:0"><div style="font-size:18px;font-weight:700">${_esc(_ssChgCat(c.category))} · ₹ ${m.total.toLocaleString('en-IN')}</div><div style="font-size:14px;color:var(--muted)">${c.desc&&c.desc!==c.category?_esc(c.desc)+' · ':''}GST ${Number(c.gstPct)||0}%${c.sent?' · ✓':''}</div></div>${canDrop&&!c.sent?`<button type="button" onclick="_ssChgDrop(${i})" aria-label="✕" style="width:44px;height:44px;border-radius:12px;border:1px solid var(--border);background:#FFFFFF;color:#374151;font-size:18px">✕</button>`:''}</div>`; }).join('');
+}
+function _ssChgCard(st){
+  const locked=_ssPurLocked(st), n=(st.charges||[]).length;
+  if(locked && !n) return '';
+  const open=!locked && !!st.showChg;
+  const d=st.chg||{cat:'',desc:'',amt:'',gst:''};
+  const sel='width:100%;box-sizing:border-box;height:56px;border-radius:12px;border:2px solid var(--border);background:var(--bg);color:var(--white);font-size:19px;padding:0 10px';
+  const catOpts=`<option value="">${_st('chgPick')}</option>`+GRN_CHG_CATS.map(c=>`<option value="${_esc(c)}"${d.cat===c?' selected':''}>${_esc(_ssChgCat(c))}</option>`).join('');
+  const gstOpts=`<option value="">${_st('chgGstPick')}</option>`+GST_RATES.map(r=>`<option value="${r}"${String(d.gst)===String(r)?' selected':''}>${r}%</option>`).join('');
+  const m=_ssChgMath(_ssNum(d.amt), d.gst);
+  const lbl=t=>`<div style="font-size:14px;font-weight:600;color:var(--muted);margin:2px 0 4px">${t}</div>`;
+  const form=open?`<div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+      ${lbl(_st('chgWhat'))}<select onchange="_ssChgSet('cat',this.value)" style="${sel}">${catOpts}</select>
+      ${lbl(_st('chgNote'))}${_ssInp('ss-chg-desc', d.desc, "_ssChgSet('desc',this.value)", '', 'text')}
+      <div style="display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:10px">
+        <div>${lbl(_st('chgAmt'))}${_ssInp('ss-chg-amt', d.amt, "_ssChgSet('amt',this.value)", '₹', 'number')}</div>
+        <div>${lbl('GST %')}<select onchange="_ssChgSet('gst',this.value)" style="${sel};height:60px">${gstOpts}</select></div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:12px;background:var(--bg3)"><span style="font-size:15px;color:var(--muted)">${_st('chgTot')}</span><b id="ss-chg-tot" style="font-size:20px">₹ ${m.total.toLocaleString('en-IN')}</b></div>
+      ${_ssBigBtn(_st('chgKeep'), "_ssChgAdd()")}</div>`:'';
+  const head=`<div ${locked?'':'onclick="_ssChgToggle()"'} style="display:flex;justify-content:space-between;font-size:18px;font-weight:600;${locked?'':'cursor:pointer'}"><span>${_st('chgLbl')}${n?' · '+n:''}</span><span style="color:var(--muted)">${locked?'':(open?'▾':'›')}</span></div>`;
+  return _ssCard(`<div style="padding:12px 2px">${head}${_ssChgListHTML(st,!locked)}${form}</div>`, 'padding:2px 14px');
+}
 function _ssPur2HTML(dash){
   const st=_ssPur; const p=_ssProj(); if(!st||!p){ _ss.view='in'; return _ssRender(); }
   _ss.matCtx='pur';
@@ -4851,7 +4909,7 @@ function _ssPur2HTML(dash){
     'padding:2px 14px');
   dash.innerHTML=_ssHead(_st('whichMat'), (v?v.name:'')+(st.invNo?' · '+st.invNo:''), 'pur1')+_ssSteps(2)+
     `<div style="display:flex;flex-direction:column;gap:12px;padding:0 14px">
-      ${_ssLinesHTML(st)}${_ssCurHTML(st,false)}${_ssPickerHTML(st,p.id)}${extras}</div>`+
+      ${_ssLinesHTML(st)}${_ssCurHTML(st,false)}${_ssPickerHTML(st,p.id)}${extras}${_ssChgCard(st)}</div>`+
     _ssBar(_ssBtn2('＋ '+_st('more'), "_ssAddMore()"), _ssBigBtn(_st('check')+' ›', "_ssPur2Next()"));
 }
 function _ssPur2Next(){
@@ -4872,9 +4930,10 @@ function _ssPur3HTML(dash){
         <div style="padding:14px 16px;background:#F5F6F8;color:#374151"><div style="font-size:22px;font-weight:700">${_esc(v?v.name:'')}</div>
           <div style="font-size:15px;font-weight:600">${st.invNo?_st('billNo')+' '+_esc(st.invNo)+' · ':''}${fmtD(d)}${ph?' · '+_st('photoYes')+' '+ph:''}</div></div>
         <div style="padding:4px 16px 12px">${st.lines.map((l,i)=>{ const m=_ssMat(l.matId); return `<div style="padding:12px 0;${i?'border-top:1px solid var(--border)':''}"><div style="display:flex;justify-content:space-between;font-size:21px;font-weight:700"><span>${_esc(m?m.name:'?')}</span><span>${_ssQty(l.qty)} ${_esc(l.unit)}${l.sent?' <span style="color:#166534">✓</span>':''}</span></div>${l.note?`<div style="font-size:15px;color:var(--muted)">${_esc(l.note)}</div>`:''}</div>`; }).join('')}
+          ${_ssChgListHTML(st,false)}
           ${cash>0?`<div style="display:flex;justify-content:space-between;padding:12px 0 0;border-top:1px solid var(--border);font-size:18px"><span>${_st('cashLbl')}</span><b style="font-size:21px">₹ ${cash.toLocaleString('en-IN')}</b></div>`:''}</div></div>
       <div style="font-size:15px;color:var(--muted);padding:0 4px">ⓘ ${_st('officeRates')}</div></div>
-    <div class="ss2-bar" style="flex-direction:column">${_ssBigBtn(_ss.msg?_st('saveAgain'):_st('save'),"_ssSavePur()")}${st.lines.some(l=>l.sent)?'':_ssBtn2(_st('edit'),"_ssGo('pur2')",'var(--muted)')}</div>`;
+    <div class="ss2-bar" style="flex-direction:column">${_ssBigBtn(_ss.msg?_st('saveAgain'):_st('save'),"_ssSavePur()")}${(st.lines.some(l=>l.sent)||(st.charges||[]).some(c=>c.sent))?'':_ssBtn2(_st('edit'),"_ssGo('pur2')",'var(--muted)')}</div>`;
 }
 async function _ssSavePur(){
   if(!isSiteSup()) return;
@@ -4898,6 +4957,10 @@ async function _ssSavePur(){
   const payId='pay_'+st.invId;
   const chk=await Promise.all(todo.map(l=>_vlOnServer('materialInward/'+l.recId)).concat([cash>0&&!st.payDone?_vlOnServer('vendorTxns/'+payId):Promise.resolve(false)]));
   if(chk.some(c=>c===null)){ _ss.msg='net'; return _ssRender(); }
+  // V102.50: which service charges are already on the server (a retry after a partly-sent save)
+  const chgTodo=(st.charges||[]).filter(c=>!c.sent);
+  const chgChk=await Promise.all(chgTodo.map(c=>_vlOnServer('vendorTxns/chg_'+st.invId+'_'+c.cid)));
+  if(chgChk.some(c=>c===null)){ _ss.msg='net'; return _ssRender(); }
   const payOnSrv=chk.pop()===true;
   const already=new Set(); todo.forEach((l,i)=>{ if(chk[i]===true) already.add(l.recId); });
   // 2) send what is missing, exactly the saveGRN vendor-bill shape, rate pending
@@ -4921,9 +4984,19 @@ async function _ssSavePur(){
     if(payOnSrv){ st.payDone=true; vendorTxns=vendorTxns||[]; if(!vendorTxns.some(x=>x&&x.id===payId)) _ssUpsert(vendorTxns, ptxn); }
     else jobs.push(_fbWrite('vendorTxns/'+payId, ptxn).then(ok=>{ if(ok!==false){ st.payDone=true; vendorTxns=vendorTxns||[]; _ssUpsert(vendorTxns, ptxn); } return ok; }));
   }
+  // V102.50: service charges - the exact record the office writes, fixed id chg_<invoiceId>_<chargeId>
+  chgTodo.forEach((c,i)=>{
+    const m=_ssChgMath(c.amount, c.gstPct); const cid='chg_'+st.invId+'_'+c.cid;
+    const ctxn={ id:cid, vendorId:v.id, type:'purchase', kind:'service', amount:m.total, basicAmount:m.basic, gstPct:Number(c.gstPct)||0, gstAmount:m.gst,
+      date:dateVal, srcId:st.invId, projectId:p.id, invoiceId:st.invId, invoiceNo:invNo, desc:c.desc||c.category, category:c.category, machineId:'', machineName:'',
+      note:'Service: '+(c.desc||c.category)+((Number(c.gstPct)||0)>0?(' · GST '+c.gstPct+'%'):'')+(invNo?(' · Inv '+invNo):'')+' (site)', billPhotos:bp.slice(), viaSite:true,
+      ts:Date.now(), enteredBy:(sess&&sess.userId)||'', enteredByName:(sess&&sess.name)||'' };
+    if(chgChk[i]===true){ c.sent=true; vendorTxns=vendorTxns||[]; if(!vendorTxns.some(x=>x&&x.id===cid)) _ssUpsert(vendorTxns, ctxn); return; }
+    jobs.push(_fbWrite('vendorTxns/'+cid, ctxn).then(ok=>{ if(ok!==false){ c.sent=true; vendorTxns=vendorTxns||[]; _ssUpsert(vendorTxns, ctxn); } return ok; }));
+  });
   const res=await Promise.all(jobs);
-  if(res.some(r=>r===false) || st.lines.some(l=>!l.sent) || (cash>0 && !st.payDone)){
-    _ss.msg=st.lines.some(l=>l.sent)?'part':'net'; return _ssRender();
+  if(res.some(r=>r===false) || st.lines.some(l=>!l.sent) || (cash>0 && !st.payDone) || (st.charges||[]).some(c=>!c.sent)){
+    _ss.msg=(st.lines.some(l=>l.sent)||(st.charges||[]).some(c=>c.sent))?'part':'net'; return _ssRender();
   }
   _ssPur=null; window._att.ssbill=[];
   flash(_st('saved'), v.name);
@@ -4960,10 +5033,12 @@ function _ssOutWhere(r){
 function _ssDestName(sid){ if(_isPlantLoc(sid)) return PLANT_NAME; return ((sites||[]).find(s=>s.id===sid)||{}).name||''; }
 function _ssStartOut(mode){
   // a partly-saved issue is never thrown away: finish it first (its lines are already partly on the server)
-  if(_ssOut && _ssOut.pid===_ss.pid && _ssOut.lines.some(l=>!l.sent) && _ssOut.lines.some(l=>l.sent||l.outOnSrv)){
+  // V102.51: the repair charge counts too - a sent charge with unsent material, or sent material with an unsent charge, must be finished first
+  const _repSent=!!(_ssOut&&_ssOut.rep&&_ssOut.rep.sent), _repOpen=!!(_ssOut&&_ssOut.rep&&!_ssOut.rep.sent&&_ssRepState(_ssOut).on);
+  if(_ssOut && _ssOut.pid===_ss.pid && (_ssOut.lines.some(l=>!l.sent)||_repOpen) && (_ssOut.lines.some(l=>l.sent||l.outOnSrv)||_repSent)){
     _ss.matCtx='out'; if(_ssOut.mode!==mode) alert(_st('finishFirst')); _ss=Object.assign({}, _ss, {view:'outC', msg:'part'}); _ssRender(); return;
   }
-  if(!_ssOut || _ssOut.pid!==_ss.pid || _ssOut.mode!==mode || _ssOut.lines.some(l=>l.sent)){ _ssOut=_ssNewOut(_ss.pid, mode); window._att.ssout=[]; }
+  if(!_ssOut || _ssOut.pid!==_ss.pid || _ssOut.mode!==mode || _ssOut.lines.some(l=>l.sent) || _repSent){ _ssOut=_ssNewOut(_ss.pid, mode); window._att.ssout=[]; window._att.ssrep=[]; }
   _ss.matCtx='out'; _ssGo('outE');
 }
 // destinations: the Plant + every other site that keeps a store (has a project) — same resolution as saveMIN
@@ -4993,9 +5068,9 @@ function _ssMachList(){
   const p=projects.find(x=>x.id===st.pid);
   const here=new Set(_siteMachines((p&&p.siteId)||'').map(v=>v.id));
   const q=String(st.hq||'').toLowerCase().trim();
+  if(!q) return '';   // V102.51: the list opens only when something is typed
   let pool=(fleet||[]).filter(v=>v && v.active!==false);
-  if(q) pool=pool.filter(v=>String(v.name||'').toLowerCase().includes(q));
-  else pool=pool.filter(v=>here.has(v.id));
+  pool=pool.filter(v=>String(v.name||'').toLowerCase().includes(q));
   pool=pool.sort((a,b)=>(here.has(b.id)?1:0)-(here.has(a.id)?1:0)||String(a.name||'').localeCompare(String(b.name||''))).slice(0,30);
   if(!pool.length) return `<div style="padding:12px;color:var(--muted);font-size:16px">${q?_st('noMatch'):_st('noMach')}</div>`;
   return pool.map(v=>`<button type="button" onclick="_ssOut.machId='${v.id}';_ssOut.hq='';_ssRender()" style="display:flex;justify-content:space-between;width:100%;text-align:left;padding:14px;border:none;border-bottom:1px solid var(--border);background:transparent;color:var(--white);font-size:19px;font-weight:700"><span>${_esc(v.name)}</span>${here.has(v.id)?'':`<span style="font-size:13px;color:var(--muted)">${_esc(v.siteName||'')}</span>`}</button>`).join('');
@@ -5004,7 +5079,7 @@ function _ssMachSearch(v){ if(!_ssOut) return; _ssOut.hq=v; const el=document.ge
 function _ssPickedBox(txt, clear){ return `<div style="min-height:60px;border-radius:12px;border:2px solid #A7D7B5;background:rgba(22,163,74,0.08);display:flex;align-items:center;gap:10px;padding:8px 14px;font-size:18px;font-weight:700"><span style="color:#166534">✓</span><span style="flex:1;min-width:0">${txt}</span>${clear?`<span onclick="${clear}" style="font-size:16px;color:#1F4E9C;cursor:pointer;flex-shrink:0">${_st('change')}</span>`:''}</div>`; }
 function _ssSearchBox(id, val, oninput, ph, listId, listHTML){ return `<div style="background:var(--bg);border:2px solid var(--border);border-radius:12px;overflow:hidden"><input id="${id}" type="search" value="${_esc(val||'')}" oninput="${oninput}" placeholder="${ph}" autocomplete="off" style="width:100%;box-sizing:border-box;height:58px;border:none;background:transparent;color:var(--white);font-size:18px;padding:0 14px"><div id="${listId}" style="max-height:280px;overflow:auto">${listHTML}</div></div>`; }
 function _ssOutTopHTML(st){
-  const locked=st.lines.some(l=>l.sent||l.outOnSrv);
+  const locked=st.lines.some(l=>l.sent||l.outOnSrv)||!!(st.rep&&st.rep.sent);
   if(st.mode==='consumed'){
     const b=st.boqId?(_projBoq(st.pid)||[]).find(x=>x.id===st.boqId):null;
     return _ssCard(_ssLbl(_st('whichWork'),_st('optional'))+(b?_ssPickedBox('<span style="background:var(--white);color:var(--bg);border-radius:8px;padding:2px 8px;margin-right:6px">'+_esc(b.itemNo||'')+'</span>'+_esc(String(b.description||'').slice(0,60)), locked?'':"_ssOut.boqId='';_ssRender()")
@@ -5018,6 +5093,60 @@ function _ssOutTopHTML(st){
   return _ssCard(_ssLbl(_st('whichMach'))+(m?_ssPickedBox(_esc(m.name), locked?'':"_ssOut.machId='';_ssRender()")
     :_ssSearchBox('ss-machq', st.hq, "_ssMachSearch(this.value)", _st('machSearch'), 'ss-machlist', _ssMachList())));
 }
+// ---- V102.51: site sup repair / service charge on 'Given to a machine' (same vendor-ledger record the office writes, tagged to the machine) ----
+const _SS_REP_CAT='Machine repair & service';
+function _ssRepState(st){
+  const r=st&&st.rep; if(!r||st.mode!=='machine') return {on:false, ok:false, err:''};
+  const ph=window._att.ssrep||[];
+  const on=!!(r.sent||r.vendorId||String(r.desc||'').trim()||String(r.amt||'').trim()||(r.gst!==''&&r.gst!=null)||ph.length);
+  if(!on) return {on:false, ok:false, err:''};
+  if(r.sent) return {on:true, ok:true, err:''};
+  if(!r.vendorId) return {on:true, ok:false, err:_st('repNeedVend')};
+  if(!(_ssNum(r.amt)>0)) return {on:true, ok:false, err:_st('chgNeedAmt')};
+  if(r.gst===''||r.gst==null) return {on:true, ok:false, err:_st('chgNeedGst')};
+  if(ph.some(x=>x.status==='up')) return {on:true, ok:false, err:_st('photoWait')};
+  if(!ph.some(x=>x.status==='ok')) return {on:true, ok:false, err:_st('repNeedPhoto')};
+  return {on:true, ok:true, err:''};
+}
+function _ssRepToggle(){ const st=_ssOut; if(!st||!st.rep||st.rep.sent) return; st.rep.open=!st.rep.open; _ssRender(); }
+function _ssRepSet(k, v){
+  const st=_ssOut; if(!st||!st.rep||st.rep.sent) return; st.rep[k]=v;
+  const el=document.getElementById('ss-rep-tot');
+  if(el){ const m=_ssChgMath(_ssNum(st.rep.amt), st.rep.gst); el.textContent='₹ '+m.total.toLocaleString('en-IN'); }
+}
+function _ssRepVendList(){
+  const st=_ssOut; if(!st||!st.rep) return '';
+  const q=String(st.rep.vq||'').toLowerCase().trim(); if(!q) return '';
+  const pool=_ssVendors().filter(v=>String(v.name||'').toLowerCase().includes(q)).slice(0,30);
+  if(!pool.length) return `<div style="padding:12px;color:var(--muted);font-size:16px">${_st('noMatch')}</div>`;
+  return pool.map(v=>`<button type="button" onclick="_ssRepPickVend('${v.id}')" style="display:block;width:100%;text-align:left;padding:14px;border:none;border-bottom:1px solid var(--border);background:transparent;color:var(--white);font-size:19px;font-weight:600">${_esc(v.name||'')}</button>`).join('');
+}
+function _ssRepVendSearch(v){ const st=_ssOut; if(!st||!st.rep||st.rep.sent) return; st.rep.vq=v; const el=document.getElementById('ss-replist'); if(el) el.innerHTML=_ssRepVendList(); }
+function _ssRepPickVend(id){ const st=_ssOut; if(!st||!st.rep||st.rep.sent) return; st.rep.vendorId=id; st.rep.vq=''; _ssRender(); }
+function _ssRepCard(st){
+  if(st.mode!=='machine' || !st.machId) return '';
+  const r=st.rep||{}; const sent=!!r.sent;
+  const v=(vendors||[]).find(x=>x.id===r.vendorId);
+  const m=_ssChgMath(_ssNum(r.amt), r.gst);
+  const open=!!r.open && !sent;
+  const ph=(window._att.ssrep||[]);
+  const sel='width:100%;box-sizing:border-box;height:60px;border-radius:12px;border:2px solid var(--border);background:var(--bg);color:var(--white);font-size:19px;padding:0 10px';
+  const gstOpts=`<option value="">${_st('chgGstPick')}</option>`+GST_RATES.map(g=>`<option value="${g}"${String(r.gst)===String(g)?' selected':''}>${g}%</option>`).join('');
+  const lbl=t=>`<div style="font-size:14px;font-weight:600;color:var(--muted);margin:2px 0 4px">${t}</div>`;
+  const vend=v?_ssPickedBox(_esc(v.name||''), "_ssOut.rep.vendorId='';_ssRender()")
+    :_ssSearchBox('ss-repq', r.vq, "_ssRepVendSearch(this.value)", _st('repVendSearch'), 'ss-replist', _ssRepVendList());
+  const form=open?`<div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+      ${lbl(_st('repVend'))}${vend}
+      ${lbl(_st('chgNote'))}${_ssInp('ss-rep-desc', r.desc, "_ssRepSet('desc',this.value)", '', 'text')}
+      <div style="display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:10px">
+        <div>${lbl(_st('chgAmt'))}${_ssInp('ss-rep-amt', r.amt, "_ssRepSet('amt',this.value)", '₹', 'number')}</div>
+        <div>${lbl('GST %')}<select onchange="_ssRepSet('gst',this.value)" style="${sel}">${gstOpts}</select></div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:12px;background:var(--bg3)"><span style="font-size:15px;color:var(--muted)">${_st('chgTot')}</span><b id="ss-rep-tot" style="font-size:20px">₹ ${m.total.toLocaleString('en-IN')}</b></div>
+      ${lbl(_st('billPhoto')+' <span style="color:#B42318">*</span>')}${_ssPhotosHTML('ssrep','bills',false)}</div>`:'';
+  const summary=(sent||(!open&&_ssRepState(st).on))?`<div style="padding:10px 0 0;font-size:18px;font-weight:700">${_esc(v?v.name:'')} · ₹ ${m.total.toLocaleString('en-IN')}${sent?' <span style="color:#166534">✓</span>':''}</div>`:'';
+  const head=`<div ${sent?'':'onclick="_ssRepToggle()"'} style="display:flex;justify-content:space-between;font-size:18px;font-weight:600;${sent?'':'cursor:pointer'}"><span>${_st('repLbl')}</span><span style="color:var(--muted)">${sent?'':(open?'▾':'›')}</span></div>`;
+  return _ssCard(`<div style="padding:12px 2px">${head}${summary}${form}</div>`, 'padding:2px 14px');
+}
 function _ssOutEHTML(dash){
   const st=_ssOut; const p=_ssProj(); if(!st||!p||st.pid!==p.id){ _ss.view='out'; return _ssRender(); }
   _ss.matCtx='out';
@@ -5025,7 +5154,7 @@ function _ssOutEHTML(dash){
   dash.innerHTML=_ssHead(title, _st('maalOut')+' · '+p.name, 'out')+
     `<div style="display:flex;flex-direction:column;gap:12px;padding:0 14px">
       ${_ssOutTopHTML(st)}${_ssLinesHTML(st)}${_ssCurHTML(st,true)}${_ssPickerHTML(st,p.id)}
-      ${_ssCard(_ssLbl(_st('photoOpt'))+_ssPhotosHTML('ssout','issues',false))}</div>`+
+      ${_ssCard(_ssLbl(_st('photoOpt'))+_ssPhotosHTML('ssout','issues',false))}${_ssRepCard(st)}</div>`+
     _ssBar(_ssBtn2('＋ '+_st('more'), "_ssAddMore()"), _ssBigBtn(_st('check')+' ›', "_ssOutNext()"));
   _ssStockWarn();
 }
@@ -5033,9 +5162,15 @@ function _ssOutNext(){
   const st=_ssOut; if(!st) return;
   if(st.mode==='transfer' && !st.toSiteId){ alert(_st('pickTo')); return; }
   if(st.mode==='machine' && !st.machId){ alert(_st('pickMach')); return; }
+  const rs=_ssRepState(st); if(rs.on && !rs.ok){ alert(rs.err); return; }   // V102.51: a half-filled repair charge is never skipped silently
   if(!_ssTakeCur(st,true)) return;
-  if(!st.lines.length){ alert(_st('noLines')); return; }
+  if(!st.lines.length && !(rs.on&&rs.ok)){ alert(_st('noLines')); return; }
   _ssGo('outC');
+}
+function _ssRepCHTML(st){
+  const rs=_ssRepState(st); if(!rs.on||!rs.ok) return '';
+  const r=st.rep; const v=(vendors||[]).find(x=>x.id===r.vendorId); const m=_ssChgMath(_ssNum(r.amt), r.gst);
+  return `<div style="padding:12px 0;border-top:1px solid var(--border)"><div style="display:flex;justify-content:space-between;font-size:19px;font-weight:700"><span>${_st('repLbl')}</span><span>₹ ${m.total.toLocaleString('en-IN')}${r.sent?' <span style="color:#166534">✓</span>':''}</span></div><div style="font-size:15px;color:var(--muted)">${_esc(v?v.name:'')}${String(r.desc||'').trim()?' · '+_esc(String(r.desc).trim()):''} · GST ${Number(r.gst)||0}%</div></div>`;
 }
 function _ssOutCHTML(dash){
   const st=_ssOut; const p=_ssProj(); if(!st||!p||st.pid!==p.id){ _ss.view='out'; return _ssRender(); }
@@ -5048,8 +5183,8 @@ function _ssOutCHTML(dash){
     `<div style="display:flex;flex-direction:column;gap:12px;padding:0 14px">
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden">
         <div style="padding:14px 16px;background:#F5F6F8;color:#111827;border-bottom:1px solid #EEF1F5"><div style="font-size:18px;font-weight:700">${where}</div><div style="font-size:14px;color:#5B6472">${_esc(p.name)} · ${fmtD(today())}${ph?' · '+_st('photoYes')+' '+ph:''}</div></div>
-        <div style="padding:4px 16px 12px">${st.lines.map((l,i)=>{ const m=_ssMat(l.matId); return `<div style="display:flex;justify-content:space-between;padding:12px 0;${i?'border-top:1px solid var(--border)':''};font-size:21px;font-weight:700"><span>${_esc(m?m.name:'?')}</span><span>${_ssQty(l.qty)} ${_esc(l.unit)}${l.sent?' <span style="color:#166534">✓</span>':''}</span></div>`; }).join('')}</div></div></div>
-    <div class="ss2-bar" style="flex-direction:column">${_ssBigBtn(_ss.msg?_st('saveAgain'):_st('save'),"_ssSaveOut()")}${st.lines.some(l=>l.sent||l.outOnSrv)?'':_ssBtn2(_st('edit'),"_ssGo('outE')",'var(--muted)')}</div>`;
+        <div style="padding:4px 16px 12px">${st.lines.map((l,i)=>{ const m=_ssMat(l.matId); return `<div style="display:flex;justify-content:space-between;padding:12px 0;${i?'border-top:1px solid var(--border)':''};font-size:21px;font-weight:700"><span>${_esc(m?m.name:'?')}</span><span>${_ssQty(l.qty)} ${_esc(l.unit)}${l.sent?' <span style="color:#166534">✓</span>':''}</span></div>`; }).join('')}${_ssRepCHTML(st)}</div></div></div>
+    <div class="ss2-bar" style="flex-direction:column">${_ssBigBtn(_ss.msg?_st('saveAgain'):_st('save'),"_ssSaveOut()")}${(st.lines.some(l=>l.sent||l.outOnSrv)||(st.rep&&st.rep.sent))?'':_ssBtn2(_st('edit'),"_ssGo('outE')",'var(--muted)')}</div>`;
 }
 async function _ssSaveOut(){
   if(!isSiteSup()) return;
@@ -5068,7 +5203,9 @@ async function _ssSaveOut(){
     const b=st.boqId?(_projBoq(pid)||[]).find(x=>x.id===st.boqId):null;
     if(b){ boqItemId=b.id; boqDesc='Item '+(b.itemNo||'')+' · '+(b.description||'').slice(0,60); }
   }
-  if(!st.lines.length){ alert(_st('noLines')); return _ssGo('outE'); }
+  const rs=_ssRepState(st); if(rs.on && !rs.ok){ alert(rs.err); return _ssGo('outE'); }   // V102.51
+  const repGo=!!(rs.on && rs.ok);
+  if(!st.lines.length && !repGo){ alert(_st('noLines')); return _ssGo('outE'); }
   const ph=window._att.ssout||[];
   if(ph.some(x=>x.status==='up')){ alert(_st('photoWait')); return; }
   const att=ph.filter(x=>x.status==='ok').map(x=>({p:x.p, ct:x.ct, sz:x.sz, by:(sess&&sess.name)||'', ts:x.ts}));
@@ -5077,6 +5214,10 @@ async function _ssSaveOut(){
   const paths=[]; todo.forEach(l=>{ paths.push('materialOutward/'+l.recId); if(mode==='transfer') paths.push('materialInward/xfer_'+l.recId); });
   const chk=await Promise.all(paths.map(x=>_vlOnServer(x)));
   if(chk.some(c=>c===null)){ _ss.msg='net'; return _ssRender(); }
+  // V102.51: is the repair charge already on the server (a retry after a partly-sent save)?
+  const repId=repGo?('chg_'+st.rep.inv+'_'+st.rep.cid):'';
+  const repOnSrv=(repGo && !st.rep.sent)?await _vlOnServer('vendorTxns/'+repId):false;
+  if(repOnSrv===null){ _ss.msg='net'; return _ssRender(); }
   const onSrv={}; paths.forEach((x,i)=>{ onSrv[x]=chk[i]===true; });
   todo.forEach(l=>{ if(onSrv['materialOutward/'+l.recId]) l.outOnSrv=true; });
   // 2) stock check for what is still to go — a site supervisor can never take stock below zero (as saveMIN)
@@ -5116,9 +5257,20 @@ async function _ssSaveOut(){
     }
     jobs.push(Promise.all(w).then(r=>{ if(r.every(x=>x!==false)) l.sent=true; return r.every(x=>x!==false); }));
   });
+  if(repGo && !st.rep.sent){
+    const R=st.rep; const v2=(vendors||[]).find(x=>x.id===R.vendorId); const m=_ssChgMath(_ssNum(R.amt), R.gst);
+    const bp=(window._att.ssrep||[]).filter(x=>x.status==='ok').map(x=>({p:x.p, ct:x.ct, sz:x.sz, by:(sess&&sess.name)||'', ts:x.ts}));
+    const desc=String(R.desc||'').trim()||_SS_REP_CAT;
+    const ctxn={ id:repId, vendorId:R.vendorId, type:'purchase', kind:'service', amount:m.total, basicAmount:m.basic, gstPct:Number(R.gst)||0, gstAmount:m.gst,
+      date:td, srcId:R.inv, projectId:pid, invoiceId:R.inv, invoiceNo:'', desc, category:_SS_REP_CAT, machineId:machineId, machineName:machineName,
+      note:'Service: '+desc+((Number(R.gst)||0)>0?(' · GST '+R.gst+'%'):'')+(machineName?(' · '+machineName):'')+' (site)', billPhotos:bp, viaSite:true,
+      ts:Date.now(), enteredBy:(sess&&sess.userId)||'', enteredByName:(sess&&sess.name)||'' };
+    if(repOnSrv===true){ R.sent=true; vendorTxns=vendorTxns||[]; if(!vendorTxns.some(x=>x&&x.id===repId)) _ssUpsert(vendorTxns, ctxn); }
+    else jobs.push(_fbWrite('vendorTxns/'+repId, ctxn).then(ok=>{ if(ok!==false){ R.sent=true; vendorTxns=vendorTxns||[]; _ssUpsert(vendorTxns, ctxn); } return ok; }));
+  }
   const res=await Promise.all(jobs);
-  if(res.some(r=>r===false) || st.lines.some(l=>!l.sent)){ _ss.msg=st.lines.some(l=>l.sent||l.outOnSrv)?'part':'net'; return _ssRender(); }
-  _ssOut=null; window._att.ssout=[];
+  if(res.some(r=>r===false) || st.lines.some(l=>!l.sent) || (repGo && !st.rep.sent)){ _ss.msg=(st.lines.some(l=>l.sent||l.outOnSrv)||(repGo&&st.rep.sent))?'part':'net'; return _ssRender(); }
+  _ssOut=null; window._att.ssout=[]; window._att.ssrep=[];
   flash(_st('saved'), '');
   _ssGo('out');
 }
@@ -5803,8 +5955,12 @@ async function _ssDprPdf(){
     const id=_dprKey(p.id,td);
     const remote=await _dprRemoteGet(id);
     if(remote===undefined){ alert(_st('pdfNoNet')); return; }
-    if(!remote){ alert(_st('pdfNone')); return; }
-    if(!_findDPR(p.id,td)) dailyReports.push(Object.assign({},remote,{id}));
+    if(!remote){
+      // V102.49: material / attendance entries do not create the DPR record. Create today's (empty) one the
+      // same safe way the work entry does - server checked first, field-level write, nothing existing changed.
+      const made=await _ssKTodayDPR(p);
+      if(!made){ alert(_st('pdfNoNet')); return; }
+    } else if(!_findDPR(p.id,td)) dailyReports.push(Object.assign({},remote,{id}));
     alert(_st('pdfAgain'));
   } finally { _ssPdfBusy=false; }
 }
@@ -25677,7 +25833,7 @@ const FB_KEY = 'AIzaSyB44pKu7YTc-Q_6GLC3mlaEBPJm3d3odPc';
 // V102.18 SECURITY STEP 4: the shared master account (and its password) was REMOVED from the app.
 // Each device signs in with its own account (see 'Set up this device'). Old master sign-in passes are wiped below.
 try{ localStorage.removeItem('fb_auth'); localStorage.removeItem('fb_refresh'); }catch(e){}
-const APP_VERSION = 'V102.48'; // bump this on every deploy
+const APP_VERSION = 'V102.51'; // bump this on every deploy
 
 // All keys we sync to Firebase
 const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords','trips','customers','materials','staff','staffMusters','pumpPayments','projects','boqItems','workEntries','subcontractors','subContracts','dailyReports','gangs','dailyLabour','royalty','materialInward','materialOutward','vendors','vendorTxns','paverLabour','gangLedger','rmcProd','siteWatch','machineRates'];
@@ -27124,6 +27280,9 @@ setInterval(async()=>{
     if(q.length>0) await processSyncQueue().catch(()=>{});
     sess=null; pinBuf='';
     saveSession(null);
+    // V102.51: forget the last open bottom tab, same as a manual logout
+    _bnavTab='home';
+    ['home','ops','trips','reports','more'].forEach(t=>{ const b=document.getElementById('bnav-'+t); if(b) b.classList.toggle('active',t==='home'); });
     show('scr-login'); initLogin();
     alert('You were logged out due to inactivity.\n'+(_getQueue().length?('⚠️ '+_getQueue().length+' change(s) are still waiting to be sent. Log in again with internet on so they can go.'):'All data has been saved to cloud.'));
   } else if(idle >= TIMEOUT - WARN_BEFORE && !_autoLogoutWarned){
