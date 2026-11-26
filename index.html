@@ -1,4 +1,4 @@
-<!-- FuelLog PWA | Version: V102.51 | Date: 2026-11-24 | V102.51 SITE SUP REPAIR CHARGE + QUIET LISTS: on 'Given to a machine' a site supervisor can add the repair / service charge (vendor, amount, GST, bill photo) - saved as the office's service charge tagged to that machine so it shows in the Job Card; material is optional so a repair alone can be saved; the machine and vendor search lists now open only after typing; auto-logout also forgets the last tab. | V102.50 SITE SUP SERVICE CHARGE + CLEAN-UP: a site supervisor can add service charges (freight, unloading, repair, testing, other) on a bought-outside bill - category from a dropdown, amount and GST from the bill - saved as the same vendor-ledger charge the office makes (fixed id, never doubled on retry); the six 'Usual at this site' quick-pick boxes are gone from material in / material out (search stays); the bottom Home/More bar is hidden for site supervisors (logout stays in the top bar). | V102.49 SITE SUP FIXES: after logout and login as site supervisor the owner's last tab no longer shows (the remembered tab is reset at logout and a site sup is always sent to Home or More); the site sup DPR PDF button now creates today's empty DPR record when only material or attendance was entered, instead of saying nothing was entered (same safe create as the work entry; nothing existing is changed). | V102.48 FAST REFRESH FIX: the one-time cement relabel (nos -> Bag) now carries the Firebase save time so every phone picks it up; accepting a cement delivery saves the unit as Bag straight away (cement only, quantity unchanged); phones that switched Fast Refresh off by themselves after a difference switch it back on once, and phones still on rebuild their copy once (one full download each). | V102.47 SELF-CHECK NAMES THE RECORDS: when the daily Fast Refresh self-check finds a difference it now lists up to 20 record ids, which fields differ (short values, phone vs Firebase) and the server times, in the device report and the owner's All devices table. No business record is written. | V102.46 DPR PDF FOR SITE SUPS + STOCK TABLE: site sup Home gets 'आजचा DPR PDF' (same exportDPRPDF as the office, today's DPR at his site; no DPR today = message, none created). DPR PDF gets section 4 'Stock at site' (opening / received / used-sent / closing, read-only from approved materialInward/Outward, base units). Per-project material list (owner/admin, project screen) stored as ONE record siteWatch/dprstock-<projectId> (type 'dprStock'), written one record at a time; empty list = Track-stock materials with stock or movement at the site. No material's tracksStock changes. | V102.45 SITE SUPERVISOR काम (WORK DONE, Stage 3): new Marathi-first work screen for site sups — measured work (BOQ item + gang + nos×L×B×D with जोड/वजा, compulsory remark per measurement, rate locked if agreed else optional → 'rate pending' filled by the office from Rates pending) and daily wages (type × count × wage, wage compulsory). Same dailyLabour records; only new stored items: pieceRow.ratePending and record.viaSite. Guards: old DPR edit keeps pending lines, gang ledger / BOQ recon / Site Watch never price a pending line, P&L warns. | V102.44 SITE SUPERVISOR SCREENS — CORPORATE LOOK (approved mockup V2, 19 Nov): light background, white cards, one corporate blue, Noto Sans Devanagari for Marathi, line icons (no emoji), small status tags, home as one task list, main buttons fixed above the bottom menu; always light for site supervisors (class ss2 on the home area, removed for other roles). Fixes: a Plant delivery waiting for confirmation shows once (not again in today's list); "material not in the list? call the admin" hint; readable ticks/colours. LOOK ONLY: no change to saving, records, sync, rules, office screens or Rates pending. | PREVIOUS: V102.43 | V102.43 SITE SUPERVISOR SCREEN STAGE 2: माल आला = confirm Plant/site deliveries (existing Accept; difference = field-only PATCH on the trip) + outside purchase in 3 steps (vendor + bill no. optional + bill photo compulsory -> materials -> check) saved like saveGRN with rate 0 and ratePending:true, no vendor purchase entry until the office fills rates; cash paid on the spot = pay_<invoiceId> as today. माल गेला = used in work (BOQ optional) / sent to another site or Plant (xfer_ arrival as saveMIN) / given to a machine, never below site stock. Every line gets its id when added; Save checks the server line by line and sends only what is missing (no doubles); no network = refused, everything kept on screen. RATES PENDING (owner/admin): Home card + screen; fill rate/GST per line, optional extra charges, bill total; vendor entries written first with fixed ids (pur_<line>, chg_<invoice>_<n>), then lines PATCHed (ratePending:false). P&L warns on pending lines. DATA SAFETY REVIEW V2: new fields only (ratePending, viaSite, rateFilledBy/ByName/Ts); per-record writes and field-only PATCHes; no sync, rules, MERGE_KEYS or Fast Refresh change. | PREVIOUS: V102.42 | V102.42 SITE SUPERVISOR SCREEN STAGE 1: new Marathi/English Home for site supervisors (5 buttons); मशीन = opening/closing readings onto today's DPR, saved per machine on the server copy (_dprMachMergeSave) — office DPR save uses the same safe merge; हजेरी = Site Staff attendance, fixed record id sm-<staff>-<date>, server checked first, owner-only lock kept; no-network = save refused, typed values kept; machine ₹/hr rates (new machineRates collection, owner-only, per-record) copied onto DPR lines; P&L warns machines with hours but no rate; L1/L2 vendor tidies. | PREVIOUS: V102.41 | V102.41 VENDOR LEDGER LOCK: managers, site supervisors and drivers no longer see vendor amounts — Store → Vendors and the Vendors screen show names/phone only (no due/advance, no TOTAL DUE summary); openVendor() and show('scr-vendor-detail') refuse with Not allowed. recordLumpSumPayment/applyLumpSumPayment now require canTripEnter() (owner/admin/manager — unchanged for them). No sync/storage change. | PREVIOUS: V102.40 | V102.40 QUICK LOCK: Reports → Financial and Project hidden and refused (screen, PDF/print, WhatsApp) for managers, site supervisors and drivers; owners + admins keep Financial; Project P&L stays owner-only. Record vendor payment = owner/admin only (button hidden, _vpOpen/_vpSave refuse). "Amount paid" boxes on bill/inward entry unchanged. Projects module closed to managers (and drivers): More menu hides FILE TODAY'S DPR, PROJECTS, LABOUR CONTRACTORS; show() refuses the 7 project/DPR/work/labour screens; openDPRPicker/startDPR/openProject/openDPRForEdit/openWorkEntry/openGangLedger refuse; store Back no longer opens the project page for them. Store, Paver, RMC unchanged. No sync/storage change. | PREVIOUS: V102.39 | V102.39 USERS SAVED ONE PERSON AT A TIME: every users save first reads the server shape (keys only). Old shape (positions 0..n) = saves work exactly as before (whole list). After the owner presses Health check > Convert users list (checks + backup file + read-back), each save writes ONLY that person (add = one record, edit/PIN = only the changed fields, remove = one record). A whole-list send of users is refused in _fbWrite; old queued users saves are handled safely; Restore writes the users list keyed by id. Health check shows the users-list shape. | V102.38 PHOTOS IN MORE PLACES (same photo store as V102.37; entries keep only a short link in a new field `att`): store ISSUE / TRANSFER (one set per issue, lines tied by new field minId), TRIPS (slip photo), VENDOR PAYMENT (proof), FUEL PURCHASE and DIRECT PUMP FILL (bill). Each has a photo box on the entry form (optional, up to 4 photos or a PDF; a failed photo never blocks the entry), tiles on the list (downloaded only on tap), add-later (owner/admin; trips also manager; field-only PATCH after checking the record is on the server) and Remove (owner; link taken off + attLog, file stays). DATA SAFETY REVIEW V2: new fields only (att, attLog, minId); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.37 Date: 2026-11-15 | V102.37 BILL PHOTO (photo store): a purchase bill (GRN, vendor source) can carry up to 4 photos or a PDF. The file is made small on the phone and sent to the separate Firebase photo store (fuellog/bills/YYYY-MM/...); the entry keeps only a short link (billPhotos on the bill's materialInward lines and service-charge vendorTxns), so sync never carries photos. Vendor page: view (downloaded only on tap), Add bill photo to a saved bill (owner/admin, field-only PATCH after checking the records are on the server), Remove photo (owner; takes the link off + billPhotoLog, the file stays in the store). A failed photo never blocks the bill. DATA SAFETY REVIEW V2: new fields only (billPhotos, billPhotoLog); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.36 Date: 2026-11-15 | V102.36 HEALTH CHECK COUNTS CORRECTED (read-only page, nothing saved): 'Ledger entries with no bill' no longer counts service-only bills (repair/labour bills with no material are valid) and a 'paid with bill' payment is fine when its bill has service charges; 'Bills with no bill total' counts only bills dated 05/11/2026 or later (when the total became compulsory). | V102.35 Date: 2026-11-14 | V102.35 (includes V102.32-V102.34): (1) GST KEPT ON EDIT: editing a single purchase line recalculates GST and the vendor entry is rebuilt GST-inclusive like a new bill (was basic only). (2) CLEAN BILL DELETE: deleting the last line of a bill offers to remove that bill's 'Paid with invoice' payment and service charges. (3) RECORD PAYMENT SCREEN: date, amount, paid by, ref, for bill, note; owner can edit; delete = owner/admin only and checked against the server. (4) HEALTH CHECK (More > System, owner): bills not matching, stock below zero, ledger entries with no bill, saves that did not reach the server, bills with no total - read-only. (5) DAILY BACKUP: on the owner's laptop the first full download of the day is also saved as a backup file (no extra download). (6) SLIM FILE: version history moved to FuelLog_Version_History.txt; unused old work-entry screen and old one-time clean-up call removed. DATA SAFETY REVIEW V2: new fields on vendor payment records only (mode, ref, forBillNo, edited*); per-record saves/deletes only; no rules, sync, MERGE_KEYS or Fast Refresh change. Earlier history: see FuelLog_Version_History.txt -->
+<!-- FuelLog PWA | Version: V102.52 | Date: 2026-11-26 | V102.52 DRUM MIX FIRST VERSION: owner-only Drum Mix settings (plants, start date, mix materials per layer, bitumen kg + burner LDO L per compacted cum with effective-from dates, seal coat Type A/B per road); each mix trip from a drum mix plant on/after the start date writes its own bitumen + LDO consumed lines (trip-dmx-<tripId>-bit/-ldo, autoTrip) shown as one line per day; mix itself not stocked; trip screen shows loose → compacted + kg/L; plant "keep out of P&L" tick; rejecting a pending trip also removes its automatic stock lines; owner-only apply-to-earlier-trips (adds only). | PREVIOUS: V102.51 SITE SUP REPAIR CHARGE + QUIET LISTS: on 'Given to a machine' a site supervisor can add the repair / service charge (vendor, amount, GST, bill photo) - saved as the office's service charge tagged to that machine so it shows in the Job Card; material is optional so a repair alone can be saved; the machine and vendor search lists now open only after typing; auto-logout also forgets the last tab. | V102.50 SITE SUP SERVICE CHARGE + CLEAN-UP: a site supervisor can add service charges (freight, unloading, repair, testing, other) on a bought-outside bill - category from a dropdown, amount and GST from the bill - saved as the same vendor-ledger charge the office makes (fixed id, never doubled on retry); the six 'Usual at this site' quick-pick boxes are gone from material in / material out (search stays); the bottom Home/More bar is hidden for site supervisors (logout stays in the top bar). | V102.49 SITE SUP FIXES: after logout and login as site supervisor the owner's last tab no longer shows (the remembered tab is reset at logout and a site sup is always sent to Home or More); the site sup DPR PDF button now creates today's empty DPR record when only material or attendance was entered, instead of saying nothing was entered (same safe create as the work entry; nothing existing is changed). | V102.48 FAST REFRESH FIX: the one-time cement relabel (nos -> Bag) now carries the Firebase save time so every phone picks it up; accepting a cement delivery saves the unit as Bag straight away (cement only, quantity unchanged); phones that switched Fast Refresh off by themselves after a difference switch it back on once, and phones still on rebuild their copy once (one full download each). | V102.47 SELF-CHECK NAMES THE RECORDS: when the daily Fast Refresh self-check finds a difference it now lists up to 20 record ids, which fields differ (short values, phone vs Firebase) and the server times, in the device report and the owner's All devices table. No business record is written. | V102.46 DPR PDF FOR SITE SUPS + STOCK TABLE: site sup Home gets 'आजचा DPR PDF' (same exportDPRPDF as the office, today's DPR at his site; no DPR today = message, none created). DPR PDF gets section 4 'Stock at site' (opening / received / used-sent / closing, read-only from approved materialInward/Outward, base units). Per-project material list (owner/admin, project screen) stored as ONE record siteWatch/dprstock-<projectId> (type 'dprStock'), written one record at a time; empty list = Track-stock materials with stock or movement at the site. No material's tracksStock changes. | V102.45 SITE SUPERVISOR काम (WORK DONE, Stage 3): new Marathi-first work screen for site sups — measured work (BOQ item + gang + nos×L×B×D with जोड/वजा, compulsory remark per measurement, rate locked if agreed else optional → 'rate pending' filled by the office from Rates pending) and daily wages (type × count × wage, wage compulsory). Same dailyLabour records; only new stored items: pieceRow.ratePending and record.viaSite. Guards: old DPR edit keeps pending lines, gang ledger / BOQ recon / Site Watch never price a pending line, P&L warns. | V102.44 SITE SUPERVISOR SCREENS — CORPORATE LOOK (approved mockup V2, 19 Nov): light background, white cards, one corporate blue, Noto Sans Devanagari for Marathi, line icons (no emoji), small status tags, home as one task list, main buttons fixed above the bottom menu; always light for site supervisors (class ss2 on the home area, removed for other roles). Fixes: a Plant delivery waiting for confirmation shows once (not again in today's list); "material not in the list? call the admin" hint; readable ticks/colours. LOOK ONLY: no change to saving, records, sync, rules, office screens or Rates pending. | PREVIOUS: V102.43 | V102.43 SITE SUPERVISOR SCREEN STAGE 2: माल आला = confirm Plant/site deliveries (existing Accept; difference = field-only PATCH on the trip) + outside purchase in 3 steps (vendor + bill no. optional + bill photo compulsory -> materials -> check) saved like saveGRN with rate 0 and ratePending:true, no vendor purchase entry until the office fills rates; cash paid on the spot = pay_<invoiceId> as today. माल गेला = used in work (BOQ optional) / sent to another site or Plant (xfer_ arrival as saveMIN) / given to a machine, never below site stock. Every line gets its id when added; Save checks the server line by line and sends only what is missing (no doubles); no network = refused, everything kept on screen. RATES PENDING (owner/admin): Home card + screen; fill rate/GST per line, optional extra charges, bill total; vendor entries written first with fixed ids (pur_<line>, chg_<invoice>_<n>), then lines PATCHed (ratePending:false). P&L warns on pending lines. DATA SAFETY REVIEW V2: new fields only (ratePending, viaSite, rateFilledBy/ByName/Ts); per-record writes and field-only PATCHes; no sync, rules, MERGE_KEYS or Fast Refresh change. | PREVIOUS: V102.42 | V102.42 SITE SUPERVISOR SCREEN STAGE 1: new Marathi/English Home for site supervisors (5 buttons); मशीन = opening/closing readings onto today's DPR, saved per machine on the server copy (_dprMachMergeSave) — office DPR save uses the same safe merge; हजेरी = Site Staff attendance, fixed record id sm-<staff>-<date>, server checked first, owner-only lock kept; no-network = save refused, typed values kept; machine ₹/hr rates (new machineRates collection, owner-only, per-record) copied onto DPR lines; P&L warns machines with hours but no rate; L1/L2 vendor tidies. | PREVIOUS: V102.41 | V102.41 VENDOR LEDGER LOCK: managers, site supervisors and drivers no longer see vendor amounts — Store → Vendors and the Vendors screen show names/phone only (no due/advance, no TOTAL DUE summary); openVendor() and show('scr-vendor-detail') refuse with Not allowed. recordLumpSumPayment/applyLumpSumPayment now require canTripEnter() (owner/admin/manager — unchanged for them). No sync/storage change. | PREVIOUS: V102.40 | V102.40 QUICK LOCK: Reports → Financial and Project hidden and refused (screen, PDF/print, WhatsApp) for managers, site supervisors and drivers; owners + admins keep Financial; Project P&L stays owner-only. Record vendor payment = owner/admin only (button hidden, _vpOpen/_vpSave refuse). "Amount paid" boxes on bill/inward entry unchanged. Projects module closed to managers (and drivers): More menu hides FILE TODAY'S DPR, PROJECTS, LABOUR CONTRACTORS; show() refuses the 7 project/DPR/work/labour screens; openDPRPicker/startDPR/openProject/openDPRForEdit/openWorkEntry/openGangLedger refuse; store Back no longer opens the project page for them. Store, Paver, RMC unchanged. No sync/storage change. | PREVIOUS: V102.39 | V102.39 USERS SAVED ONE PERSON AT A TIME: every users save first reads the server shape (keys only). Old shape (positions 0..n) = saves work exactly as before (whole list). After the owner presses Health check > Convert users list (checks + backup file + read-back), each save writes ONLY that person (add = one record, edit/PIN = only the changed fields, remove = one record). A whole-list send of users is refused in _fbWrite; old queued users saves are handled safely; Restore writes the users list keyed by id. Health check shows the users-list shape. | V102.38 PHOTOS IN MORE PLACES (same photo store as V102.37; entries keep only a short link in a new field `att`): store ISSUE / TRANSFER (one set per issue, lines tied by new field minId), TRIPS (slip photo), VENDOR PAYMENT (proof), FUEL PURCHASE and DIRECT PUMP FILL (bill). Each has a photo box on the entry form (optional, up to 4 photos or a PDF; a failed photo never blocks the entry), tiles on the list (downloaded only on tap), add-later (owner/admin; trips also manager; field-only PATCH after checking the record is on the server) and Remove (owner; link taken off + attLog, file stays). DATA SAFETY REVIEW V2: new fields only (att, attLog, minId); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.37 Date: 2026-11-15 | V102.37 BILL PHOTO (photo store): a purchase bill (GRN, vendor source) can carry up to 4 photos or a PDF. The file is made small on the phone and sent to the separate Firebase photo store (fuellog/bills/YYYY-MM/...); the entry keeps only a short link (billPhotos on the bill's materialInward lines and service-charge vendorTxns), so sync never carries photos. Vendor page: view (downloaded only on tap), Add bill photo to a saved bill (owner/admin, field-only PATCH after checking the records are on the server), Remove photo (owner; takes the link off + billPhotoLog, the file stays in the store). A failed photo never blocks the bill. DATA SAFETY REVIEW V2: new fields only (billPhotos, billPhotoLog); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.36 Date: 2026-11-15 | V102.36 HEALTH CHECK COUNTS CORRECTED (read-only page, nothing saved): 'Ledger entries with no bill' no longer counts service-only bills (repair/labour bills with no material are valid) and a 'paid with bill' payment is fine when its bill has service charges; 'Bills with no bill total' counts only bills dated 05/11/2026 or later (when the total became compulsory). | V102.35 Date: 2026-11-14 | V102.35 (includes V102.32-V102.34): (1) GST KEPT ON EDIT: editing a single purchase line recalculates GST and the vendor entry is rebuilt GST-inclusive like a new bill (was basic only). (2) CLEAN BILL DELETE: deleting the last line of a bill offers to remove that bill's 'Paid with invoice' payment and service charges. (3) RECORD PAYMENT SCREEN: date, amount, paid by, ref, for bill, note; owner can edit; delete = owner/admin only and checked against the server. (4) HEALTH CHECK (More > System, owner): bills not matching, stock below zero, ledger entries with no bill, saves that did not reach the server, bills with no total - read-only. (5) DAILY BACKUP: on the owner's laptop the first full download of the day is also saved as a backup file (no extra download). (6) SLIM FILE: version history moved to FuelLog_Version_History.txt; unused old work-entry screen and old one-time clean-up call removed. DATA SAFETY REVIEW V2: new fields on vendor payment records only (mode, ref, forBillNo, edited*); per-record saves/deletes only; no rules, sync, MERGE_KEYS or Fast Refresh change. Earlier history: see FuelLog_Version_History.txt -->
 <!-- FuelLog PWA | Version: V99.86 | Date: 2026-08-05 | V99.86 BOQ PROGRESS SOURCE SPLIT (step 3 of 3, display only): since V99.85 the progress figure is fed by TWO sources -- standalone Work Done entries and linked DPR gang lines -- and nothing on screen said which. New _doneSplitHTML(itemId,unit) renders a muted sub-line under the progress bar, e.g. '20 sqm Work Done + 70.51 sqm (link) gang work'. PURPOSE IS DETECTION, not decoration: if the same physical work is ever entered through BOTH paths the total is silently too high and an inflated percentage just looks like good progress, whereas a visibly wrong breakdown is catchable. Returns '' when no gang work contributes, so rows fed purely by Work Done entries render EXACTLY as before -- the extra line only appears where there is something to explain. Applied at both BOQ progress render sites (project BOQ list and the DPR-side list); the work-entry form header was left alone as it is a single-item entry context, not a review view. Values rounded to 2dp (13.099219... shows as 13.1) and the unit is _esc'd. CORRECTION to the earlier plan: step 3 was described as 'add the BOQ unit to the progress row' -- on inspection the unit was ALREADY rendered there (both progress rows have shown '<qty> <unit> done' since well before this work), so that step was redundant and the source split was built instead. DATA SAFETY: display only. No write path, no schema change, no collection touched, no calculation altered -- _itemDone, _itemPct and _itemLabourDone are read and re-presented, never modified. -->
 <!-- FuelLog PWA | Version: V99.85 | Date: 2026-08-05 | V99.85 LINKED WORK NOW FEEDS BOQ PROGRESS (step 2 of 3, completes the badge's promise): _itemDone previously summed workEntries ONLY, so a DPR work line flagged '(link) linked -- feeds BOQ progress' paid the gang but contributed ZERO progress. New _itemLabourDone(boqItemId) sums linked dailyLabour pieceRows and converts labour units to BOQ units by DIVIDING by convPerBoqUnit (which means labour-units-per-one-BOQ-unit, e.g. 10.764 sqft in 1 sqm). Direction verified against live data before building: item unit sqm, labourUnit sqft, conv 10.764 -- 141 sqft = 13.10 sqm, not 1517. Multiplying would have inflated progress ~116x and looked merely like a large number. STRICT: only rows explicitly stored linked:true count; legacy rows predating V99.84 carry no flag and are deliberately NOT re-derived from the current engagement, since a later rate edit would then silently move historical progress -- re-saving such an entry backfills the flag and it counts from then on. GUARDS: conv<=0/missing/non-numeric skips the row (never divides by zero, never yields Infinity/NaN), MISC and blank item ids excluded, malformed records tolerated. Pending (unapproved backdated) entries excluded via _appr, consistent with V99.58. DOUBLE-COUNT PRE-CHECKED on live data: zero item+date pairs appear in both workEntries and a labour line, so nothing is counted twice; the overlap check should be re-run before any bulk backfill. AFFECTS: _itemPct and the executed-value total (execVal = done x rate), both of which will legitimately RISE for linked items -- they were understated before. DATA SAFETY: read/compute path only. No write path, no schema change, no collection touched, no record created/edited/deleted/migrated; only which numbers are DERIVED at render time. Worst case of a wrong factor is a visibly wrong percentage, never data loss. Step 3 (unit-label display on progress rows) still open. -->
 <!-- FuelLog PWA | Version: V99.84 | Date: 2026-08-05 | V99.84 LINKED-WORK PERSISTENCE (step 1 of 3): saveLabEntry now stores linked + convPerBoqUnit on every saved pieceRow instead of discarding them (previously computed live via _labLineRate but never written to Firebase). editLabEntry trusts the stored linked flag for entries saved under this fix, and only falls back to a fresh gang-rate lookup for legacy rows that predate it -- and that fallback never touches the historical rate/unit that was actually paid. This does NOT yet change BOQ progress calculation (_itemDone still reads workEntries only) -- that is step 2, pending an overlap check on live data. -->
@@ -1099,6 +1099,7 @@ input[type=file]{display:none}
       <div class="f-field" style="flex:1"><label class="f-lbl">WO Date</label><input class="f-inp" id="proj-wodate" type="date"></div>
     </div>
     <div class="f-field"><label class="f-lbl">WO Amount (₹)</label><input class="f-inp" id="proj-woamt" placeholder="e.g. 24500000" type="number" inputmode="decimal"></div>
+    <label style="display:flex;gap:10px;align-items:center;margin:4px 0 14px;font-size:14px;font-weight:600;cursor:pointer"><input type="checkbox" id="proj-plout" style="width:18px;height:18px">This is a plant — keep out of P&amp;L</label>
     <button class="big-btn bb-amber bb-full" style="height:54px;font-size:17px" onclick="saveProject()">💾 SAVE PROJECT</button>
   </div>
   <div class="pad-bot"></div>
@@ -1508,6 +1509,14 @@ input[type=file]{display:none}
     <div><div class="tb-title">🚛 RMC PLANT</div><div class="tb-sub" id="rmc-sub"></div></div>
   </div>
   <div id="rmc-body" style="overflow-y:auto;flex:1;padding:10px 12px"></div>
+</div>
+
+<div class="screen" id="scr-dmx">
+  <div class="topbar">
+    <button class="tb-back" onclick="if(_dmxView!=='settings'){_dmxView='settings';renderDmx();}else show('scr-home')">‹</button>
+    <div><div class="tb-title">🔥 DRUM MIX PLANT</div><div class="tb-sub">Bitumen + LDO per mix trip · 🔒 Owner</div></div>
+  </div>
+  <div id="dmx-body" style="overflow-y:auto;flex:1;padding:10px 12px"></div>
 </div>
 
 <div class="screen" id="scr-sitewatch">
@@ -6367,6 +6376,9 @@ function renderMoreTab(el){
     <div class="act" onclick="openRmc()">
       <div class="act-ico">🚛</div><div class="act-txt"><div class="act-title">RMC PLANT</div><div class="act-desc">Batch production · cement / flyash / admixture · cube tests</div></div><div class="act-arr">›</div>
     </div>
+    ${isOwner()?`<div class="act" onclick="openDmx()">
+      <div class="act-ico">🔥</div><div class="act-txt"><div class="act-title">DRUM MIX PLANT</div><div class="act-desc">Settings · bitumen + LDO per mix trip</div></div><div class="act-arr">›</div>
+    </div>`:''}
     ${isOwner()?`<div class="act" onclick="openSiteWatch('more')">
       <div class="act-ico">👁</div><div class="act-txt"><div class="act-title">SITE WATCH</div><div class="act-desc">Money spent at a site with no BOQ progress to show for it</div></div><div class="act-arr">›</div>
     </div>`:''}
@@ -6689,7 +6701,7 @@ function renderTripEntryForm(editing){
 
   document.getElementById('trip-entry-body').innerHTML=`
     <div class="f-r2">
-      <div class="f-field"><label class="f-lbl">Date *</label><input class="f-inp" id="trip-date" type="date" value="${dateVal}" max="${today()}" ${!isOwner()&&editing?'readonly':''}></div>
+      <div class="f-field"><label class="f-lbl">Date *</label><input class="f-inp" id="trip-date" type="date" value="${dateVal}" max="${today()}" ${!isOwner()&&editing?'readonly':''} onchange="if(typeof _dmxTripNote==='function')_dmxTripNote()"></div>
       <div class="f-field"><label class="f-lbl">Number of Trips *</label><input class="f-inp" id="trip-count" type="number" inputmode="numeric" value="${e.numTrips||1}" min="1" oninput="onTripCountChange();updateTripAmount()" onchange="onTripCountChange();updateTripAmount()" onblur="updateTripAmount()"></div>
     </div>
 
@@ -6806,8 +6818,9 @@ function renderTripEntryForm(editing){
 
     <div class="f-r2">
       <div class="f-field"><label class="f-lbl">Quantity (per trip)</label><input class="f-inp" id="trip-qty" type="number" inputmode="decimal" value="${e.quantity||''}" placeholder="0" oninput="updateTripAmount()" onchange="updateTripAmount()" onblur="updateTripAmount()"></div>
-      <div class="f-field"><label class="f-lbl">Unit</label><select class="f-inp" id="trip-unit" style="background:var(--bg3);color:var(--white)">${(()=>{const _m=(materials||[]).find(m=>m.id===(e.materialId||''));return _m?('<option value="">— select —</option>'+_matUnitOptionList(_m,e.unit||'')):'<option value="">select material first</option>';})()}</select></div>
+      <div class="f-field"><label class="f-lbl">Unit</label><select class="f-inp" id="trip-unit" style="background:var(--bg3);color:var(--white)" onchange="if(typeof _dmxTripNote==='function')_dmxTripNote()">${(()=>{const _m=(materials||[]).find(m=>m.id===(e.materialId||''));return _m?('<option value="">— select —</option>'+_matUnitOptionList(_m,e.unit||'')):'<option value="">select material first</option>';})()}</select></div>
     </div>
+    <div id="trip-dmx-note"></div>
 
     ${(movementType==='internal' && _canEnterTripCost(e.fromSiteId,e.toSiteId))?`
     <div class="f-field" style="background:rgba(255,179,0,.04);border:1px solid var(--amber);border-radius:10px;padding:10px">
@@ -6896,6 +6909,7 @@ function renderTripEntryForm(editing){
     renderMiscCharges();
     updateTripAmount();
   }
+  if(typeof _dmxTripNote==='function') _dmxTripNote();   // V102.52: drum mix line (internal trips too)
 }
 
 function _currentTripEdit(){
@@ -6951,6 +6965,7 @@ function onTripMaterialChange(){
     const c=_storeMatCost(mat.id, (dEl&&dEl.value)||today());
     if(c>0) mrInp.value=Math.round(c);
   }
+  if(typeof _dmxTripNote==='function') _dmxTripNote();   // V102.52
 }
 
 // ── V82: SEARCHABLE MATERIAL PICKER (index -1 = primary line; 0..n = extra line) ──
@@ -7373,6 +7388,7 @@ function updateTripAmount(){
   if(amtInp && document.activeElement!==amtInp){
     amtInp.value=total>0?total.toFixed(0):'';
   }
+  if(typeof _dmxTripNote==='function') _dmxTripNote();   // V102.52
 }
 
 function addMiscCharge(){
@@ -7456,6 +7472,19 @@ function _tripStoreSync(trip){
     // A re-save of an older RMC trip also removes its old trip-out record via the cleanup below.
     if(typeof _rmcIsGrade==='function' && _rmcIsGrade(mat.id)) return;
     const u=unit||mat.baseUnit||'';
+    // V102.52 DRUM MIX: a drum mix material is never stocked (like an RMC grade) — no outward, no inward.
+    // From a drum mix plant on/after the start date it instead writes that trip's own bitumen + LDO
+    // 'consumed' lines (trip-dmx-<id><line>-bit/-ldo, autoTrip + tripId), so the clean-up below and
+    // delTrip / rejectTrip remove them exactly like trip-out records.
+    const _dx=(typeof _dmxCalc==='function')?_dmxCalc({date:trip.date, fromLoc, internal, toLoc, matId:mat.id, qty:totalQty, unit:u}):null;
+    if(_dx){
+      if(_dx.ok){
+        const _dr=_dmxTripRecs(trip, idSuffix, _dx, meta); _dr.forEach(r=>{ desiredOut[r.id]=r; });
+        // Settings broken (material gone / no kg-litre unit): never silently drop this trip's existing lines — keep them as they are and warn.
+        if(_dr.length<_dmxWant(_dx)){ ['bit','ldo'].forEach(k=>{ const id='trip-dmx-'+trip.id+idSuffix+'-'+k; if(desiredOut[id]) return; const ex=(materialOutward||[]).find(x=>x&&x.id===id); if(ex) desiredOut[id]=ex; }); window._dmxSyncProblem=true; }
+      }
+      return;
+    }
     // V99.92: the OUTWARD leg is now written for EVERY material, tracked or not. Material
     // physically left this location, so the dispatching store must record it — the owner's
     // reported gap was 6 brass of GSB leaving the Yavatmal Plant with no outward anywhere,
@@ -7688,7 +7717,9 @@ async function saveTrip(){
     }
   }
   // ── V99.35: auto-sync store stock for the tracked material carried by this trip ──
+  window._dmxSyncProblem=false;   // V102.52
   const _storeSyncPromises=_tripStoreSync(trip);
+  if(window._dmxSyncProblem) alert('⚠️ Trip saved, but Drum Mix settings need fixing (bitumen / LDO material or its unit), so this trip\'s bitumen / LDO was not updated. Its earlier lines are kept. Tell the owner.');
   // ── ROYALTY SLIPS (V80) — persist per-record to separate `royalty` collection (Rule 9) ──
   const _royaltyWritePromises=[];
   {
@@ -9881,6 +9912,11 @@ async function rejectTrip(tripId){
   trips.splice(idx,1);
   _recordDeletion('trips',tripId); // V99.51: tombstone (kept — still guards any legacy full-array merge)
   _fbDelete('trips',tripId); // V99.54: per-record delete
+  // V102.52 (owner-approved 26 Nov): also remove ONLY this trip's own automatic store lines
+  // (trip-out / trip-in / trip-dmx, autoTrip + same tripId) — same clean-up as delTrip. Before this,
+  // a rejected trip left its stock lines behind.
+  (materialOutward||[]).filter(r=>r && r.autoTrip && r.tripId===tripId).forEach(r=>{ materialOutward=materialOutward.filter(x=>x.id!==r.id); _recordDeletion('materialOutward',r.id); _fbDelete('materialOutward',r.id); });
+  (materialInward||[]).filter(r=>r && r.autoTrip && r.tripId===tripId).forEach(r=>{ materialInward=materialInward.filter(x=>x.id!==r.id); _recordDeletion('materialInward',r.id); _fbDelete('materialInward',r.id); });
   flash('❌ REJECTED','Pending entry rejected and removed');
   renderAuditLog();
   renderHomePendingPill();
@@ -16486,7 +16522,7 @@ function _plProjName(pid){ const p=(projects||[]).find(x=>x.id===pid); return p?
 // NOTE: this calls _plSummary once per project, so it is the heaviest read in the
 // app. Projects with no revenue AND no cost are dropped rather than padding the list.
 function _plAllRows(from,to){
-  return (projects||[]).map(p=>{
+  return (projects||[]).filter(p=>p && p.plOut!==true).map(p=>{   // V102.52: plants kept out of P&L
     const s=_plSummary(p.id, from, to);
     return {id:p.id, name:p.name||'(project)', revenue:s.revenue.total, cost:s.cost,
             profit:s.profit, marginPct:s.marginPct};
@@ -16524,12 +16560,14 @@ function _plPickerHTML(){
 
 function _plOverviewHTML(range){
   const rows=_plAllRows(range.from,range.to);
-  if(!rows.length) return '<div style="padding:40px 16px;text-align:center;color:var(--muted);font-size:13px">No project has any recorded revenue or cost in this period.<br>Try a wider date range.</div>';
+  const _plOutN=(projects||[]).filter(p=>p && p.plOut===true);   // V102.52
+  const _plOutNote=_plOutN.length?'<div style="padding:0 14px 8px;font-size:11px;color:var(--muted)">Kept out (plants): '+_plOutN.map(p=>_esc(p.name||'')).join(', ')+'</div>':'';
+  if(!rows.length) return _plOutNote+'<div style="padding:40px 16px;text-align:center;color:var(--muted);font-size:13px">No project has any recorded revenue or cost in this period.<br>Try a wider date range.</div>';
   const tRev=rows.reduce((s,r)=>s+r.revenue,0), tCost=rows.reduce((s,r)=>s+r.cost,0);
   const tProf=tRev-tCost, tMar=tRev>0?(tProf/tRev)*100:0;
   const peak=Math.max.apply(null,rows.map(r=>Math.abs(r.profit)).concat([1]));
   const loss=rows.filter(r=>r.profit<-0.0001).length;
-  let h=_plWarnHTML(['Revenue is GROSS \u2014 before RA-bill deductions.','Royalty is NOT included in cost.',
+  let h=_plOutNote+_plWarnHTML(['Revenue is GROSS \u2014 before RA-bill deductions.','Royalty is NOT included in cost.',
     'A project can read as a loss simply because its work done is not fully entered.']);
   h+='<div style="margin:0 14px 10px;background:var(--bg2);border:1px solid var(--border);border-left:4px solid '+_plCol(tProf)+';border-radius:10px;padding:12px 14px">'+
     '<div style="display:flex;justify-content:space-between;padding:3px 0"><span style="font-size:12px;color:var(--muted)">Revenue (gross)</span><span style="font-size:13px;font-weight:700;color:var(--white)">'+_plMoney(tRev)+'</span></div>'+
@@ -16753,6 +16791,7 @@ function exportProjectPLPDF(){
       rows.map(r=>'<tr><td '+td+'>'+esc(r.name)+'</td><td '+tdR+'>'+money(r.revenue)+'</td><td '+tdR+'>'+money(r.cost)+'</td><td '+tdR+'>'+money(r.profit)+'</td><td '+tdR+'>'+(r.revenue>0?r.marginPct.toFixed(1)+'%':'\u2014')+'</td></tr>').join('')+
       '<tr><td '+td+' style="font-weight:700;border-top:2px solid #333">TOTAL</td><td '+tdR+' style="font-weight:700;border-top:2px solid #333">'+money(tRev)+'</td><td '+tdR+' style="font-weight:700;border-top:2px solid #333">'+money(tCost)+'</td><td '+tdR+' style="font-weight:700;border-top:2px solid #333">'+money(tRev-tCost)+'</td><td '+tdR+' style="border-top:2px solid #333"></td></tr>'+
       '</tbody></table>';
+    { const _ko=(projects||[]).filter(p=>p&&p.plOut===true); if(_ko.length) body+='<div style="font-size:10px;color:#555;margin-bottom:4px">Kept out (plants): '+_ko.map(p=>esc(p.name||'')).join(', ')+'</div>'; }   // V102.52
     body+='<div style="font-size:10px;color:#555">Revenue is gross, before RA-bill deductions. Royalty is not included in cost. A project can read as a loss because its work done is not fully entered.</div>';
   } else {
     const s=_plSummary(_plProjId, range.from, range.to);
@@ -16984,6 +17023,7 @@ function openNewProject(){
   _projEditId=null;
   document.getElementById('proj-new-title').textContent='NEW PROJECT';
   ['proj-name','proj-wono','proj-dept','proj-div','proj-agno','proj-wodate','proj-woamt'].forEach(i=>{const e=document.getElementById(i);if(e)e.value='';});
+  { const c=document.getElementById('proj-plout'); if(c) c.checked=false; }   // V102.52
   fillProjectSiteSelect();
   show('scr-project-new');
 }
@@ -16999,6 +17039,7 @@ function openEditProject(){
   document.getElementById('proj-agno').value=p.agreementNo||'';
   document.getElementById('proj-wodate').value=p.woDate||'';
   document.getElementById('proj-woamt').value=p.woAmount||'';
+  { const c=document.getElementById('proj-plout'); if(c) c.checked=p.plOut===true; }   // V102.52
   fillProjectSiteSelect(p.siteId);
   show('scr-project-new');
 }
@@ -17015,7 +17056,8 @@ function saveProject(){
     division:document.getElementById('proj-div').value.trim(),
     agreementNo:document.getElementById('proj-agno').value.trim(),
     woDate:document.getElementById('proj-wodate').value,
-    woAmount:parseFloat(document.getElementById('proj-woamt').value)||0
+    woAmount:parseFloat(document.getElementById('proj-woamt').value)||0,
+    plOut:!!(document.getElementById('proj-plout')||{}).checked   // V102.52: plant kept out of the all-projects P&L
   };
   if(_projEditId){
     const i=projects.findIndex(x=>x.id===_projEditId);
@@ -18102,7 +18144,10 @@ function _storeMatHistory(materialId, projectId){
     rows.push({ dir:'in', date:r.date||'', qty:Number(r.qty)||0, unit:r.unit||'',
       who:_storePartyName(r), sub:_storeMatHistSub(r,'in'), loss:_retLossText(r), ts:Number(r.ts)||0 });
   });
-  _storesOutward().filter(same).forEach(r=>{
+  // V102.52: drum mix lines read as one line per day (sum of that day's trips); balance is unchanged
+  _dmxGroupOut(_storesOutward().filter(same)).forEach(r=>{
+    if(r.dmxDay){ const n=_dmxTripCount(r); rows.push({ dir:'out', date:r.date||'', qty:Number(r.qty)||0, unit:r.unit||'',
+      who:'Drum mix · '+n+' trip'+(n===1?'':'s'), sub:'Automatic from mix trips', ts:Number(r.ts)||0 }); return; }
     rows.push({ dir:'out', date:r.date||'', qty:Number(r.qty)||0, unit:r.unit||'',
       who:_storeIssuedTo(r), sub:_storeMatHistSub(r,'out'), ts:Number(r.ts)||0 });
   });
@@ -18246,7 +18291,8 @@ function _storesBalanceHTML(){
 // ── INWARD / OUTWARD log ──
 function _storesLogHTML(mode){
   const all=(mode==='inward'?_storesInward():_storesOutward()).slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
-  const recs=all.filter(r=>_storeDateInRange(r.date) && _storesMatchSearch(_storeDispName(r))); // V99.49: + name search
+  let recs=all.filter(r=>_storeDateInRange(r.date) && _storesMatchSearch(_storeDispName(r))); // V99.49: + name search
+  if(mode==='outward' && typeof _dmxGroupOut==='function') recs=_dmxGroupOut(recs);   // V102.52: drum mix lines → one per day
   // Date-filter chip bar (Inward/Outward only)
   const chip=(id,lbl)=>{ const on=_storeDateRange===id;
     return `<span onclick="_storeSetRange('${id}')" style="font-size:11px;font-weight:700;padding:5px 11px;border-radius:7px;cursor:pointer;white-space:nowrap;border:1px solid ${on?'var(--amber)':'var(--border)'};background:${on?'var(--amber)':''};color:${on?'#1a1205':'var(--muted)'}">${lbl}</span>`; };
@@ -18263,6 +18309,7 @@ function _storesLogHTML(mode){
     return filterBar+'<div style="padding:24px 16px;text-align:center;color:var(--muted);font-size:13px">No '+mode+' entries in this period.'+(all.length?'<br><span style="font-size:11px">'+all.length+' total entr'+(all.length===1?'y':'ies')+' — widen the date range to see them.</span>':'')+'</div>';
   }
   return filterBar+'<div style="padding:4px 12px">'+recs.map(r=>{
+    if(r.dmxDay) return _dmxDayCardHTML(r);   // V102.52
     const det = mode==='inward'
       ? _storeSourceLbl(r.source)+(r.sourceNote?(' · '+_esc(r.sourceNote)):'')
       : (r.outReason==='transfer'
@@ -21646,6 +21693,328 @@ const _rmcRow=(label,ctrl,sub)=>`<div style="display:flex;justify-content:space-
 const _rmcInpS='width:100%;box-sizing:border-box;height:38px;background:var(--bg3);color:var(--white);border:1px solid var(--border);border-radius:8px;padding:0 10px;font-size:14px;text-align:right;font-family:var(--fb)';
 const _rmcSeg=(opts,cur,on)=>`<div style="display:flex;border:1px solid var(--border);border-radius:10px;overflow:hidden">${opts.map(([v,l])=>{const a=v===cur;return `<button onclick="${on}('${v}')" style="flex:1;height:40px;border:none;border-left:1px solid var(--border);background:${a?'rgba(255,179,0,.14)':'transparent'};color:${a?'var(--amber)':'var(--muted)'};font-size:13px;font-weight:700;cursor:pointer">${l}</button>`;}).join('').replace('border-left:1px solid var(--border);','')}</div>`;
 function _rmcWrap(html){ return `<div style="max-width:620px;margin:0 auto">${html}<div class="pad-bot"></div></div>`; }
+// ════════════════════════════════════════════════════════════════════
+// V102.52 — DRUM MIX PLANT (first version, owner "go" 26 Nov 2026)
+// Brief: claude/fuellog-v102-52-drum-mix-build-brief.md
+//  • Settings = ONE record in the rmcProd collection: {type:'dmxcfg', id:'dmx-cfg'}. Every RMC
+//    reader filters on type 'prod' / 'test' / 'past' or on id 'rmc-cfg', so it never appears
+//    there, and no new Firebase folder is needed. Owner only.
+//  • Each mix trip from a switched-on plant, dated on/after the start date, writes TWO 'consumed'
+//    records at the plant store: trip-dmx-<tripId><line>-bit (bitumen kg) and -ldo (burner LDO L),
+//    autoTrip:true + tripId — so the existing trip save / edit / delete / reject clean-up handles
+//    them exactly like trip-out-<id>. One record PER TRIP (never a shared daily total: several
+//    phones save trips at once). Stock screens SHOW them as one line per day per material.
+//  • Mix materials themselves are never stocked (like RMC grades): no outward for the mix.
+//  • Figures carry an "effective from" date. A trip always uses the row valid on its own date,
+//    and new rows can only start today or later — so past figures never change (rule 8).
+//  • Quantity = LOOSE cum typed on the trip (per trip × number of trips). Compacted = loose ÷ ratio.
+// ════════════════════════════════════════════════════════════════════
+const DMX_LAYERS=[['bm','BM'],['carpet','Carpet (OGC)'],['seal','Seal coat'],['dbm','DBM']];
+const DMX_DEF={ratio:1.33, ldo:15, bm:79, carpet:73, sealA:109, sealB:76, dbm:108, sealDefault:'A'};
+const DMX_LOAD_T={bm:29.4, carpet:28.4, seal:25.9, dbm:29.4};   // tonnes per 12 compacted cum — used ONLY to show the % beside each figure
+function _dmxCfg(){
+  const c=(rmcProd||[]).find(x=>x&&x.id==='dmx-cfg')||{};
+  return { saved:!!c.id, plants:Array.isArray(c.plants)?c.plants:[], startDate:c.startDate||'',
+    layers:Object.assign({bm:'',carpet:'',seal:'',dbm:''}, c.layers||{}), bitId:c.bitId||'', ldoId:c.ldoId||'',
+    rates:(Array.isArray(c.rates)?c.rates:[]).filter(r=>r&&r.from).slice().sort((a,b)=>String(a.from).localeCompare(String(b.from))),
+    sealTypes:(Array.isArray(c.sealTypes)?c.sealTypes:[]).filter(s=>s&&s.pid&&s.from).slice().sort((a,b)=>String(a.from).localeCompare(String(b.from))) };
+}
+function _dmxRateOn(cfg,date){ let r=null; cfg.rates.forEach(x=>{ if(String(x.from)<=String(date||'')) r=x; }); return r; }
+function _dmxSealType(cfg,pid,date,rate){ let t=''; if(pid) cfg.sealTypes.forEach(s=>{ if(s.pid===pid && String(s.from)<=String(date||'')) t=s.type; }); return (t==='A'||t==='B')?t:((rate&&rate.sealDefault==='B')?'B':'A'); }
+function _dmxLayerOf(cfg,matId){ if(!matId) return ''; return Object.keys(cfg.layers).find(k=>cfg.layers[k] && cfg.layers[k]===matId)||''; }
+function _dmxIsCum(u){ return /^\s*(cum|cu\.?\s*m|cmt|m3|m³|cubic)/i.test(String(u||'')); }
+function _dmxLitUnit(mat){
+  if(!mat) return null;
+  const re=/^\s*(l|lt|ltr|ltrs|lit|litre|litres|liter|liters)\s*$/i;
+  if(re.test(String(mat.baseUnit||''))) return mat.baseUnit;
+  const a=(mat.altUnits||[]).find(u=>re.test(String(u.unit||''))); return a?a.unit:null;
+}
+// Pure calculation — the trip sync, the trip-screen line and the apply list all use this one function.
+// o = {date, fromLoc, internal, toLoc, matId, qty (total loose), unit}. Returns null when the material
+// is not a drum mix material; otherwise {mix:true, ok, why, ...figures}.
+function _dmxCalc(o){
+  const cfg=_dmxCfg(); const layer=_dmxLayerOf(cfg,o.matId);
+  if(!layer) return null;
+  const res={mix:true, ok:false, why:'', layer};
+  if(!o.fromLoc || !cfg.plants.includes(o.fromLoc.projectId)){ res.why='plant'; return res; }
+  if(!cfg.startDate || String(o.date||'')<cfg.startDate){ res.why='date'; return res; }
+  const rate=_dmxRateOn(cfg,o.date); if(!rate){ res.why='rates'; return res; }
+  if(!_dmxIsCum(o.unit)){ res.why='unit'; return res; }
+  if(!(Number(o.qty)>0)){ res.why='qty'; return res; }
+  const ratio=Number(rate.ratio)>0?Number(rate.ratio):DMX_DEF.ratio;
+  let sealType='', kg;
+  if(layer==='seal'){ sealType=_dmxSealType(cfg, (o.internal&&o.toLoc)?o.toLoc.projectId:'', o.date, rate); kg=Number(sealType==='B'?rate.sealB:rate.sealA)||0; }
+  else kg=Number(rate[layer])||0;
+  const loose=Number(o.qty), compacted=loose/ratio, ldoPer=Number(rate.ldo)||0;
+  return Object.assign(res,{ ok:true, loose, ratio, compacted, kgPerCum:kg, ldoPerCum:ldoPer, sealType, rateFrom:rate.from,
+    bitKg:Math.round(compacted*kg), ldoL:_rmcR(compacted*ldoPer,1), plantPid:o.fromLoc.projectId });
+}
+// The trip's consumed records for one line. Same ids and content from every caller.
+function _dmxTripRecs(trip, idSuffix, c, meta){
+  const cfg=_dmxCfg(), out=[]; const loc=_rmcLoc(c.plantPid); if(!loc) return out;
+  [['bit',cfg.bitId,c.bitKg,'kg',c.kgPerCum],['ldo',cfg.ldoId,c.ldoL,'lit',c.ldoPerCum]].forEach(([k,mid,q,kind,per])=>{
+    if(!(q>0)) return; const mat=_rmcMat(mid); if(!mat) return;
+    const eu=kind==='kg'?_rmcKgUnit(mat):_dmxLitUnit(mat); if(!eu) return;
+    const conv=_storeConvertQty(mat,q,eu); if(!conv.ok) return;
+    out.push({ id:'trip-dmx-'+trip.id+idSuffix+'-'+k, projectId:loc.projectId, siteId:loc.siteId, materialId:mat.id, materialName:mat.name,
+      qty:conv.qty, unit:conv.unit, entryQty:q, entryUnit:eu, baseUnit:conv.baseUnit,
+      date:trip.date, note:'Drum mix · '+_rmcR(c.loose,2)+' cum loose → '+_rmcR(c.compacted,2)+' compacted', tripId:trip.id, tripRef:trip.slipNo||'',
+      autoTrip:true, dmxAuto:true, dmxLayer:c.layer, dmxLoose:_rmcR(c.loose,3), dmxCompacted:_rmcR(c.compacted,3), dmxPerCum:per, dmxSeal:c.sealType||'', dmxRateFrom:c.rateFrom||'',
+      outReason:'consumed', toSiteId:'', boqItemId:'', boqDesc:'Drum mix', ...meta });
+  });
+  return out;
+}
+function _dmxWant(c){ return (c&&c.ok)?((c.bitKg>0?1:0)+(c.ldoL>0?1:0)):0; }
+// Plant stock of one material, leaving out one trip's own drum mix lines (so an edit is not counted twice).
+function _dmxStock(matId, pid, exceptTripId){
+  const inQ=(materialInward||[]).filter(r=>r&&r.materialId===matId && r.projectId===pid).reduce((a,r)=>a+(Number(r.qty)||0),0);
+  const outQ=(materialOutward||[]).filter(r=>r&&r.materialId===matId && r.projectId===pid && !(exceptTripId && r.dmxAuto && r.tripId===exceptTripId)).reduce((a,r)=>a+(Number(r.qty)||0),0);
+  return _rmcR(inQ-outQ,3);
+}
+
+// ── Trip screen: show what FuelLog understood (main material line) ──
+function _dmxTripNote(){
+  const el=document.getElementById('trip-dmx-note'); if(!el) return;
+  const g=id=>document.getElementById(id);
+  const matId=(g('trip-material')||{}).value||'';
+  const cfg=_dmxCfg(); if(!_dmxLayerOf(cfg,matId)){ el.innerHTML=''; return; }
+  const internal=((document.querySelector('input[name="trip-mtype"]:checked')||{}).value)==='internal';
+  const fromLoc=_tripLocToStore((g('trip-from-site')||{}).value||'');
+  const toLoc=internal?_tripLocToStore((g('trip-to-site')||{}).value||''):null;
+  const per=parseFloat((g('trip-qty')||{}).value)||0, n=Math.max(1,parseInt((g('trip-count')||{}).value)||1);
+  const unit=(g('trip-unit')||{}).value||'', date=(g('trip-date')||{}).value||today();
+  const c=_dmxCalc({date, fromLoc, internal, toLoc, matId, qty:per*n, unit});
+  const box=(col,html)=>`<div style="margin:-2px 0 12px;padding:9px 11px;border-radius:9px;border:1px solid var(--${col});background:var(--bg2);font-size:12px;line-height:1.55">${html}</div>`;
+  if(!c.ok){
+    const msg={plant:'Drum mix — no bitumen / LDO deduction: this place is not a drum mix plant in Drum Mix settings.',
+      date:'Drum mix — no bitumen / LDO deduction: the date is before the drum mix start date'+(cfg.startDate?(' ('+fmtD(cfg.startDate)+')'):'')+'.',
+      rates:'Drum mix — figures are not set for this date yet (Drum Mix settings).',
+      unit:'⚠ Drum mix: choose the unit <b>cum</b> and type the LOOSE cum in the tipper, so bitumen and LDO are deducted.',
+      qty:'Drum mix: type the LOOSE cum in the tipper (e.g. 16).'}[c.why]||'';
+    el.innerHTML=msg?box(c.why==='unit'?'amber':'border',msg):''; return;
+  }
+  const bit=_rmcMat(cfg.bitId), ldo=_rmcMat(cfg.ldoId);
+  let html=`<b>${n>1?(n+' trips × '+_rmcR(per,2)+' = '):''}${_rmcR(c.loose,2)} cum loose → ${_rmcR(c.compacted,2)} compacted</b>`+
+    `<br>${_esc(bit?bit.name:'Bitumen')} ${c.bitKg.toLocaleString('en-IN')} kg · ${_esc(ldo?ldo.name:'LDO')} ${c.ldoL.toLocaleString('en-IN')} L`+
+    `<span style="color:var(--muted)"> · from ${_esc(_storeProjName(c.plantPid))}${c.layer==='seal'?(' · seal coat Type '+c.sealType):''}</span>`;
+  let col='green';
+  if(_dmxTripRecs({id:'chk',date,slipNo:''},'',c,{}).length<_dmxWant(c)){ col='amber'; html+=`<br><span style="color:var(--red);font-weight:700">⚠ Drum Mix settings need fixing (bitumen / LDO material or its unit) — this trip's bitumen / LDO will NOT be updated. Tell the owner.</span>`; }
+  if(per>32){ col='amber'; html+=`<br><span style="color:var(--amber);font-weight:700">⚠ More than 32 cum in one load — please check the quantity.</span>`; }
+  const eid=(typeof _tripEntryState!=='undefined'&&_tripEntryState)?_tripEntryState.editId:null;
+  [[bit,c.bitKg,'kg'],[ldo,c.ldoL,'L']].forEach(([m,q,u])=>{
+    if(!m||!(q>0)) return; const have=_dmxStock(m.id,c.plantPid,eid);
+    if(have-q<0){ col='amber'; html+=`<br><span style="color:var(--red)">⚠ ${_esc(m.name)} stock at ${_esc(_storeProjName(c.plantPid))} will go below zero (now ${have.toLocaleString('en-IN')} ${_esc(m.baseUnit||u)}). The trip still saves.</span>`; }
+  });
+  el.innerHTML=box(col,html);
+}
+
+// ── Stock screens: drum mix lines shown as ONE line per day per material per plant ──
+let _dmxOpenDay='';
+function _dmxGroupOut(recs){
+  const out=[], idx={};
+  (recs||[]).forEach(r=>{
+    if(!r||!r.dmxAuto){ out.push(r); return; }
+    const k=r.projectId+'|'+r.materialId+'|'+r.date;
+    let gp=idx[k];
+    if(!gp){ gp=idx[k]={ id:'dmxday-'+k, dmxDay:true, key:k, autoTrip:true, projectId:r.projectId, materialId:r.materialId, materialName:r.materialName,
+      date:r.date, unit:r.unit, qty:0, ts:Number(r.ts)||0, members:[] }; out.push(gp); }
+    gp.qty=_rmcR(gp.qty+(Number(r.qty)||0),3); gp.members.push(r);
+  });
+  return out;
+}
+function _dmxTripCount(gp){ return new Set(gp.members.map(m=>m.tripId)).size; }
+function _dmxToggleDay(k){ _dmxOpenDay=(_dmxOpenDay===k)?'':k; renderStoresBody(); }
+function _dmxDayCardHTML(gp){
+  const open=_dmxOpenDay===gp.key, nT=_dmxTripCount(gp);
+  const showLoc=!(_storesProjectId||_storesProjFilter);
+  const rows=open?gp.members.slice().sort((a,b)=>(a.ts||0)-(b.ts||0)).map(m=>{
+    const t=(trips||[]).find(x=>x.id===m.tripId); const v=t?gV(t.vehicleId):null;
+    return `<div onclick="openTripDetail('${_esc(m.tripId)}')" style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-top:1px solid var(--border);cursor:pointer;font-size:12px">
+      <span style="min-width:0">${_esc([(v&&v.name)||'', m.tripRef?('Slip '+m.tripRef):''].filter(Boolean).join(' · ')||'Trip')}<span style="color:var(--muted)"> · ${_rmcR(m.dmxLoose,2)} loose → ${_rmcR(m.dmxCompacted,2)} cum</span></span>
+      <span style="white-space:nowrap;font-weight:700">${(Number(m.qty)||0).toLocaleString('en-IN')} ${_esc(m.unit||'')} ›</span></div>`;
+  }).join(''):'';
+  return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:8px">
+    <div onclick="_dmxToggleDay('${_esc(gp.key)}')" style="display:flex;justify-content:space-between;gap:8px;cursor:pointer">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:700">${_esc(_storeDispName(gp))}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">🔥 Drum mix · ${nT} trip${nT===1?'':'s'} · <span style="color:var(--blue)">${open?'hide trips':'show trips'}</span></div>
+        ${showLoc?`<div style="font-size:11px;color:var(--amber);margin-top:2px">${_esc(_storeProjName(gp.projectId))}</div>`:''}
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">${fmtD(gp.date)} · automatic from mix trips</div>
+      </div>
+      <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+        <div style="font-size:16px;font-weight:800;color:var(--amber)">${(Number(gp.qty)||0).toLocaleString('en-IN')}<span style="font-size:11px;color:var(--muted);margin-left:3px">${_esc(gp.unit||'')}</span></div>
+        <span style="font-size:10px;color:var(--purple);border:1px solid var(--purple);border-radius:6px;padding:3px 7px;font-weight:700">🔗 from Trips</span>
+      </div>
+    </div>${rows?`<div style="margin-top:6px">${rows}</div>`:''}
+  </div>`;
+}
+
+// ── SETTINGS SCREEN (owner) ──
+let _dmxView='settings', _dmxSealDraft=null;
+function openDmx(){ if(!isOwner()){ alert('Owner only'); return; } _dmxView='settings'; _dmxSealDraft=null; show('scr-dmx'); renderDmx(); }
+function renderDmx(){
+  const el=document.getElementById('dmx-body'); if(!el) return;
+  if(!isOwner()){ el.innerHTML=''; return; }
+  if(_dmxView==='apply') return _dmxRenderApply(el);
+  return _dmxRenderSettings(el);
+}
+function _dmxPct(layer,kg){ const t=DMX_LOAD_T[layer==='sealA'||layer==='sealB'?'seal':layer]; return (t>0&&kg>0)?('≈ '+(kg*12/(t*1000)*100).toFixed(1)+'% of mix'):''; }
+function _dmxRenderSettings(el){
+  const cfg=_dmxCfg();
+  const mats=[...(materials||[])].sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  const selS=_rmcInpS+';text-align:left';
+  const matSel=(id,val)=>`<select id="${id}" onchange="renderDmxWarn()" style="${selS}"><option value="">— pick material —</option>${mats.map(m=>`<option value="${m.id}" ${m.id===val?'selected':''}>${_esc(m.name)} (${_esc(m.baseUnit||'')})</option>`).join('')}</select>`;
+  const locs=[PLANT_PID].concat((projects||[]).filter(p=>/plant/i.test(p.name||'') || cfg.plants.includes(p.id)).map(p=>p.id));
+  const plantRow=pid=>`<label style="display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--border);cursor:pointer;font-size:14px;font-weight:600"><input type="checkbox" class="dmxs-plant" value="${pid}" ${cfg.plants.includes(pid)?'checked':''} style="width:18px;height:18px">${_esc(_storeProjName(pid))}</label>`;
+  const cur=_dmxRateOn(cfg, today()) || cfg.rates[cfg.rates.length-1] || DMX_DEF;
+  const num=(k,v,step)=>`<input id="dmxs-f-${k}" type="number" inputmode="decimal" step="${step||'any'}" value="${v==null?'':v}" oninput="renderDmxWarn()" style="${_rmcInpS}">`;
+  const fig=(k,label,unit)=>_rmcRow(label+` <span style="font-size:11px;color:var(--muted);font-weight:400">${unit}</span>`, num(k,cur[k]), `<span id="dmxs-pct-${k}">${_dmxPct(k,Number(cur[k]))}</span>`);
+  const fromDef=cfg.rates.length?today():(cfg.startDate||'2026-11-27');
+  const hist=cfg.rates.length?cfg.rates.map(r=>`<div style="font-size:11px;color:var(--muted);padding:3px 0">From ${_esc(fmtD(r.from))}: ratio ${r.ratio} · LDO ${r.ldo} L · BM ${r.bm} · carpet ${r.carpet} · seal A ${r.sealA} / B ${r.sealB} · DBM ${r.dbm} kg · seal default ${r.sealDefault||'A'}</div>`).join(''):'<div style="font-size:11px;color:var(--muted)">Not saved yet.</div>';
+  if(!_dmxSealDraft){ _dmxSealDraft={}; const pids=new Set(cfg.sealTypes.map(s=>s.pid)); pids.forEach(pid=>{ _dmxSealDraft[pid]=_dmxSealType(cfg,pid,'9999-12-31',null); }); }
+  const projOpts=(projects||[]).filter(p=>p.status!=='completed' && !cfg.plants.includes(p.id) && !(p.id in _dmxSealDraft)).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  const sealRows=Object.keys(_dmxSealDraft).map(pid=>_rmcRow(_esc(_storeProjName(pid)), `<select class="dmxs-seal" data-pid="${pid}" onchange="_dmxSealDraft['${pid}']=this.value" style="${selS}"><option value="A" ${_dmxSealDraft[pid]==='A'?'selected':''}>Type A</option><option value="B" ${_dmxSealDraft[pid]==='B'?'selected':''}>Type B</option></select>`)).join('');
+  const sealAdd=`<div style="display:flex;gap:8px;margin-top:8px"><select id="dmxs-seal-add" style="${selS};flex:1"><option value="">+ Add a road…</option>${projOpts.map(p=>`<option value="${p.id}">${_esc(p.name)}</option>`).join('')}</select><button onclick="_dmxSealAdd()" style="height:38px;padding:0 14px;border-radius:8px;border:1px solid var(--amber);background:transparent;color:var(--amber);font-weight:700">ADD</button></div>`;
+  const pend=cfg.saved?_dmxMissingList().length:0;
+  const n=(t,d)=>`<div style="${_rmcCard}">${_rmcH(t)}${d}</div>`;
+  el.innerHTML=_rmcWrap(
+    (pend?`<div style="${_rmcCard};border-color:var(--amber)"><div style="font-size:13px;font-weight:700;color:var(--amber)">⚠ ${pend} mix trip line${pend===1?'':'s'} since the start date ${pend===1?'has':'have'} no bitumen / LDO deduction yet</div><div style="font-size:12px;color:var(--muted);margin-top:4px">Usually trips entered before this version was published.</div><div style="display:flex;margin-top:10px">${_rmcSec('Review and apply ›',"_dmxView='apply';renderDmx()",'amber')}</div></div>`:'')+
+    n('1 · DRUM MIX PLANTS', locs.map(plantRow).join('')+`<div style="font-size:11px;color:var(--muted);margin-top:8px">Mix trips from a ticked plant deduct bitumen and burner LDO from that plant's stock.</div>`)+
+    n('2 · START DATE', _rmcRow('Deduct from', `<input id="dmxs-start" type="date" value="${_esc(cfg.startDate||'2026-11-27')}" style="${selS}">`, 'Trips before this date are never touched'))+
+    n('3 · MIX MATERIALS', DMX_LAYERS.map(([k,l])=>_rmcRow(l, matSel('dmxs-l-'+k, cfg.layers[k]))).join('')+`<div id="dmxs-warn-l" style="font-size:11px;margin-top:6px"></div><div style="font-size:11px;color:var(--muted);margin-top:6px">Leave a layer blank if it is not produced. These materials are never stocked — only bitumen and LDO come off stock.</div>`)+
+    n('4 · BITUMEN AND LDO', _rmcRow('Bitumen (kg)', matSel('dmxs-bit', cfg.bitId))+_rmcRow('LDO (litres)', matSel('dmxs-ldo', cfg.ldoId))+`<div id="dmxs-warn-m" style="font-size:11px;margin-top:6px"></div>`)+
+    n('5 · FIGURES', `<div style="font-size:12px;color:var(--muted);margin-bottom:4px">Per COMPACTED cum. MoRTH figures — change any time; a change starts on the date below and never alters older trips.</div>`+
+      _rmcRow('Loose ÷ compacted', num('ratio',cur.ratio), '16 cum loose ÷ 1.33 ≈ 12 compacted')+
+      _rmcRow('Burner LDO <span style="font-size:11px;color:var(--muted);font-weight:400">L per cum</span>', num('ldo',cur.ldo))+
+      fig('bm','BM bitumen','kg per cum')+fig('carpet','Carpet bitumen','kg per cum')+fig('sealA','Seal coat Type A','kg per cum')+fig('sealB','Seal coat Type B','kg per cum')+fig('dbm','DBM bitumen','kg per cum')+
+      _rmcRow('Seal coat type for outside sales', `<select id="dmxs-sealdef" style="${selS}"><option value="A" ${cur.sealDefault!=='B'?'selected':''}>Type A</option><option value="B" ${cur.sealDefault==='B'?'selected':''}>Type B</option></select>`, 'and for roads not listed in section 6')+
+      _rmcRow('These figures apply from', `<input id="dmxs-from" type="date" value="${_esc(fromDef)}" ${cfg.rates.length?`min="${today()}"`:''} style="${selS}">`, cfg.rates.length?'Today or later':'First save: the start date')+
+      `<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:6px">${hist}</div>`)+
+    n('6 · SEAL COAT TYPE BY ROAD', (sealRows||'<div style="font-size:12px;color:var(--muted)">No road set — all use the type above.</div>')+sealAdd+`<div style="font-size:11px;color:var(--muted);margin-top:6px">A change applies to trips from today.</div>`)+
+    _rmcPri('SAVE DRUM MIX SETTINGS','saveDmxSettings()'));
+  renderDmxWarn();
+}
+function _dmxSealAdd(){ const s=document.getElementById('dmxs-seal-add'); if(!s||!s.value) return; _dmxSealDraft[s.value]='A'; const keep=_dmxReadForm(); renderDmx(); _dmxRefill(keep); }
+// Keep typed (unsaved) values when the seal list redraws
+function _dmxReadForm(){ const o={}; document.querySelectorAll('#dmx-body input,#dmx-body select').forEach(e=>{ if(!e.id) return; o[e.id]=e.type==='checkbox'?e.checked:e.value; }); o._plants=Array.from(document.querySelectorAll('.dmxs-plant:checked')).map(x=>x.value); return o; }
+function _dmxRefill(o){ Object.keys(o).forEach(id=>{ if(id[0]==='_') return; const e=document.getElementById(id); if(e && e.type!=='checkbox') e.value=o[id]; }); document.querySelectorAll('.dmxs-plant').forEach(x=>{ x.checked=o._plants.includes(x.value); }); renderDmxWarn(); }
+function renderDmxWarn(){
+  const g=id=>(document.getElementById(id)||{}).value||'';
+  ['bm','carpet','sealA','sealB','dbm'].forEach(k=>{ const e=document.getElementById('dmxs-pct-'+k); if(e) e.textContent=_dmxPct(k,parseFloat(g('dmxs-f-'+k))||0); });
+  const wl=document.getElementById('dmxs-warn-l');
+  if(wl){ const bad=DMX_LAYERS.map(([k])=>_rmcMat(g('dmxs-l-'+k))).filter(m=>m && !_dmxIsCum(m.baseUnit));
+    wl.innerHTML=bad.length?`<span style="color:var(--red)">⚠ ${bad.map(m=>_esc(m.name)+' is in '+_esc(m.baseUnit||'?')).join(', ')}. Mix must be in cum — change its unit in Materials first.</span>`:''; }
+  const wm=document.getElementById('dmxs-warn-m');
+  if(wm){ const p=[]; const b=_rmcMat(g('dmxs-bit')), l=_rmcMat(g('dmxs-ldo'));
+    if(b){ if(!_rmcKgUnit(b)) p.push(_esc(b.name)+' has no kg unit'); if(b.tracksStock!==true) p.push(_esc(b.name)+' is not "Track stock"'); }
+    if(l){ if(!_dmxLitUnit(l)) p.push(_esc(l.name)+' has no litre unit'); if(l.tracksStock!==true) p.push(_esc(l.name)+' is not "Track stock"'); }
+    wm.innerHTML=p.length?`<span style="color:var(--red)">⚠ ${p.join(' · ')} — fix in Materials first.</span>`:''; }
+}
+async function saveDmxSettings(){
+  if(!isOwner()){ alert('Owner only'); return; }
+  const g=id=>(document.getElementById(id)||{}).value||'';
+  const cfg=_dmxCfg();
+  const plants=Array.from(document.querySelectorAll('.dmxs-plant:checked')).map(x=>x.value);
+  const startDate=g('dmxs-start');
+  const layers={}; DMX_LAYERS.forEach(([k])=>{ layers[k]=g('dmxs-l-'+k); });
+  const bitId=g('dmxs-bit'), ldoId=g('dmxs-ldo');
+  const P=[];
+  if(!plants.length) P.push('Tick at least one plant.');
+  if(!startDate) P.push('Pick the start date.');
+  const used=Object.values(layers).filter(Boolean);
+  if(!used.length) P.push('Pick at least one mix material.');
+  if(new Set(used).size!==used.length) P.push('The same material is picked for two layers.');
+  used.forEach(id=>{ const m=_rmcMat(id); if(m && !_dmxIsCum(m.baseUnit)) P.push(m.name+' is in '+(m.baseUnit||'?')+' — mix must be in cum (change it in Materials).'); if(_rmcIsGrade(id)) P.push((m?m.name:'A mix material')+' is an RMC grade.'); });
+  const bit=_rmcMat(bitId), ldo=_rmcMat(ldoId);
+  if(!bit) P.push('Pick the bitumen material.'); else { if(!_rmcKgUnit(bit)) P.push(bit.name+' has no kg unit.'); if(bit.tracksStock!==true) P.push(bit.name+' must be "Track stock" (otherwise it is costed twice).'); }
+  if(!ldo) P.push('Pick the LDO material.'); else { if(!_dmxLitUnit(ldo)) P.push(ldo.name+' has no litre unit.'); if(ldo.tracksStock!==true) P.push(ldo.name+' must be "Track stock".'); }
+  if(bitId && bitId===ldoId) P.push('Bitumen and LDO cannot be the same material.');
+  if(used.includes(bitId)||used.includes(ldoId)) P.push('Bitumen / LDO cannot also be a mix material.');
+  const F={}; let fbad=false;
+  ['ratio','ldo','bm','carpet','sealA','sealB','dbm'].forEach(k=>{ const v=parseFloat(g('dmxs-f-'+k)); if(!(v>=0)||isNaN(v)) fbad=true; F[k]=isNaN(v)?0:v; });
+  if(fbad) P.push('Fill every figure in section 5 (0 is allowed).');
+  if(!(F.ratio>=1 && F.ratio<=2)) P.push('Loose ÷ compacted should be between 1 and 2 (usually 1.33).');
+  F.sealDefault=g('dmxs-sealdef')==='B'?'B':'A';
+  let from=g('dmxs-from');
+  if(!from) P.push('Pick the date the figures apply from.');
+  if(cfg.rates.length && from && from<today()) P.push('Figure changes can start today or later, so older trips keep their figures.');
+  if(P.length){ alert('Cannot save:\n\n• '+P.join('\n• ')); return; }
+  // Figures: add a dated row only if they differ from the row in use on that date. First save: row from the start date.
+  let rates=cfg.rates.slice();
+  if(!rates.length){ rates=[Object.assign({from:startDate},F)]; }
+  else {
+    // Start date moved earlier than the first figures: the first row covers it (no trip had lines before it).
+    if(startDate<rates[0].from) rates[0]=Object.assign({},rates[0],{from:startDate});
+    const on=_dmxRateOn(cfg,from);
+    const same=on && ['ratio','ldo','bm','carpet','sealA','sealB','dbm','sealDefault'].every(k=>String(on[k])===String(F[k]));
+    if(!same){ rates=rates.filter(r=>r.from!==from); rates.push(Object.assign({from},F)); rates.sort((a,b)=>String(a.from).localeCompare(String(b.from))); }
+  }
+  // Seal coat types: a new dated entry only where the type changed; old entries kept.
+  const sealTypes=cfg.sealTypes.slice(), td=today();
+  Object.keys(_dmxSealDraft||{}).forEach(pid=>{ const want=_dmxSealDraft[pid]==='B'?'B':'A';
+    const now=_dmxSealType(cfg,pid,'9999-12-31',null); const had=cfg.sealTypes.some(s=>s.pid===pid);
+    if(!had || now!==want){ const sf=(!had && (td<startDate || !(materialOutward||[]).some(r=>r&&r.dmxAuto)))?startDate:td; for(let i=sealTypes.length-1;i>=0;i--){ if(sealTypes[i].pid===pid && sealTypes[i].from===sf) sealTypes.splice(i,1); } sealTypes.push({pid,type:want,from:sf}); } });
+  const prev=(rmcProd||[]).find(x=>x&&x.id==='dmx-cfg')||{};
+  const anyLines=(materialOutward||[]).some(r=>r&&r.dmxAuto);
+  if(prev.id && anyLines){
+    if((prev.bitId||'')!==bitId || (prev.ldoId||'')!==ldoId){ alert('Bitumen / LDO material cannot be changed now — drum mix lines already use it.\n\nChanging it would move past consumption to the new material when an old trip is re-saved. If the material really changed, ask for a version that handles it.'); return; }
+    const pl0=JSON.stringify((prev.plants||[]).slice().sort()), pl1=JSON.stringify(plants.slice().sort());
+    const ly0=JSON.stringify(Object.assign({bm:'',carpet:'',seal:'',dbm:''},prev.layers||{})), ly1=JSON.stringify(Object.assign({bm:'',carpet:'',seal:'',dbm:''},layers));
+    if((pl0!==pl1 || ly0!==ly1) && !confirm('You changed the plants or the mix materials.\n\nNew trips follow the change. An OLD trip that is re-saved later (even to fix a remark) will also follow it — e.g. an unticked plant\'s old trip loses its bitumen / LDO lines.\n\nContinue?')) return;
+  }
+  if(prev.startDate && startDate!==prev.startDate && !confirm('Change the start date from '+fmtD(prev.startDate)+' to '+fmtD(startDate)+'?\n\nTrips already saved keep their lines until they are re-saved. Continue?')) return;
+  const rec={ id:'dmx-cfg', type:'dmxcfg', plants, startDate, layers, bitId, ldoId, rates, sealTypes,
+    ts:prev.ts||Date.now(), updatedBy:(sess&&sess.name)||'', updatedTs:Date.now() };
+  const ok=await _fbWrite('rmcProd/dmx-cfg', rec);
+  if(ok===false){ alert('Could not save (network). Nothing was changed — try again.'); return; }
+  rmcProd=rmcProd||[]; const i=rmcProd.findIndex(x=>x&&x.id==='dmx-cfg'); if(i>=0) rmcProd[i]=rec; else rmcProd.push(rec); _clearTombstone('rmcProd','dmx-cfg');
+  _dmxSealDraft=null; flash('DRUM MIX SAVED','Applies to mix trips from '+fmtD(startDate)); renderDmx();
+}
+
+// ── APPLY TO EARLIER TRIPS (fallback) — ADDS missing lines only; never edits or deletes anything ──
+function _dmxMissingList(){
+  const cfg=_dmxCfg(); if(!cfg.startDate) return [];
+  const have=new Set((materialOutward||[]).map(r=>r&&r.id));
+  const res=[];
+  (trips||[]).filter(t=>t && String(t.date||'')>=cfg.startDate).forEach(t=>{
+    const internal=t.movementType==='internal';
+    const fromLoc=_tripLocToStore(t.fromSiteId), toLoc=internal?_tripLocToStore(t.toSiteId):null;
+    const lines=[['',t.materialId,(Number(t.quantity)||0)*(Number(t.numTrips)||1),t.unit]].concat((t.extraLines||[]).map((l,i)=>['-x'+i,l.materialId,Number(l.quantity)||0,l.unit]));
+    lines.forEach(([suf,mid,q,u])=>{
+      const c=_dmxCalc({date:t.date, fromLoc, internal, toLoc, matId:mid, qty:q, unit:u});
+      if(!c||!c.ok) return;
+      const recs=_dmxTripRecs(t, suf, c, { loggedBy:(sess&&sess.userId)||'', loggedByName:(sess&&sess.name)||'', ts:Date.now() }).filter(r=>!have.has(r.id));
+      if(recs.length) res.push({trip:t, c, recs});
+    });
+  });
+  return res.sort((a,b)=>String(a.trip.date).localeCompare(String(b.trip.date)));
+}
+function _dmxRenderApply(el){
+  const L=_dmxMissingList();
+  const rows=L.map(x=>{ const v=gV(x.trip.vehicleId);
+    return `<div style="display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid var(--border);font-size:12px"><span>${_esc(fmtD(x.trip.date))} · ${_esc((v&&v.name)||'?')} · ${_esc(x.trip.materialName||'')}<br><span style="color:var(--muted)">${_rmcR(x.c.loose,2)} loose → ${_rmcR(x.c.compacted,2)} compacted${x.trip.pendingApproval?' · pending approval':''}</span></span><span style="white-space:nowrap;text-align:right">${x.recs.map(r=>(Number(r.entryQty)||0).toLocaleString('en-IN')+' '+_esc(r.entryUnit)).join('<br>')}</span></div>`; }).join('');
+  el.innerHTML=_rmcWrap(`<div style="${_rmcCard}">${_rmcH('MIX TRIPS WITHOUT DEDUCTION')}
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Applying ADDS the bitumen / LDO lines below. Nothing already saved is changed or removed.</div>
+    ${rows||'<div style="font-size:12px;color:var(--muted);padding:10px 0">Nothing to apply — every mix trip has its lines.</div>'}</div>`+
+    (L.length?_rmcPri('APPLY '+L.reduce((a,x)=>a+x.recs.length,0)+' LINE(S)','_dmxApply()'):'')+
+    `<div style="display:flex">${_rmcSec('‹ Back to settings',"_dmxView='settings';renderDmx()")}</div>`);
+}
+async function _dmxApply(){
+  if(!isOwner()){ alert('Owner only'); return; }
+  const L=_dmxMissingList(); const recs=[].concat(...L.map(x=>x.recs)); if(!recs.length){ renderDmx(); return; }
+  if(!confirm('Add '+recs.length+' bitumen / LDO line(s) for '+L.length+' trip line(s)?\n\nNothing else is changed.')) return;
+  let fail=0;
+  for(const r of recs){
+    if((materialOutward||[]).some(x=>x&&x.id===r.id)) continue;   // another phone may have added it meanwhile
+    const ok=await _fbWrite('materialOutward/'+r.id, r);
+    if(ok===false){ fail++; continue; }
+    materialOutward.push(r); _clearTombstone('materialOutward',r.id);
+  }
+  if(fail) alert('⚠️ '+fail+' line(s) could not be saved (network). Open this screen again to retry — lines already added are not repeated.');
+  else flash('APPLIED', recs.length+' line(s) added');
+  _dmxView='settings'; renderDmx();
+}
+
 
 function renderRmc(){
   const el=document.getElementById('rmc-body'); if(!el) return;
@@ -25833,7 +26202,7 @@ const FB_KEY = 'AIzaSyB44pKu7YTc-Q_6GLC3mlaEBPJm3d3odPc';
 // V102.18 SECURITY STEP 4: the shared master account (and its password) was REMOVED from the app.
 // Each device signs in with its own account (see 'Set up this device'). Old master sign-in passes are wiped below.
 try{ localStorage.removeItem('fb_auth'); localStorage.removeItem('fb_refresh'); }catch(e){}
-const APP_VERSION = 'V102.51'; // bump this on every deploy
+const APP_VERSION = 'V102.52'; // bump this on every deploy
 
 // All keys we sync to Firebase
 const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords','trips','customers','materials','staff','staffMusters','pumpPayments','projects','boqItems','workEntries','subcontractors','subContracts','dailyReports','gangs','dailyLabour','royalty','materialInward','materialOutward','vendors','vendorTxns','paverLabour','gangLedger','rmcProd','siteWatch','machineRates'];
