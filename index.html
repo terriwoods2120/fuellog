@@ -1,4 +1,4 @@
-<!-- FuelLog PWA | Version: V102.52 | Date: 2026-11-26 | V102.52 DRUM MIX FIRST VERSION: owner-only Drum Mix settings (plants, start date, mix materials per layer, bitumen kg + burner LDO L per compacted cum with effective-from dates, seal coat Type A/B per road); each mix trip from a drum mix plant on/after the start date writes its own bitumen + LDO consumed lines (trip-dmx-<tripId>-bit/-ldo, autoTrip) shown as one line per day; mix itself not stocked; trip screen shows loose → compacted + kg/L; plant "keep out of P&L" tick; rejecting a pending trip also removes its automatic stock lines; owner-only apply-to-earlier-trips (adds only). | PREVIOUS: V102.51 SITE SUP REPAIR CHARGE + QUIET LISTS: on 'Given to a machine' a site supervisor can add the repair / service charge (vendor, amount, GST, bill photo) - saved as the office's service charge tagged to that machine so it shows in the Job Card; material is optional so a repair alone can be saved; the machine and vendor search lists now open only after typing; auto-logout also forgets the last tab. | V102.50 SITE SUP SERVICE CHARGE + CLEAN-UP: a site supervisor can add service charges (freight, unloading, repair, testing, other) on a bought-outside bill - category from a dropdown, amount and GST from the bill - saved as the same vendor-ledger charge the office makes (fixed id, never doubled on retry); the six 'Usual at this site' quick-pick boxes are gone from material in / material out (search stays); the bottom Home/More bar is hidden for site supervisors (logout stays in the top bar). | V102.49 SITE SUP FIXES: after logout and login as site supervisor the owner's last tab no longer shows (the remembered tab is reset at logout and a site sup is always sent to Home or More); the site sup DPR PDF button now creates today's empty DPR record when only material or attendance was entered, instead of saying nothing was entered (same safe create as the work entry; nothing existing is changed). | V102.48 FAST REFRESH FIX: the one-time cement relabel (nos -> Bag) now carries the Firebase save time so every phone picks it up; accepting a cement delivery saves the unit as Bag straight away (cement only, quantity unchanged); phones that switched Fast Refresh off by themselves after a difference switch it back on once, and phones still on rebuild their copy once (one full download each). | V102.47 SELF-CHECK NAMES THE RECORDS: when the daily Fast Refresh self-check finds a difference it now lists up to 20 record ids, which fields differ (short values, phone vs Firebase) and the server times, in the device report and the owner's All devices table. No business record is written. | V102.46 DPR PDF FOR SITE SUPS + STOCK TABLE: site sup Home gets 'आजचा DPR PDF' (same exportDPRPDF as the office, today's DPR at his site; no DPR today = message, none created). DPR PDF gets section 4 'Stock at site' (opening / received / used-sent / closing, read-only from approved materialInward/Outward, base units). Per-project material list (owner/admin, project screen) stored as ONE record siteWatch/dprstock-<projectId> (type 'dprStock'), written one record at a time; empty list = Track-stock materials with stock or movement at the site. No material's tracksStock changes. | V102.45 SITE SUPERVISOR काम (WORK DONE, Stage 3): new Marathi-first work screen for site sups — measured work (BOQ item + gang + nos×L×B×D with जोड/वजा, compulsory remark per measurement, rate locked if agreed else optional → 'rate pending' filled by the office from Rates pending) and daily wages (type × count × wage, wage compulsory). Same dailyLabour records; only new stored items: pieceRow.ratePending and record.viaSite. Guards: old DPR edit keeps pending lines, gang ledger / BOQ recon / Site Watch never price a pending line, P&L warns. | V102.44 SITE SUPERVISOR SCREENS — CORPORATE LOOK (approved mockup V2, 19 Nov): light background, white cards, one corporate blue, Noto Sans Devanagari for Marathi, line icons (no emoji), small status tags, home as one task list, main buttons fixed above the bottom menu; always light for site supervisors (class ss2 on the home area, removed for other roles). Fixes: a Plant delivery waiting for confirmation shows once (not again in today's list); "material not in the list? call the admin" hint; readable ticks/colours. LOOK ONLY: no change to saving, records, sync, rules, office screens or Rates pending. | PREVIOUS: V102.43 | V102.43 SITE SUPERVISOR SCREEN STAGE 2: माल आला = confirm Plant/site deliveries (existing Accept; difference = field-only PATCH on the trip) + outside purchase in 3 steps (vendor + bill no. optional + bill photo compulsory -> materials -> check) saved like saveGRN with rate 0 and ratePending:true, no vendor purchase entry until the office fills rates; cash paid on the spot = pay_<invoiceId> as today. माल गेला = used in work (BOQ optional) / sent to another site or Plant (xfer_ arrival as saveMIN) / given to a machine, never below site stock. Every line gets its id when added; Save checks the server line by line and sends only what is missing (no doubles); no network = refused, everything kept on screen. RATES PENDING (owner/admin): Home card + screen; fill rate/GST per line, optional extra charges, bill total; vendor entries written first with fixed ids (pur_<line>, chg_<invoice>_<n>), then lines PATCHed (ratePending:false). P&L warns on pending lines. DATA SAFETY REVIEW V2: new fields only (ratePending, viaSite, rateFilledBy/ByName/Ts); per-record writes and field-only PATCHes; no sync, rules, MERGE_KEYS or Fast Refresh change. | PREVIOUS: V102.42 | V102.42 SITE SUPERVISOR SCREEN STAGE 1: new Marathi/English Home for site supervisors (5 buttons); मशीन = opening/closing readings onto today's DPR, saved per machine on the server copy (_dprMachMergeSave) — office DPR save uses the same safe merge; हजेरी = Site Staff attendance, fixed record id sm-<staff>-<date>, server checked first, owner-only lock kept; no-network = save refused, typed values kept; machine ₹/hr rates (new machineRates collection, owner-only, per-record) copied onto DPR lines; P&L warns machines with hours but no rate; L1/L2 vendor tidies. | PREVIOUS: V102.41 | V102.41 VENDOR LEDGER LOCK: managers, site supervisors and drivers no longer see vendor amounts — Store → Vendors and the Vendors screen show names/phone only (no due/advance, no TOTAL DUE summary); openVendor() and show('scr-vendor-detail') refuse with Not allowed. recordLumpSumPayment/applyLumpSumPayment now require canTripEnter() (owner/admin/manager — unchanged for them). No sync/storage change. | PREVIOUS: V102.40 | V102.40 QUICK LOCK: Reports → Financial and Project hidden and refused (screen, PDF/print, WhatsApp) for managers, site supervisors and drivers; owners + admins keep Financial; Project P&L stays owner-only. Record vendor payment = owner/admin only (button hidden, _vpOpen/_vpSave refuse). "Amount paid" boxes on bill/inward entry unchanged. Projects module closed to managers (and drivers): More menu hides FILE TODAY'S DPR, PROJECTS, LABOUR CONTRACTORS; show() refuses the 7 project/DPR/work/labour screens; openDPRPicker/startDPR/openProject/openDPRForEdit/openWorkEntry/openGangLedger refuse; store Back no longer opens the project page for them. Store, Paver, RMC unchanged. No sync/storage change. | PREVIOUS: V102.39 | V102.39 USERS SAVED ONE PERSON AT A TIME: every users save first reads the server shape (keys only). Old shape (positions 0..n) = saves work exactly as before (whole list). After the owner presses Health check > Convert users list (checks + backup file + read-back), each save writes ONLY that person (add = one record, edit/PIN = only the changed fields, remove = one record). A whole-list send of users is refused in _fbWrite; old queued users saves are handled safely; Restore writes the users list keyed by id. Health check shows the users-list shape. | V102.38 PHOTOS IN MORE PLACES (same photo store as V102.37; entries keep only a short link in a new field `att`): store ISSUE / TRANSFER (one set per issue, lines tied by new field minId), TRIPS (slip photo), VENDOR PAYMENT (proof), FUEL PURCHASE and DIRECT PUMP FILL (bill). Each has a photo box on the entry form (optional, up to 4 photos or a PDF; a failed photo never blocks the entry), tiles on the list (downloaded only on tap), add-later (owner/admin; trips also manager; field-only PATCH after checking the record is on the server) and Remove (owner; link taken off + attLog, file stays). DATA SAFETY REVIEW V2: new fields only (att, attLog, minId); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.37 Date: 2026-11-15 | V102.37 BILL PHOTO (photo store): a purchase bill (GRN, vendor source) can carry up to 4 photos or a PDF. The file is made small on the phone and sent to the separate Firebase photo store (fuellog/bills/YYYY-MM/...); the entry keeps only a short link (billPhotos on the bill's materialInward lines and service-charge vendorTxns), so sync never carries photos. Vendor page: view (downloaded only on tap), Add bill photo to a saved bill (owner/admin, field-only PATCH after checking the records are on the server), Remove photo (owner; takes the link off + billPhotoLog, the file stays in the store). A failed photo never blocks the bill. DATA SAFETY REVIEW V2: new fields only (billPhotos, billPhotoLog); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.36 Date: 2026-11-15 | V102.36 HEALTH CHECK COUNTS CORRECTED (read-only page, nothing saved): 'Ledger entries with no bill' no longer counts service-only bills (repair/labour bills with no material are valid) and a 'paid with bill' payment is fine when its bill has service charges; 'Bills with no bill total' counts only bills dated 05/11/2026 or later (when the total became compulsory). | V102.35 Date: 2026-11-14 | V102.35 (includes V102.32-V102.34): (1) GST KEPT ON EDIT: editing a single purchase line recalculates GST and the vendor entry is rebuilt GST-inclusive like a new bill (was basic only). (2) CLEAN BILL DELETE: deleting the last line of a bill offers to remove that bill's 'Paid with invoice' payment and service charges. (3) RECORD PAYMENT SCREEN: date, amount, paid by, ref, for bill, note; owner can edit; delete = owner/admin only and checked against the server. (4) HEALTH CHECK (More > System, owner): bills not matching, stock below zero, ledger entries with no bill, saves that did not reach the server, bills with no total - read-only. (5) DAILY BACKUP: on the owner's laptop the first full download of the day is also saved as a backup file (no extra download). (6) SLIM FILE: version history moved to FuelLog_Version_History.txt; unused old work-entry screen and old one-time clean-up call removed. DATA SAFETY REVIEW V2: new fields on vendor payment records only (mode, ref, forBillNo, edited*); per-record saves/deletes only; no rules, sync, MERGE_KEYS or Fast Refresh change. Earlier history: see FuelLog_Version_History.txt -->
+<!-- FuelLog PWA | Version: V102.55 | Date: 2026-11-26 | V102.55: site sup "Sent to another site" wording says stock is added only where the place keeps a store; site sup remark limited to 200 characters; leftover always-true condition removed. | PREVIOUS: V102.54 | Date: 2026-11-26 | V102.54: optional remark on every new inward / outward line (site sup Material out, office Inward bill, office Material out), saved in the existing note field; a transfer's arrival record carries the remark too. | PREVIOUS: V102.53 | Date: 2026-11-26 | V102.53: site sup photos get a Gallery button (image/PDF) beside Camera; site sup Transfer lists locations without a store too (outward only, same record the office writes); To Return grouped per holder, collapsible; DPR fuel filled read live from fuel entries (hour machines); DPR PDF Issued "Against" shows BOQ / destination / machine / customer. | PREVIOUS: V102.52 | Date: 2026-11-26 | V102.52 DRUM MIX FIRST VERSION: owner-only Drum Mix settings (plants, start date, mix materials per layer, bitumen kg + burner LDO L per compacted cum with effective-from dates, seal coat Type A/B per road); each mix trip from a drum mix plant on/after the start date writes its own bitumen + LDO consumed lines (trip-dmx-<tripId>-bit/-ldo, autoTrip) shown as one line per day; mix itself not stocked; trip screen shows loose → compacted + kg/L; plant "keep out of P&L" tick; rejecting a pending trip also removes its automatic stock lines; owner-only apply-to-earlier-trips (adds only). | PREVIOUS: V102.51 SITE SUP REPAIR CHARGE + QUIET LISTS: on 'Given to a machine' a site supervisor can add the repair / service charge (vendor, amount, GST, bill photo) - saved as the office's service charge tagged to that machine so it shows in the Job Card; material is optional so a repair alone can be saved; the machine and vendor search lists now open only after typing; auto-logout also forgets the last tab. | V102.50 SITE SUP SERVICE CHARGE + CLEAN-UP: a site supervisor can add service charges (freight, unloading, repair, testing, other) on a bought-outside bill - category from a dropdown, amount and GST from the bill - saved as the same vendor-ledger charge the office makes (fixed id, never doubled on retry); the six 'Usual at this site' quick-pick boxes are gone from material in / material out (search stays); the bottom Home/More bar is hidden for site supervisors (logout stays in the top bar). | V102.49 SITE SUP FIXES: after logout and login as site supervisor the owner's last tab no longer shows (the remembered tab is reset at logout and a site sup is always sent to Home or More); the site sup DPR PDF button now creates today's empty DPR record when only material or attendance was entered, instead of saying nothing was entered (same safe create as the work entry; nothing existing is changed). | V102.48 FAST REFRESH FIX: the one-time cement relabel (nos -> Bag) now carries the Firebase save time so every phone picks it up; accepting a cement delivery saves the unit as Bag straight away (cement only, quantity unchanged); phones that switched Fast Refresh off by themselves after a difference switch it back on once, and phones still on rebuild their copy once (one full download each). | V102.47 SELF-CHECK NAMES THE RECORDS: when the daily Fast Refresh self-check finds a difference it now lists up to 20 record ids, which fields differ (short values, phone vs Firebase) and the server times, in the device report and the owner's All devices table. No business record is written. | V102.46 DPR PDF FOR SITE SUPS + STOCK TABLE: site sup Home gets 'आजचा DPR PDF' (same exportDPRPDF as the office, today's DPR at his site; no DPR today = message, none created). DPR PDF gets section 4 'Stock at site' (opening / received / used-sent / closing, read-only from approved materialInward/Outward, base units). Per-project material list (owner/admin, project screen) stored as ONE record siteWatch/dprstock-<projectId> (type 'dprStock'), written one record at a time; empty list = Track-stock materials with stock or movement at the site. No material's tracksStock changes. | V102.45 SITE SUPERVISOR काम (WORK DONE, Stage 3): new Marathi-first work screen for site sups — measured work (BOQ item + gang + nos×L×B×D with जोड/वजा, compulsory remark per measurement, rate locked if agreed else optional → 'rate pending' filled by the office from Rates pending) and daily wages (type × count × wage, wage compulsory). Same dailyLabour records; only new stored items: pieceRow.ratePending and record.viaSite. Guards: old DPR edit keeps pending lines, gang ledger / BOQ recon / Site Watch never price a pending line, P&L warns. | V102.44 SITE SUPERVISOR SCREENS — CORPORATE LOOK (approved mockup V2, 19 Nov): light background, white cards, one corporate blue, Noto Sans Devanagari for Marathi, line icons (no emoji), small status tags, home as one task list, main buttons fixed above the bottom menu; always light for site supervisors (class ss2 on the home area, removed for other roles). Fixes: a Plant delivery waiting for confirmation shows once (not again in today's list); "material not in the list? call the admin" hint; readable ticks/colours. LOOK ONLY: no change to saving, records, sync, rules, office screens or Rates pending. | PREVIOUS: V102.43 | V102.43 SITE SUPERVISOR SCREEN STAGE 2: माल आला = confirm Plant/site deliveries (existing Accept; difference = field-only PATCH on the trip) + outside purchase in 3 steps (vendor + bill no. optional + bill photo compulsory -> materials -> check) saved like saveGRN with rate 0 and ratePending:true, no vendor purchase entry until the office fills rates; cash paid on the spot = pay_<invoiceId> as today. माल गेला = used in work (BOQ optional) / sent to another site or Plant (xfer_ arrival as saveMIN) / given to a machine, never below site stock. Every line gets its id when added; Save checks the server line by line and sends only what is missing (no doubles); no network = refused, everything kept on screen. RATES PENDING (owner/admin): Home card + screen; fill rate/GST per line, optional extra charges, bill total; vendor entries written first with fixed ids (pur_<line>, chg_<invoice>_<n>), then lines PATCHed (ratePending:false). P&L warns on pending lines. DATA SAFETY REVIEW V2: new fields only (ratePending, viaSite, rateFilledBy/ByName/Ts); per-record writes and field-only PATCHes; no sync, rules, MERGE_KEYS or Fast Refresh change. | PREVIOUS: V102.42 | V102.42 SITE SUPERVISOR SCREEN STAGE 1: new Marathi/English Home for site supervisors (5 buttons); मशीन = opening/closing readings onto today's DPR, saved per machine on the server copy (_dprMachMergeSave) — office DPR save uses the same safe merge; हजेरी = Site Staff attendance, fixed record id sm-<staff>-<date>, server checked first, owner-only lock kept; no-network = save refused, typed values kept; machine ₹/hr rates (new machineRates collection, owner-only, per-record) copied onto DPR lines; P&L warns machines with hours but no rate; L1/L2 vendor tidies. | PREVIOUS: V102.41 | V102.41 VENDOR LEDGER LOCK: managers, site supervisors and drivers no longer see vendor amounts — Store → Vendors and the Vendors screen show names/phone only (no due/advance, no TOTAL DUE summary); openVendor() and show('scr-vendor-detail') refuse with Not allowed. recordLumpSumPayment/applyLumpSumPayment now require canTripEnter() (owner/admin/manager — unchanged for them). No sync/storage change. | PREVIOUS: V102.40 | V102.40 QUICK LOCK: Reports → Financial and Project hidden and refused (screen, PDF/print, WhatsApp) for managers, site supervisors and drivers; owners + admins keep Financial; Project P&L stays owner-only. Record vendor payment = owner/admin only (button hidden, _vpOpen/_vpSave refuse). "Amount paid" boxes on bill/inward entry unchanged. Projects module closed to managers (and drivers): More menu hides FILE TODAY'S DPR, PROJECTS, LABOUR CONTRACTORS; show() refuses the 7 project/DPR/work/labour screens; openDPRPicker/startDPR/openProject/openDPRForEdit/openWorkEntry/openGangLedger refuse; store Back no longer opens the project page for them. Store, Paver, RMC unchanged. No sync/storage change. | PREVIOUS: V102.39 | V102.39 USERS SAVED ONE PERSON AT A TIME: every users save first reads the server shape (keys only). Old shape (positions 0..n) = saves work exactly as before (whole list). After the owner presses Health check > Convert users list (checks + backup file + read-back), each save writes ONLY that person (add = one record, edit/PIN = only the changed fields, remove = one record). A whole-list send of users is refused in _fbWrite; old queued users saves are handled safely; Restore writes the users list keyed by id. Health check shows the users-list shape. | V102.38 PHOTOS IN MORE PLACES (same photo store as V102.37; entries keep only a short link in a new field `att`): store ISSUE / TRANSFER (one set per issue, lines tied by new field minId), TRIPS (slip photo), VENDOR PAYMENT (proof), FUEL PURCHASE and DIRECT PUMP FILL (bill). Each has a photo box on the entry form (optional, up to 4 photos or a PDF; a failed photo never blocks the entry), tiles on the list (downloaded only on tap), add-later (owner/admin; trips also manager; field-only PATCH after checking the record is on the server) and Remove (owner; link taken off + attLog, file stays). DATA SAFETY REVIEW V2: new fields only (att, attLog, minId); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.37 Date: 2026-11-15 | V102.37 BILL PHOTO (photo store): a purchase bill (GRN, vendor source) can carry up to 4 photos or a PDF. The file is made small on the phone and sent to the separate Firebase photo store (fuellog/bills/YYYY-MM/...); the entry keeps only a short link (billPhotos on the bill's materialInward lines and service-charge vendorTxns), so sync never carries photos. Vendor page: view (downloaded only on tap), Add bill photo to a saved bill (owner/admin, field-only PATCH after checking the records are on the server), Remove photo (owner; takes the link off + billPhotoLog, the file stays in the store). A failed photo never blocks the bill. DATA SAFETY REVIEW V2: new fields only (billPhotos, billPhotoLog); per-record writes; no rules/sync/MERGE_KEYS/Fast Refresh change. | V102.36 Date: 2026-11-15 | V102.36 HEALTH CHECK COUNTS CORRECTED (read-only page, nothing saved): 'Ledger entries with no bill' no longer counts service-only bills (repair/labour bills with no material are valid) and a 'paid with bill' payment is fine when its bill has service charges; 'Bills with no bill total' counts only bills dated 05/11/2026 or later (when the total became compulsory). | V102.35 Date: 2026-11-14 | V102.35 (includes V102.32-V102.34): (1) GST KEPT ON EDIT: editing a single purchase line recalculates GST and the vendor entry is rebuilt GST-inclusive like a new bill (was basic only). (2) CLEAN BILL DELETE: deleting the last line of a bill offers to remove that bill's 'Paid with invoice' payment and service charges. (3) RECORD PAYMENT SCREEN: date, amount, paid by, ref, for bill, note; owner can edit; delete = owner/admin only and checked against the server. (4) HEALTH CHECK (More > System, owner): bills not matching, stock below zero, ledger entries with no bill, saves that did not reach the server, bills with no total - read-only. (5) DAILY BACKUP: on the owner's laptop the first full download of the day is also saved as a backup file (no extra download). (6) SLIM FILE: version history moved to FuelLog_Version_History.txt; unused old work-entry screen and old one-time clean-up call removed. DATA SAFETY REVIEW V2: new fields on vendor payment records only (mode, ref, forBillNo, edited*); per-record saves/deletes only; no rules, sync, MERGE_KEYS or Fast Refresh change. Earlier history: see FuelLog_Version_History.txt -->
 <!-- FuelLog PWA | Version: V99.86 | Date: 2026-08-05 | V99.86 BOQ PROGRESS SOURCE SPLIT (step 3 of 3, display only): since V99.85 the progress figure is fed by TWO sources -- standalone Work Done entries and linked DPR gang lines -- and nothing on screen said which. New _doneSplitHTML(itemId,unit) renders a muted sub-line under the progress bar, e.g. '20 sqm Work Done + 70.51 sqm (link) gang work'. PURPOSE IS DETECTION, not decoration: if the same physical work is ever entered through BOTH paths the total is silently too high and an inflated percentage just looks like good progress, whereas a visibly wrong breakdown is catchable. Returns '' when no gang work contributes, so rows fed purely by Work Done entries render EXACTLY as before -- the extra line only appears where there is something to explain. Applied at both BOQ progress render sites (project BOQ list and the DPR-side list); the work-entry form header was left alone as it is a single-item entry context, not a review view. Values rounded to 2dp (13.099219... shows as 13.1) and the unit is _esc'd. CORRECTION to the earlier plan: step 3 was described as 'add the BOQ unit to the progress row' -- on inspection the unit was ALREADY rendered there (both progress rows have shown '<qty> <unit> done' since well before this work), so that step was redundant and the source split was built instead. DATA SAFETY: display only. No write path, no schema change, no collection touched, no calculation altered -- _itemDone, _itemPct and _itemLabourDone are read and re-presented, never modified. -->
 <!-- FuelLog PWA | Version: V99.85 | Date: 2026-08-05 | V99.85 LINKED WORK NOW FEEDS BOQ PROGRESS (step 2 of 3, completes the badge's promise): _itemDone previously summed workEntries ONLY, so a DPR work line flagged '(link) linked -- feeds BOQ progress' paid the gang but contributed ZERO progress. New _itemLabourDone(boqItemId) sums linked dailyLabour pieceRows and converts labour units to BOQ units by DIVIDING by convPerBoqUnit (which means labour-units-per-one-BOQ-unit, e.g. 10.764 sqft in 1 sqm). Direction verified against live data before building: item unit sqm, labourUnit sqft, conv 10.764 -- 141 sqft = 13.10 sqm, not 1517. Multiplying would have inflated progress ~116x and looked merely like a large number. STRICT: only rows explicitly stored linked:true count; legacy rows predating V99.84 carry no flag and are deliberately NOT re-derived from the current engagement, since a later rate edit would then silently move historical progress -- re-saving such an entry backfills the flag and it counts from then on. GUARDS: conv<=0/missing/non-numeric skips the row (never divides by zero, never yields Infinity/NaN), MISC and blank item ids excluded, malformed records tolerated. Pending (unapproved backdated) entries excluded via _appr, consistent with V99.58. DOUBLE-COUNT PRE-CHECKED on live data: zero item+date pairs appear in both workEntries and a labour line, so nothing is counted twice; the overlap check should be re-run before any bulk backfill. AFFECTS: _itemPct and the executed-value total (execVal = done x rate), both of which will legitimately RISE for linked items -- they were understated before. DATA SAFETY: read/compute path only. No write path, no schema change, no collection touched, no record created/edited/deleted/migrated; only which numbers are DERIVED at render time. Worst case of a wrong factor is a visibly wrong percentage, never data loss. Step 3 (unit-label display on progress rows) still open. -->
 <!-- FuelLog PWA | Version: V99.84 | Date: 2026-08-05 | V99.84 LINKED-WORK PERSISTENCE (step 1 of 3): saveLabEntry now stores linked + convPerBoqUnit on every saved pieceRow instead of discarding them (previously computed live via _labLineRate but never written to Firebase). editLabEntry trusts the stored linked flag for entries saved under this fix, and only falls back to a fresh gang-rate lookup for legacy rows that predate it -- and that fallback never touches the historical rate/unit that was actually paid. This does NOT yet change BOQ progress calculation (_itemDone still reads workEntries only) -- that is step 2, pending an overlap check on live data. -->
@@ -4570,7 +4570,7 @@ Object.assign(_SS_T,{
   vendorMissing:['नाव यादीत नाही? ॲडमिनला फोन करा','Not in the list? Call the admin'],
   change:['बदला','Change'],
   billNo:['बिल / चलन नंबर','Bill / challan no.'], ifNone:['नसेल तर रिकामे','leave empty if none'],
-  billPhoto:['बिलाचा फोटो','Bill photo'], takePhoto:['फोटो घ्या','Take photo'], addPhoto:['आणखी फोटो','Add photo'],
+  billPhoto:['बिलाचा फोटो','Bill photo'], takePhoto:['फोटो घ्या','Take photo'], addPhoto:['आणखी फोटो','Add photo'], gallery:['गॅलरी','Gallery'],
   photoNeed:['फोटो जरूरी · ऑफिस यावरून दर भरेल','Photo required · the office fills rates from it'],
   sending:['जात आहे…','Sending…'], sent:['गेला','Sent'], photoFail:['गेला नाही','Not sent'], retry:['पुन्हा','Retry'],
   next:['पुढे','Next'], material:['माल','Material'], check:['तपासा','Check'],
@@ -4593,9 +4593,9 @@ Object.assign(_SS_T,{
   needQty:['किती ते टाका.','Type how much.'],
   serialNo:['टायर/बॅटरीसारखा नंबरवाला माल ऑफिस नोंदवते.','Serial-numbered items (tyres, batteries) are entered by the office.'],
   noLines:['किमान एक माल टाका.','Add at least one material.'],
-  whereOut:['माल कुठे गेला?','Where did it go?'],
+  whereOut:['माल कुठे गेला?','Where did it go?'], noStoreHd:['स्टोअर नाही · फक्त जावक नोंद','No store · recorded as sent out only'],
   usedWork:['कामात वापरला','Used in work'], usedWorkSub:['या साईटवरच्या कामासाठी','For work at this site'],
-  sentSite:['दुसऱ्या साईटवर / प्लांटला पाठवला','Sent to another site / Plant'], sentSiteSub:['त्या साईटच्या स्टॉकमध्ये आपोआप जमा','Added to that site’s stock automatically'],
+  sentSite:['दुसऱ्या साईटवर / प्लांटला पाठवला','Sent to another site / Plant'], sentSiteSub:['स्टोअर असल्यास त्या स्टॉकमध्ये आपोआप जमा','Added to its stock automatically if it keeps a store'],
   toMach:['मशीनला दिला','Given to a machine'], toMachSub:['ऑईल, पार्ट · मशीनच्या जॉब कार्डवर जाईल','Oil, parts · goes on the machine’s job card'],
   whichWork:['कोणत्या कामासाठी?','For which work?'], optional:['ऐच्छिक','optional'],
   boqSearch:['काम शोधा (आयटम नंबर किंवा नाव)','Search work item (no. or name)'], noBoq:['काम निवडले नाही','No work item picked'],
@@ -4638,10 +4638,10 @@ function _ssSteps(n){
   }).join('')+`</div>`;
 }
 // ---- photos (same photo store as V102.37/38; kept as {p,ct,sz,by,ts}) ----
-function _ssPhotoPick(ctx, kind){
+function _ssPhotoPick(ctx, kind, gallery){
   const list=window._att[ctx]=window._att[ctx]||[];
   if(list.filter(p=>p.status!=='fail').length>=4){ alert('4 photos max.'); return; }
-  _bpChoose(true, async f=>{
+  _bpChoose(!gallery, async f=>{   // V102.53: gallery = phone photos / PDF (same as the office bill screen)
     const it={id:uid(), status:'up', name:f.name||'photo', p:'', ct:'', sz:0, ts:Date.now(), file:f};
     list.push(it); _ssRender(); await _attSend(it, kind); _ssRender();
   });
@@ -4652,12 +4652,13 @@ function _ssPhotosHTML(ctx, kind, required){
   const list=window._att[ctx]||[];
   const tiles=list.map((p,i)=>{
     const st=p.status==='ok'?`<span style="color:#166534">✓ ${_st('sent')}</span>`:p.status==='up'?`<span style="color:#1F4E9C">${_st('sending')}</span>`:`<span style="color:#B42318">${_st('photoFail')}</span>`;
-    return `<div style="flex:1 1 120px;border:1px solid var(--border);border-radius:14px;padding:10px;font-size:15px;font-weight:600">${_st('billPhoto')} ${i+1} · ${st}
+    return `<div style="flex:1 1 120px;border:1px solid var(--border);border-radius:14px;padding:10px;font-size:15px;font-weight:600">${/pdf/i.test(p.ct||(p.file&&p.file.type)||p.name||'')?'PDF':_st('billPhoto')} ${i+1} · ${st}
       <div style="display:flex;gap:14px;margin-top:6px;font-size:15px">${p.status==='fail'&&p.file?`<span onclick="_ssPhotoRetry('${ctx}','${kind}','${p.id}')" style="color:#1F4E9C;cursor:pointer">${_st('retry')}</span>`:''}${p.status!=='up'?`<span onclick="_ssPhotoDrop('${ctx}','${p.id}')" style="color:var(--muted);cursor:pointer">${_st('remove')}</span>`:''}</div></div>`;
   }).join('');
   const has=list.some(p=>p.status!=='fail');
   return `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:${list.length?'10px':'0'}">${tiles}</div>
-    <button type="button" onclick="_ssPhotoPick('${ctx}','${kind}')" style="width:100%;height:56px;border-radius:12px;border:1px dashed #9DB0D3;background:#F7F9FD;color:#1F4E9C;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">${_ssIco('camera','#1F4E9C',22)}${has?_st('addPhoto'):_st('takePhoto')}</button>
+    <div style="display:flex;gap:8px"><button type="button" onclick="_ssPhotoPick('${ctx}','${kind}')" style="flex:1;min-width:0;height:56px;border-radius:12px;border:1px dashed #9DB0D3;background:#F7F9FD;color:#1F4E9C;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">${_ssIco('camera','#1F4E9C',22)}${has?_st('addPhoto'):_st('takePhoto')}</button>
+    <button type="button" onclick="_ssPhotoPick('${ctx}','${kind}',true)" style="flex:1;min-width:0;height:56px;border-radius:12px;border:1px dashed #9DB0D3;background:#F7F9FD;color:#1F4E9C;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px"><span style="font-size:20px">🖼</span>${_st('gallery')}</button></div>
     ${required?`<div style="font-size:15px;color:var(--muted);margin-top:8px">${_st('photoNeed')}</div>`:''}`;
 }
 // ---- stock at this site (base unit), same in-minus-out sum saveMIN uses ----
@@ -4720,7 +4721,7 @@ function _ssCurHTML(st, forOut){
       <input id="ss-qty" type="number" inputmode="decimal" value="${_esc(String(c.qty))}" oninput="_ssCurSet('qty',this.value)" style="width:100%;box-sizing:border-box;height:72px;border-radius:12px;border:2px solid #1F4E9C;background:var(--bg);color:var(--white);font-size:34px;font-weight:700;padding:0 16px">
       ${units.length>1?`<div style="display:flex;gap:8px">${ub}</div>`:`<div style="font-size:16px;color:var(--muted)">${_esc(units[0]||'')}</div>`}
       ${stock}
-      ${(!forOut||misc)?`<input type="text" value="${_esc(c.note||'')}" oninput="_ssCurSet('note',this.value)" placeholder="${misc?_st('remarkMisc'):_st('remark')}" style="width:100%;box-sizing:border-box;height:54px;border-radius:14px;border:1px solid var(--border);background:var(--bg);color:var(--white);font-size:17px;padding:0 14px">`:''}
+      <input type="text" maxlength="200" value="${_esc(c.note||'')}" oninput="_ssCurSet('note',this.value)" placeholder="${misc?_st('remarkMisc'):_st('remark')}" style="width:100%;box-sizing:border-box;height:54px;border-radius:14px;border:1px solid var(--border);background:var(--bg);color:var(--white);font-size:17px;padding:0 14px">
     </div>`, 'border-color:#1F4E9C');
 }
 function _ssDropCur(){ const st=_ssSt(); if(st){ st.cur=null; _ssRender(); } }
@@ -4739,7 +4740,7 @@ function _ssTakeCur(st, forOut){
   const cv=_storeConvertQty(m,q,c.unit); if(cv.ok===false){ alert(_storeBadUnits([{matId:m.id, entryQty:q, entryUnit:c.unit}])); return false; }
   if(_matIsMisc(m) && !String(c.note||'').trim()){ alert(_st('remarkMisc')); return false; }
   if(forOut){ const bal=_ssBal(st.pid,m.id), take=_ssOutTake(st,m.id,true); if(take>bal+0.0001){ alert(_st('overStock')); return false; } }
-  st.lines.push({matId:m.id, qty:q, unit:c.unit, note:String(c.note||'').trim(), recId:c.recId||uid(), sent:false});
+  st.lines.push({matId:m.id, qty:q, unit:c.unit, note:String(c.note||'').trim().slice(0,200), recId:c.recId||uid(), sent:false});   // V102.55: 200 max, like the office remark
   st.cur=null; return true;
 }
 function _ssLinesHTML(st){
@@ -5050,20 +5051,26 @@ function _ssStartOut(mode){
   if(!_ssOut || _ssOut.pid!==_ss.pid || _ssOut.mode!==mode || _ssOut.lines.some(l=>l.sent) || _repSent){ _ssOut=_ssNewOut(_ss.pid, mode); window._att.ssout=[]; window._att.ssrep=[]; }
   _ss.matCtx='out'; _ssGo('outE');
 }
-// destinations: the Plant + every other site that keeps a store (has a project) — same resolution as saveMIN
+// destinations: the Plant + every other site that keeps a store (has a project) — same resolution as saveMIN.
+// V102.53: then every active location WITHOUT a store (noStore) — like the office Transfer screen, the
+// issue is recorded here (outward only) and nothing is added anywhere else.
 function _ssDests(pid){
   const p=projects.find(x=>x.id===pid); const here=p?p.siteId:'';
   const pn=String(PLANT_NAME||'').trim().toLowerCase();
-  const out=[{id:PLANT_PID, name:PLANT_NAME}];
+  const out=[{id:PLANT_PID, name:PLANT_NAME}], bare=[];
   (sites||[]).forEach(s=>{
     if(!s||s.id===here) return;
     if(String(s.name||'').trim().toLowerCase()===pn) return;
-    const dp=(projects||[]).find(x=>x.siteId===s.id); if(!dp) return;
+    const dp=(projects||[]).find(x=>x.siteId===s.id);
+    if(!dp){ if(s.active!==false && !_isPlantLoc(s.id)) bare.push({id:s.id, name:s.name||'', noStore:true}); return; }
     if((dp.status||'active')==='completed') return;
     out.push({id:s.id, name:s.name||''});
   });
-  return out;
+  bare.sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+  return out.concat(bare);
 }
+// V102.53: a location with no store of its own (no project) — a transfer there is an outward only
+function _ssNoStoreDest(sid){ if(!sid||_isPlantLoc(sid)||_tripLocToStore(sid)) return false; return !!(sites||[]).find(x=>x&&x.id===sid); }
 function _ssBoqList(){
   const st=_ssOut; if(!st) return '';
   const q=String(st.bq||'').toLowerCase().trim(); if(!q) return '';
@@ -5095,8 +5102,12 @@ function _ssOutTopHTML(st){
       :_ssSearchBox('ss-boqq', st.bq, "_ssBoqSearch(this.value)", _st('boqSearch'), 'ss-boqlist', _ssBoqList())));
   }
   if(st.mode==='transfer'){
-    if(st.toSiteId) return _ssCard(_ssLbl(_st('whereTo'))+_ssPickedBox(_esc(_ssDestName(st.toSiteId)), locked?'':"_ssOut.toSiteId='';_ssRender()"));
-    return _ssCard(_ssLbl(_st('whereTo'))+`<div style="display:flex;flex-direction:column;gap:8px">`+_ssDests(st.pid).map(d=>`<button type="button" onclick="_ssOut.toSiteId='${d.id}';_ssRender()" style="text-align:left;padding:16px;border-radius:12px;border:1px solid var(--border);background:var(--bg);color:var(--white);font-size:19px;font-weight:700">${_esc(d.name)}</button>`).join('')+`</div>`);
+    if(st.toSiteId) return _ssCard(_ssLbl(_st('whereTo'))+_ssPickedBox(_esc(_ssDestName(st.toSiteId))+(_ssNoStoreDest(st.toSiteId)?`<div style="font-size:14px;font-weight:600;color:var(--muted)">${_st('noStoreHd')}</div>`:''), locked?'':"_ssOut.toSiteId='';_ssRender()"));
+    const _dl=_ssDests(st.pid); let _hd=false;
+    return _ssCard(_ssLbl(_st('whereTo'))+`<div style="display:flex;flex-direction:column;gap:8px">`+_dl.map(d=>{
+      const head=(d.noStore&&!_hd)?(_hd=true,`<div style="font-size:14px;font-weight:700;color:var(--muted);margin-top:8px;padding:0 2px">${_st('noStoreHd')}</div>`):'';
+      return head+`<button type="button" onclick="_ssOut.toSiteId='${d.id}';_ssRender()" style="text-align:left;padding:16px;border-radius:12px;border:1px ${d.noStore?'dashed':'solid'} var(--border);background:var(--bg);color:var(--white);font-size:19px;font-weight:700">${_esc(d.name)}</button>`;
+    }).join('')+`</div>`);
   }
   const m=st.machId?(fleet||[]).find(x=>x.id===st.machId):null;
   return _ssCard(_ssLbl(_st('whichMach'))+(m?_ssPickedBox(_esc(m.name), locked?'':"_ssOut.machId='';_ssRender()")
@@ -5192,7 +5203,7 @@ function _ssOutCHTML(dash){
     `<div style="display:flex;flex-direction:column;gap:12px;padding:0 14px">
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden">
         <div style="padding:14px 16px;background:#F5F6F8;color:#111827;border-bottom:1px solid #EEF1F5"><div style="font-size:18px;font-weight:700">${where}</div><div style="font-size:14px;color:#5B6472">${_esc(p.name)} · ${fmtD(today())}${ph?' · '+_st('photoYes')+' '+ph:''}</div></div>
-        <div style="padding:4px 16px 12px">${st.lines.map((l,i)=>{ const m=_ssMat(l.matId); return `<div style="display:flex;justify-content:space-between;padding:12px 0;${i?'border-top:1px solid var(--border)':''};font-size:21px;font-weight:700"><span>${_esc(m?m.name:'?')}</span><span>${_ssQty(l.qty)} ${_esc(l.unit)}${l.sent?' <span style="color:#166534">✓</span>':''}</span></div>`; }).join('')}${_ssRepCHTML(st)}</div></div></div>
+        <div style="padding:4px 16px 12px">${st.lines.map((l,i)=>{ const m=_ssMat(l.matId); return `<div style="display:flex;justify-content:space-between;padding:12px 0;${i?'border-top:1px solid var(--border)':''};font-size:21px;font-weight:700"><span>${_esc(m?m.name:'?')}${l.note?`<div style="font-size:15px;font-weight:600;color:var(--muted)">${_esc(l.note)}</div>`:''}</span><span>${_ssQty(l.qty)} ${_esc(l.unit)}${l.sent?' <span style="color:#166534">✓</span>':''}</span></div>`; }).join('')}${_ssRepCHTML(st)}</div></div></div>
     <div class="ss2-bar" style="flex-direction:column">${_ssBigBtn(_ss.msg?_st('saveAgain'):_st('save'),"_ssSaveOut()")}${(st.lines.some(l=>l.sent||l.outOnSrv)||(st.rep&&st.rep.sent))?'':_ssBtn2(_st('edit'),"_ssGo('outE')",'var(--muted)')}</div>`;
 }
 async function _ssSaveOut(){
@@ -5204,7 +5215,9 @@ async function _ssSaveOut(){
   if(mode==='transfer'){
     toSiteId=st.toSiteId; if(!toSiteId){ alert(_st('pickTo')); return _ssGo('outE'); }
     const dest=_tripLocToStore(toSiteId); const destPid=dest?dest.projectId:(_isPlantLoc(toSiteId)?PLANT_PID:null);
-    if(!destPid || String(destPid)===String(pid)){ alert(_st('sameLoc')); return _ssGo('outE'); }
+    // V102.53: a location with no store is allowed (outward only); the same location never is
+    if(!destPid && !_ssNoStoreDest(toSiteId)){ alert(_st('pickTo')); return _ssGo('outE'); }
+    if((destPid && String(destPid)===String(pid)) || (!destPid && String(toSiteId)===String(p.siteId||''))){ alert(_st('sameLoc')); return _ssGo('outE'); }
   } else if(mode==='machine'){
     const f=(fleet||[]).find(x=>x.id===st.machId); if(!f){ alert(_st('pickMach')); return _ssGo('outE'); }
     machineId=f.id; machineName=f.name||'';
@@ -5220,7 +5233,8 @@ async function _ssSaveOut(){
   const att=ph.filter(x=>x.status==='ok').map(x=>({p:x.p, ct:x.ct, sz:x.sz, by:(sess&&sess.name)||'', ts:x.ts}));
   // 1) what does the server already have? (issue record, and for a transfer its arrival record)
   const todo=st.lines.filter(l=>!l.sent);
-  const paths=[]; todo.forEach(l=>{ paths.push('materialOutward/'+l.recId); if(mode==='transfer') paths.push('materialInward/xfer_'+l.recId); });
+  const _xIn=(mode==='transfer' && !_ssNoStoreDest(toSiteId));   // V102.53: no arrival record for a location without a store
+  const paths=[]; todo.forEach(l=>{ paths.push('materialOutward/'+l.recId); if(_xIn) paths.push('materialInward/xfer_'+l.recId); });
   const chk=await Promise.all(paths.map(x=>_vlOnServer(x)));
   if(chk.some(c=>c===null)){ _ss.msg='net'; return _ssRender(); }
   // V102.51: is the repair charge already on the server (a retry after a partly-sent save)?
@@ -5239,7 +5253,7 @@ async function _ssSaveOut(){
     const conv=_storeConvertQty(mat, l.qty, l.unit); if(conv.ok===false) return;
     const rec={ id:l.recId, projectId:pid, siteId:p.siteId||'', materialId:mat.id, materialName:mat.name,
       qty:conv.qty, unit:conv.unit, entryQty:l.qty, entryUnit:l.unit, baseUnit:conv.baseUnit,
-      date:td, note:'', outReason:mode, minId:st.minId, viaSite:true,
+      date:td, note:String(l.note||'').trim(), outReason:mode, minId:st.minId, viaSite:true,   // V102.54: the line's remark
       loggedBy:(sess&&sess.userId)||'', loggedByName:(sess&&sess.name)||'', ts:Date.now() };
     if(mode==='transfer'){ rec.toSiteId=toSiteId; rec.boqItemId=''; rec.boqDesc=''; }
     else if(mode==='machine'){ rec.toSiteId=''; rec.boqItemId=''; rec.boqDesc=''; rec.machineId=machineId; rec.machineName=machineName; }
@@ -5259,7 +5273,7 @@ async function _ssSaveOut(){
           type:'inward', sourceType:'internal', fromSiteId:rec.siteId||'', vendorId:'',
           source:'site-transfer', sourceNote:(_storeProjName?_storeProjName(pid):'')+' (transfer)',
           returnable:false, date:rec.date, srcId:rec.id, viaSite:true,
-          note:'Auto: transfer in from '+(_storeProjName?_storeProjName(pid):'site'),
+          note:'Auto: transfer in from '+(_storeProjName?_storeProjName(pid):'site')+(rec.note?(' \u00b7 '+rec.note):''),   // V102.54
           enteredBy:(sess&&sess.userId)||'', enteredByName:(sess&&sess.name)||'', ts:Date.now() };
         w.push(_fbWrite('materialInward/'+inRec.id, inRec).then(ok=>{ if(ok!==false) _ssUpsert(materialInward, inRec); return ok; }));
       }
@@ -17301,16 +17315,17 @@ function exportDPRPDF(){
 
   // ---- 1. MACHINERY ----
   const mach=(dpr.machinery||[]);
-  const machRows=mach.map(m=>{
-    const isHr=m.mode==='hr';
+  const machRows=mach.map(m0=>{
+    let m=m0; const isHr=m.mode==='hr';
     const o=isHr?m.openHr:m.openKm, c=isHr?m.closeHr:m.closeKm;
     const used=(o!=null&&c!=null)?(Math.round((c-o)*100)/100):null;
+    const _fl=isHr?_dprFuelLive(m.fleetId, dpr.date):0; if(_fl>0) m=Object.assign({}, m, {fuelFilled:_fl});   // V102.53: live from fuel entries
     return `<tr><td>${esc(m.name||'')}</td><td class="c">${isHr?'Hours':'KM'}</td>
       <td class="r">${num(o)}</td><td class="r">${num(c)}</td>
       <td class="r"><b>${used==null?'\u2014':used.toLocaleString('en-IN')}</b></td>
       <td class="r">${num(m.openFuel)}</td><td class="r">${num(m.fuelFilled)}</td><td class="r">${num(m.closeFuel)}</td></tr>`;
   }).join('');
-  const totFuel=mach.reduce((s,m)=>s+(Number(m.fuelFilled)||0),0);
+  const totFuel=mach.reduce((s,m)=>{ const fl=(m.mode==='hr')?_dprFuelLive(m.fleetId, dpr.date):0; return s+(fl>0?fl:(Number(m.fuelFilled)||0)); },0);   // V102.53
   const machBlock=mach.length?`<table><thead><tr><th>Machine</th><th class="c">Mode</th><th class="r">Opening</th>
       <th class="r">Closing</th><th class="r">Used</th><th class="r">Fuel open</th><th class="r">Filled</th><th class="r">Fuel close</th></tr></thead>
     <tbody>${machRows}</tbody>
@@ -17350,9 +17365,14 @@ function exportDPRPDF(){
   const mrow=r=>`<tr><td>${esc(_storeDispName(r))}</td>
       <td class="r">${(Number(r.qty)||0).toLocaleString('en-IN')} ${esc(r.unit||'')}</td>
       <td>${esc(r.note||r.sourceNote||r.boqDesc||'')}</td></tr>`;
+  // V102.53: Issued "Against" = where it went (BOQ item / → site or location / → 🔧 machine / → 👤 customer), then the remark
+  const orow=r=>{ const to=_storeIssuedTo(r); const nt=String(r.note||'').trim();
+    return `<tr><td>${esc(_storeDispName(r))}</td>
+      <td class="r">${(Number(r.qty)||0).toLocaleString('en-IN')} ${esc(r.unit||'')}</td>
+      <td>${esc(to+((nt && !to.includes(nt))?(' \u00b7 '+nt):''))}</td></tr>`; };
   const matBlock=(inR.length||outR.length)?`
     ${inR.length?`<div class="mh">Received (${inR.length})</div><table><thead><tr><th>Material</th><th class="r">Qty</th><th>Note</th></tr></thead><tbody>${inR.map(mrow).join('')}</tbody></table>`:''}
-    ${outR.length?`<div class="mh">Issued (${outR.length})</div><table><thead><tr><th>Material</th><th class="r">Qty</th><th>Against</th></tr></thead><tbody>${outR.map(mrow).join('')}</tbody></table>`:''}`
+    ${outR.length?`<div class="mh">Issued (${outR.length})</div><table><thead><tr><th>Material</th><th class="r">Qty</th><th>Against</th></tr></thead><tbody>${outR.map(orow).join('')}</tbody></table>`:''}`
     :'<div class="empty">No material movement recorded for this date.</div>';
 
   const CSS=`body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:24px;color:#222;max-width:1000px;margin:0 auto}
@@ -18364,6 +18384,13 @@ function _retLossText(r){
   const bits=[]; if(d>0) bits.push(d.toLocaleString('en-IN')+uu+' damaged'); if(s>0) bits.push(s.toLocaleString('en-IN')+uu+' lost');
   return '\u21a9 '+bits.join(' \u00b7 ')+' \u2014 not added to stock'+(r.writeOffNote?(' \u00b7 \u201c'+r.writeOffNote+'\u201d'):'');
 }
+// V102.53: open / close one To Return group (remembered while the app is open)
+function _retToggle(gi){
+  const h=document.getElementById('ret-g-'+gi), b=document.getElementById('ret-b-'+gi), a=document.getElementById('ret-a-'+gi);
+  if(!h||!b) return; const k=h.getAttribute('data-rk')||''; const open=b.style.display==='none';
+  b.style.display=open?'':'none'; if(a) a.textContent=open?'\u25be':'\u25b8';
+  const o=window._retOpen=window._retOpen||{}; if(open) o[k]=true; else delete o[k];
+}
 function _retDMY(d){ if(!d) return '\u2014'; const p=String(d).split('-'); return p.length===3?(p[2]+'/'+p[1]+'/'+p[0].slice(2)):String(d); }
 // V101.3: open Inward at the row's own location with the customer and material already
 // picked. Quantity is deliberately left BLANK — pre-filling the full outstanding makes it
@@ -18450,7 +18477,7 @@ function _storesReturnableHTML(){
     m.outstanding=Math.round((m.sentQ-m.backQ-m.wroteOff)*1000)/1000;
     m.days=dayDiff(m.firstDate);
     const ch=_retCurrentHolder(m.materialId, m.toSiteId, m.firstDate);
-    m.nowAt=ch.label?ch.label.who:null; m.hops=ch.hops;
+    m.nowAt=ch.label?ch.label.who:null; m.hops=ch.hops; m.nowKind=ch.label?ch.label.kind:null;
   });
   let rows=Object.values(map).filter(m=>m.outstanding>0.0001).filter(m=>_storesMatchSearch(m.name));
   if(!rows.length && _storesSearch) return '<div style="padding:30px 16px;text-align:center;color:var(--muted);font-size:13px">No returnable material matching \u201c'+_esc(_storesSearch)+'\u201d.</div>';
@@ -18459,35 +18486,54 @@ function _storesReturnableHTML(){
   }
   rows.sort((a,b)=>b.days-a.days);   // chase order: longest out first
   const note='<div style="margin:8px 12px;padding:9px 12px;background:rgba(41,121,255,.08);border:1px solid var(--blue);border-radius:9px;font-size:12px;color:var(--blue);font-weight:600">\u21a9 Sent out on a returnable basis \u2014 still to come back.</div>';
-  return note+'<div style="padding:4px 12px">'+rows.map(m=>{
-    const old=m.days>=60;
-    const ico=m.kind==='customer'?'\ud83d\udc64':'\ud83d\udccd';
+  // V102.53: one collapsible group per holder (person or site, as now shown) and sending store — closed by default.
+  const groups={}, order=[];
+  rows.forEach(m=>{
     const moved=m.nowAt && m.nowAt!==m.who;
-    const trail=moved?('<div style="font-size:10px;color:var(--muted);margin-top:3px">'+_esc(m.who)+(m.hops||[]).map(h=>' \u2192 '+_esc(h.who)).join('')+'</div>'):'';
-    const part=(m.backQ>0||m.wroteOff>0)?('<div style="font-size:11px;color:var(--muted);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">sent '+m.sentQ.toLocaleString('en-IN')
-        +(m.backQ>0?(' \u00b7 '+m.backQ.toLocaleString('en-IN')+' returned'):'')
-        +(m.wroteOff>0?(' \u00b7 '+m.wroteOff.toLocaleString('en-IN')+' written off'):'')+'</div>'):'';
-    return `
-    <div style="background:var(--bg2);border:1px solid ${old?'var(--amber)':'var(--blue)'};border-radius:9px;padding:10px 12px;margin-bottom:8px">
-      <div style="display:flex;justify-content:space-between;gap:8px">
+    const who=moved?m.nowAt:m.who, kind=moved?(m.nowKind||m.kind):m.kind;
+    const gk=kind+'|'+who+'|'+m.projectId;
+    if(!groups[gk]){ groups[gk]={k:gk, who, kind, moved:false, projectId:m.projectId, rows:[], days:0}; order.push(gk); }
+    const g=groups[gk]; g.rows.push(m); g.days=Math.max(g.days, m.days); if(moved) g.moved=true;
+  });
+  const _open=window._retOpen=window._retOpen||{};
+  const allLoc=!(_storesProjectId||_storesProjFilter);
+  return note+'<div style="padding:4px 12px">'+order.map((gk,gi)=>{
+    const g=groups[gk], old=g.days>=60, isOpen=!!_storesSearch || !!_open[gk];
+    const ico=g.kind==='customer'?'\ud83d\udc64':'\ud83d\udccd';
+    const n=g.rows.length;
+    const notes=[];
+    const lines=g.rows.map(m=>{
+      const moved=m.nowAt && m.nowAt!==m.who;
+      const trail=moved?('<div style="font-size:10px;color:var(--muted);margin-top:2px">'+_esc(m.who)+(m.hops||[]).map(h=>' \u2192 '+_esc(h.who)).join('')+'</div>'):'';
+      const part=(m.backQ>0||m.wroteOff>0)?('<div style="font-size:10px;color:var(--muted);margin-top:2px">sent '+m.sentQ.toLocaleString('en-IN')
+          +(m.backQ>0?(' \u00b7 '+m.backQ.toLocaleString('en-IN')+' returned'):'')
+          +(m.wroteOff>0?(' \u00b7 '+m.wroteOff.toLocaleString('en-IN')+' written off'):'')+'</div>'):'';
+      if(m.kind==='site' && m.toSiteId && !_isPlantLoc(m.toSiteId) && _srcSiteKeepsStore(m.toSiteId)){ const nm=m.nowAt||m.who; if(!notes.includes(nm)) notes.push(nm); }
+      const mOld=m.days>=60;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-top:1px solid var(--border)">
         <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:700">${_esc(m.name)}</div>
-          <div style="font-size:12px;margin-top:3px">${ico} ${_esc(moved?m.nowAt:m.who)}<span style="color:var(--muted)"> \u00b7 ${moved?'now at':(m.kind==='customer'?'customer':'site')}</span></div>
-          ${trail}
-          <div style="font-size:11px;margin-top:3px;${old?'color:var(--amber);font-weight:700':'color:var(--muted)'}">out ${m.days} day${m.days===1?'':'s'} \u00b7 since ${_esc(_retDMY(m.firstDate))}</div>
-          ${!(_storesProjectId||_storesProjFilter)?`<div style="font-size:11px;color:var(--amber);margin-top:2px">${_esc(_storeProjName(m.projectId))}</div>`:''}
+          <div style="font-size:13px;font-weight:700">${_esc(m.name)}</div>
+          <div style="font-size:11px;${mOld?'color:var(--amber);font-weight:700':'color:var(--muted)'}">out ${m.days} day${m.days===1?'':'s'} \u00b7 since ${_esc(_retDMY(m.firstDate))}</div>${trail}${part}
+        </div>
+        <div style="text-align:right;flex-shrink:0;font-size:15px;font-weight:800;color:var(--blue)">${m.outstanding.toLocaleString('en-IN')} <span style="font-size:10px;color:var(--muted)">${_esc(m.unit)}</span></div>
+        ${m.kind==='customer'?`<button onclick="_retReceive('${_esc(m.projectId)}','${_esc(m.customerId)}','${_esc(m.materialId)}')" style="flex-shrink:0;height:36px;padding:0 10px;border:none;border-radius:8px;background:var(--blue);color:#fff;font-size:12px;font-weight:800;cursor:pointer">\u21a9 Receive</button>`:''}
+      </div>`;
+    }).join('');
+    const noteHTML=notes.map(nm=>`<div style="margin-top:8px;font-size:11px;color:var(--muted);background:var(--bg3);border-radius:8px;padding:8px 10px;line-height:1.5">${_esc(nm)} keeps its own store \u2014 record the return <b style="color:var(--amber)">there</b>: Outward \u2192 \ud83d\udd01 Transfer \u2192 ${_esc(_storeProjName(g.projectId))}. These rows update on their own.</div>`).join('');
+    return `
+    <div style="background:var(--bg2);border:1px solid ${old?'var(--amber)':'var(--blue)'};border-radius:9px;margin-bottom:8px">
+      <div onclick="_retToggle(${gi})" data-rk="${_esc(gk)}" id="ret-g-${gi}" style="display:flex;align-items:center;gap:8px;padding:11px 12px;cursor:pointer">
+        <span id="ret-a-${gi}" style="font-size:12px;color:var(--muted);width:12px">${isOpen?'\u25be':'\u25b8'}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:700">${ico} ${_esc(g.who)}${g.moved?'<span style="font-size:11px;color:var(--muted);font-weight:600"> \u00b7 now at</span>':''}</div>
+          ${allLoc?`<div style="font-size:11px;color:var(--amber);margin-top:2px">from ${_esc(_storeProjName(g.projectId))}</div>`:''}
         </div>
         <div style="text-align:right;flex-shrink:0">
-          <div style="font-size:16px;font-weight:800;color:var(--blue)">${m.outstanding.toLocaleString('en-IN')} <span style="font-size:11px;color:var(--muted)">${_esc(m.unit)}</span></div>
-          <div style="font-size:10px;color:var(--muted)">to return</div>
+          <div style="font-size:13px;font-weight:800;color:var(--blue)">${n} item${n===1?'':'s'}</div>
+          <div style="font-size:11px;${old?'color:var(--amber);font-weight:700':'color:var(--muted)'}">oldest ${g.days} day${g.days===1?'':'s'}</div>
         </div>
       </div>
-      ${part}
-      ${m.kind==='customer'
-        ? `<button onclick="_retReceive('${_esc(m.projectId)}','${_esc(m.customerId)}','${_esc(m.materialId)}')" style="margin-top:10px;width:100%;height:42px;border:none;border-radius:10px;background:var(--blue);color:#fff;font-family:var(--fh);font-size:14px;cursor:pointer">\u21a9 RECEIVE RETURN</button>`
-        : (m.kind==='site' && m.toSiteId && !_isPlantLoc(m.toSiteId) && _srcSiteKeepsStore(m.toSiteId))
-          ? `<div style="margin-top:10px;font-size:11px;color:var(--muted);background:var(--bg3);border-radius:8px;padding:8px 10px;line-height:1.5">${_esc(m.nowAt||m.who)} keeps its own store \u2014 record the return <b style="color:var(--amber)">there</b>: Outward \u2192 \ud83d\udd01 Transfer \u2192 ${_esc(_storeProjName(m.projectId))}. This row updates on its own.</div>`
-          : ''}
+      <div id="ret-b-${gi}" style="padding:0 12px 10px;${isOpen?'':'display:none'}">${lines}${noteHTML}</div>
     </div>`;
   }).join('')+'</div>';
 }
@@ -20069,6 +20115,7 @@ function _grnFormHTML(pid){
       </div>
       <div id="store-conv-hint" style="font-size:11px;color:var(--blue);margin:-2px 0 8px;display:none"></div>
       <div id="grn-serial-wrap" style="display:none"></div>
+      <div class="f-field" style="margin-bottom:8px"><label class="f-lbl">Remark <span style="color:var(--muted);font-weight:600">(optional)</span></label><input class="f-inp" id="store-remark" maxlength="200" autocomplete="off" placeholder="e.g. Bowser 5T-1"></div>
       <div id="store-rate-wrap" class="f-field" style="margin-bottom:8px">
         <label class="f-lbl">Rate ₹ <span style="color:var(--muted);font-weight:600">(per unit — optional)</span></label>
         <div style="display:flex;align-items:center;gap:8px">
@@ -20187,7 +20234,8 @@ function _grnReadEditor(){
   return { line:{ matId, matName:mat.name, entryQty, entryUnit, rate, gstPct, damagedQty, shortQty, woNote,
                   ...(_sn&&_sn.length?{serials:_sn}:{}), ...(_wm>0?{warrantyMonths:_wm}:{}),   // V102.27
                   returnable:!!(document.getElementById('store-returnable')||{}).checked,
-                  ...(_miscDesc?{miscDesc:_miscDesc}:{}) } };   // V102.25
+                  ...(_miscDesc?{miscDesc:_miscDesc}:{}),   // V102.25
+                  ...(_storeRemark()?{remark:_storeRemark()}:{}) } };   // V102.54
 }
 function _grnAddLine(){
   const r=_grnReadEditor();
@@ -20204,7 +20252,7 @@ function _grnResetEditor(){
   set('store-mat-txt',''); set('store-mat-id',''); set('store-qty',''); set('store-rate','');
   const u=document.getElementById('store-unit'); if(u){ u.innerHTML='<option value="">— select —</option>'+STORE_UNITS.map(x=>`<option value="${x}">${x}</option>`).join(''); u.value=''; }
   const rt=document.getElementById('store-returnable'); if(rt) rt.checked=false;
-  ['store-damaged','store-short','store-wonote'].forEach(id=>{const e=document.getElementById(id); if(e) e.value='';});  // V101
+  ['store-damaged','store-short','store-wonote','store-remark'].forEach(id=>{const e=document.getElementById(id); if(e) e.value='';});  // V101 · V102.54 remark
   { const _md=document.getElementById('grn-misc-desc'); if(_md) _md.value=''; _grnMiscToggle(); }   // V102.25
   // V100.1: deliberately NOT cleared — the last GST picked stays selected so a single-material
   // invoice needs one pick for the whole bill. Reset to 0 only when a new GRN starts.
@@ -20227,6 +20275,7 @@ function _grnRenderLines(){
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:700;color:var(--white)">${_esc(L.matName)}${L.returnable?' <span style="font-size:9px;color:var(--blue);border:1px solid var(--blue);border-radius:4px;padding:0 5px">RET</span>':''}</div>
           ${L.miscDesc?`<div style="font-size:11px;color:var(--amber)">${_esc(L.miscDesc)}</div>`:''}
+          ${L.remark?`<div style="font-size:11px;color:var(--muted)">\ud83d\udcdd ${_esc(L.remark)}</div>`:''}
           ${(L.serials&&L.serials.length)?`<div style="font-size:11px;color:var(--green)">🔢 ${L.serials.map(_esc).join(', ')}${L.warrantyMonths?(' · warranty '+L.warrantyMonths+' months'):''}</div>`:''}
           <div style="font-size:11px;color:var(--muted)">${L.entryQty} ${_esc(L.entryUnit)}${srcType!=='external'?' came back good':''}${L.rate?(' · ₹'+L.rate+(amt?(' = ₹'+amt.toLocaleString('en-IN')):'')):''}</div>
           ${_retLossText({damagedQty:L.damagedQty,shortQty:L.shortQty,unit:L.entryUnit,writeOffNote:L.woNote})?`<div style="font-size:11px;color:var(--red)">${_esc(_retLossText({damagedQty:L.damagedQty,shortQty:L.shortQty,unit:L.entryUnit,writeOffNote:L.woNote}))}</div>`:''}
@@ -20408,7 +20457,7 @@ async function saveGRN(){
     const recId=uid();
     const rec={ id:recId, projectId:pid, siteId:locSiteId, materialId:L.matId, materialName:mat.name,
       qty:conv.qty, unit:conv.unit, entryQty:L.entryQty, entryUnit:L.entryUnit, baseUnit:conv.baseUnit,
-      date:dateVal, note:(L.miscDesc||''), invoiceNo:invNo, invoiceId:invId, sourceType:srcType, returnable:!!L.returnable,
+      date:dateVal, note:[L.miscDesc||'', L.remark||''].filter(Boolean).join(' \u00b7 '), invoiceNo:invNo, invoiceId:invId, sourceType:srcType, returnable:!!L.returnable,   // V102.54: + remark
       loggedBy:(sess&&sess.userId)||'', loggedByName:(sess&&sess.name)||'', ts:Date.now() };
     // V101: damaged / short close the returnable balance but add NO stock — qty above already
     // carries only what physically came back in usable condition.
@@ -20563,6 +20612,7 @@ function _minFormHTML(pid){
       </div>
       <div id="store-conv-hint" style="font-size:11px;color:var(--blue);margin:-2px 0 8px;display:none"></div>
       <div id="min-serial-wrap" style="display:none"></div>
+      <div class="f-field" style="margin-bottom:8px"><label class="f-lbl">Remark <span style="color:var(--muted);font-weight:600">(optional)</span></label><input class="f-inp" id="store-remark" maxlength="200" autocomplete="off" placeholder="e.g. Bowser 5T-1"></div>
       <button class="big-btn bb-go bb-full" style="height:44px;font-size:14px" onclick="_minAddLine()">➕ ADD TO ISSUE</button>
     </div>
     <button class="big-btn bb-amber bb-full" id="min-save-btn" style="height:52px;font-size:16px" onclick="saveMIN()">💾 SAVE ISSUE</button>
@@ -20625,14 +20675,16 @@ function _minReadEditor(){
       if((materialOutward||[]).some(r=>r.materialId===mat.id && r.outReason!=='transfer' && Array.isArray(r.serials) && r.serials.includes(t)))
         return {err:'Serial '+t+' has already been issued.', stopErr:true};
     }
-    return { line:{ matId, matName:mat.name, entryQty:sn.length, entryUnit:(mat.baseUnit||'Nos'), serials:sn } };
+    return { line:{ matId, matName:mat.name, entryQty:sn.length, entryUnit:(mat.baseUnit||'Nos'), serials:sn, ...(_storeRemark()?{remark:_storeRemark()}:{}) } };
   }
   const entryQty=parseFloat((document.getElementById('store-qty')||{}).value)||0;
   if(entryQty<=0) return {err:'Enter a quantity greater than 0 for '+mat.name+'.'};
   const entryUnit=((document.getElementById('store-unit')||{}).value||'').trim();
   if(!entryUnit || !STORE_UNITS.includes(entryUnit)) return {err:'Pick a unit for '+mat.name+'.'};
-  return { line:{ matId, matName:mat.name, entryQty, entryUnit } };
+  return { line:{ matId, matName:mat.name, entryQty, entryUnit, ...(_storeRemark()?{remark:_storeRemark()}:{}) } };
 }
+// V102.54: the optional remark typed under the quantity (new Inward bill / new Material out line editors)
+function _storeRemark(){ return String(((document.getElementById('store-remark')||{}).value)||'').trim().slice(0,200); }
 function _minAddLine(){
   const r=_minReadEditor(); if(r.err){ alert(r.err); return; }
   window._minLines=window._minLines||[]; window._minLines.push(r.line);
@@ -20641,7 +20693,7 @@ function _minAddLine(){
 function _minResetEditor(){
   _storesMatId='';
   const set=(id,v)=>{const e=document.getElementById(id); if(e) e.value=v;};
-  set('store-mat-txt',''); set('store-mat-id',''); set('store-qty','');
+  set('store-mat-txt',''); set('store-mat-id',''); set('store-qty',''); set('store-remark','');   // V102.54
   const u=document.getElementById('store-unit'); if(u){ u.innerHTML='<option value="">— select —</option>'+STORE_UNITS.map(x=>`<option value="${x}">${x}</option>`).join(''); u.value=''; }
   const hint=document.getElementById('store-conv-hint'); if(hint) hint.style.display='none';
   const mt=document.getElementById('store-mat-txt'); if(mt) mt.focus();
@@ -20664,7 +20716,7 @@ function _minRenderLines(){
       const val=(Number(conv.qty)||0)*(Number(cost)||0); totVal+=val;
       const costLine=cost>0?('last buy ≈ '+fmtINR(cost)+'/'+_esc(conv.unit||L.entryUnit)+(val>0?(' = '+fmtINR(val)):'')):'no purchase history';
       return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:9px 11px;margin-bottom:6px">
-        <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700;color:var(--white)">${_esc(L.matName)}</div><div style="font-size:11px;color:var(--muted)">${L.entryQty} ${_esc(L.entryUnit)} · ${costLine}</div>${(L.serials&&L.serials.length)?`<div style="font-size:11px;color:var(--green)">🔢 ${L.serials.map(_esc).join(', ')}</div>`:''}</div>
+        <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700;color:var(--white)">${_esc(L.matName)}</div><div style="font-size:11px;color:var(--muted)">${L.entryQty} ${_esc(L.entryUnit)} · ${costLine}</div>${L.remark?`<div style="font-size:11px;color:var(--muted)">\ud83d\udcdd ${_esc(L.remark)}</div>`:''}${(L.serials&&L.serials.length)?`<div style="font-size:11px;color:var(--green)">🔢 ${L.serials.map(_esc).join(', ')}</div>`:''}</div>
         <div onclick="_minRemoveLine(${i})" style="color:var(--red);font-size:18px;cursor:pointer;padding:0 4px">✕</div>
       </div>`;
     }).join('');
@@ -20768,7 +20820,7 @@ async function saveMIN(){
     const recId=uid();
     const rec={ id:recId, projectId:pid, siteId:locSiteId, materialId:L.matId, materialName:mat.name,
       qty:conv.qty, unit:conv.unit, entryQty:L.entryQty, entryUnit:L.entryUnit, baseUnit:conv.baseUnit,
-      date:dateVal, note:'', outReason:mode, minId:_minId,
+      date:dateVal, note:(L.remark||''), outReason:mode, minId:_minId,   // V102.54: the line's remark
       loggedBy:(sess&&sess.userId)||'', loggedByName:(sess&&sess.name)||'', ts:Date.now() };
     if(mode==='transfer'){ rec.toSiteId=toSiteId; rec.boqItemId=''; rec.boqDesc=''; }
     else if(mode==='machine'){ rec.toSiteId=''; rec.boqItemId=''; rec.boqDesc=''; rec.machineId=machineId; rec.machineName=machineName; }
@@ -20792,7 +20844,7 @@ async function saveMIN(){
           type:'inward', sourceType:'internal', fromSiteId:rec.siteId||'', vendorId:'',
           source:'site-transfer', sourceNote:(_storeProjName?_storeProjName(pid):'')+' (transfer)',
           returnable:false, date:rec.date, srcId:recId,
-          note:'Auto: transfer in from '+(_storeProjName?_storeProjName(pid):'site'),
+          note:'Auto: transfer in from '+(_storeProjName?_storeProjName(pid):'site')+(rec.note?(' \u00b7 '+rec.note):''),   // V102.54
           enteredBy:(sess&&sess.userId)||'', enteredByName:(sess&&sess.name)||'', ts:Date.now() };
         if(Array.isArray(rec.serials) && rec.serials.length) inRec.serials=rec.serials.slice();   // V102.27: serials travel with the transfer
         materialInward.push(inRec);
@@ -23161,7 +23213,7 @@ async function saveStoresRecord(){
         type:'inward', sourceType:'internal', fromSiteId:fromSiteId, vendorId:'',
         source:'site-transfer', sourceNote:(_storeProjName? _storeProjName(rec.projectId):'')+' (transfer)',
         returnable:!!rec.returnable, date:rec.date, srcId:rec.id,
-        note:'Auto: transfer in from '+( _storeProjName?_storeProjName(rec.projectId):'site'),
+        note:'Auto: transfer in from '+( _storeProjName?_storeProjName(rec.projectId):'site')+(rec.note?(' \u00b7 '+rec.note):''),   // V102.54
         enteredBy:(sess&&sess.userId)||'', enteredByName:(sess&&sess.name)||'', ts:(exIn?exIn.ts:Date.now()) };
       if(Array.isArray(rec.serials) && rec.serials.length) inRec.serials=rec.serials.slice();   // V102.27: keep serials on the receiving side
       const ii=materialInward.findIndex(r=>r.id===destInId);
@@ -23406,11 +23458,17 @@ function _dprLogReadingDefaults(v,dpr,mode){
   }
   // Fuel filled today isn't part of Log Reading — it's dispensed fuel, summed the same way the
   // Log Reading history view already does (openReadingEntry's _hFuelByDate convention).
-  const filled=[...(disbs||[]).filter(d=>d.vehicleId===v.id && d.date===dpr.date && d.source!=='dpr'),   // V102.23: old DPR-made entries never count
-                ...(pumpFills||[]).filter(d=>d.vehicleId===v.id && d.date===dpr.date)]
-    .reduce((s,d)=>s+(Number(d.litres)||0),0);
-  if(filled>0){ out.fuelFilled=Math.round(filled*100)/100; out._prefilled=true; }
+  const filled=_dprFuelLive(v.id, dpr.date);
+  if(filled>0){ out.fuelFilled=filled; out._prefilled=true; }
   return out;
+}
+// V102.53: fuel actually given to this machine on this date (fuel entries + pump fills) — the same sum the
+// prefill always used. The DPR now READS this live, so fuel entered after the DPR was saved still shows.
+function _dprFuelLive(vid, date){
+  const t=[...(disbs||[]).filter(d=>d && d.vehicleId===vid && d.date===date && d.source!=='dpr' && !d.deleted),   // V102.23: old DPR-made entries never count
+           ...(pumpFills||[]).filter(d=>d && d.vehicleId===vid && d.date===date && !d.deleted)]
+    .reduce((s,d)=>s+(Number(d.litres)||0),0);
+  return Math.round(t*100)/100;
 }
 // ---- Step 1: Machinery ----
 // V99.90: who may type the ₹/hr machinery rate on the DPR Machinery step.
@@ -23465,8 +23523,11 @@ function renderDPRMachinery(body){
   machines.map(v=>{
     const mode=_machMode(v);
     const saved=_dprMach[v.id];
-    const m=saved||_dprLogReadingDefaults(v,dpr,mode);
-    const fromLog=!saved && m._prefilled;
+    const m0=saved||_dprLogReadingDefaults(v,dpr,mode);
+    const fromLog=!saved && m0._prefilled;
+    // V102.53: hour machines — fuel filled follows the fuel entries for this date (read live)
+    const _fl=(mode==='hr')?_dprFuelLive(v.id, dpr.date):0;
+    const m=(_fl>0)?Object.assign({}, m0, {fuelFilled:_fl}):m0;
     const movedAway=v.siteId!==dpr.siteId;
     return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:8px">
       <div style="font-size:14px;font-weight:700;margin-bottom:2px">${_esc(v.name)}</div>
@@ -23483,7 +23544,7 @@ function renderDPRMachinery(body){
         <div style="flex:1"><label style="font-size:11px;color:var(--muted)">Open fuel (L)</label>
           <input class="f-inp" id="m-of-${v.id}" type="number" inputmode="decimal" value="${m.openFuel??''}" style="padding:7px 8px"></div>
         <div style="flex:1"><label style="font-size:11px;color:var(--muted)">Fuel filled (L)</label>
-          <input class="f-inp" id="m-ff-${v.id}" type="number" inputmode="decimal" value="${m.fuelFilled??''}" style="padding:7px 8px"></div>
+          <input class="f-inp" id="m-ff-${v.id}" type="number" inputmode="decimal" value="${m.fuelFilled??''}" style="padding:7px 8px"${_fl>0?' readonly title="From fuel entries"':''}>${_fl>0?'<div style="font-size:9px;color:var(--green);margin-top:2px">\u26fd from fuel entries</div>':''}</div>
         <div style="flex:1"><label style="font-size:11px;color:var(--muted)">Close fuel (L)</label>
           <input class="f-inp" id="m-cf-${v.id}" type="number" inputmode="decimal" value="${m.closeFuel??''}" style="padding:7px 8px"></div>
       </div>
@@ -26202,7 +26263,7 @@ const FB_KEY = 'AIzaSyB44pKu7YTc-Q_6GLC3mlaEBPJm3d3odPc';
 // V102.18 SECURITY STEP 4: the shared master account (and its password) was REMOVED from the app.
 // Each device signs in with its own account (see 'Set up this device'). Old master sign-in passes are wiped below.
 try{ localStorage.removeItem('fb_auth'); localStorage.removeItem('fb_refresh'); }catch(e){}
-const APP_VERSION = 'V102.52'; // bump this on every deploy
+const APP_VERSION = 'V102.55'; // bump this on every deploy
 
 // All keys we sync to Firebase
 const FB_KEYS = ['users','fleet','disbs','readings','purchases','pumps','pumpFills','sites','drivers','musters','checklistTemplates','checklistRecords','trips','customers','materials','staff','staffMusters','pumpPayments','projects','boqItems','workEntries','subcontractors','subContracts','dailyReports','gangs','dailyLabour','royalty','materialInward','materialOutward','vendors','vendorTxns','paverLabour','gangLedger','rmcProd','siteWatch','machineRates'];
